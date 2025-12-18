@@ -1,0 +1,34 @@
+class StokMasukModel {
+  final String id;
+  final String kode_bahan;
+  final String tanggal_masuk;
+  final String qty_pembelian;
+  final String total_qty;
+  final String harga_satuan;
+  final String total_harga;
+  final String vendor_id;
+
+  StokMasukModel({
+    required this.id,
+    required this.kode_bahan,
+    required this.tanggal_masuk,
+    required this.qty_pembelian,
+    required this.total_qty,
+    required this.harga_satuan,
+    required this.total_harga,
+    required this.vendor_id
+  });
+
+  factory StokMasukModel.fromJson(Map data) {
+    return StokMasukModel(
+        id: data['_id'],
+        kode_bahan: data['kode_bahan'],
+        tanggal_masuk: data['tanggal_masuk'],
+        qty_pembelian: data['qty_pembelian'],
+        total_qty: data['total_qty'],
+        harga_satuan: data['harga_satuan'],
+        total_harga: data['total_harga'],
+        vendor_id: data['vendor_id']
+    );
+  }
+}

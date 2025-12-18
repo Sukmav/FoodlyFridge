@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "382668842484",
+    "project_id": "foodlyfridge",
+    "storage_bucket": "foodlyfridge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:382668842484:android:1f70ffd4ebd1d94f4685a1",
+        "android_client_info": {
+          "package_name": "com.example.foodlyfridge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUbY0NXxcxfe-_WFr3HGiYxlEmHO2_HU8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
