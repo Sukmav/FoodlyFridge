@@ -141,21 +141,16 @@ class _StokMasukPageState extends State<StokMasukPage> {
       String totalHarga = _calculateTotalHarga();
 
       // Insert data ke database
-      final result = await _dataService.insert(
+      final result = await _dataService.insertStokMasuk(
         appid,
-        {
-          'kode_bahan': _selectedBahanBaku!.id,
-          'tanggal_masuk': tanggalMasukStr,
-          'qty_pembelian': _qtyPembelianController.text,
-          'total_qty': totalQty,
-          'harga_satuan': _hargaSatuanController.text,
-          'total_harga': totalHarga,
-          'vendor_id': _selectedVendor!.id,
-          'catatan': _catatanController.text,
-        },
-        token,
-        project,
-        'stok_masuk',
+        _selectedBahanBaku!.id,
+        tanggalMasukStr,
+        _qtyPembelianController.text,
+        totalQty,
+        _hargaSatuanController.text,
+        totalHarga,
+        _selectedVendor!.id,
+        _catatanController.text,
       );
 
       print('Result insert stok masuk: $result');

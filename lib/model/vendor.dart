@@ -19,13 +19,13 @@ class VendorModel {
 
   factory VendorModel.fromJson(Map data) {
     return VendorModel(
-        id: data['_id'],
-        nama_vendor: data['nama_vendor'],
-        nama_pic: data['nama_pic'],
-        nomor_tlp: data['nomor_tlp'],
-        alamat: data['alamat'],
-        bahan_baku: data['bahan_baku'],
-        catatan: data['catatan']
+        id: data['_id'] ?? '',
+        nama_vendor: data['nama_vendor'] ?? '',
+        nama_pic: data['nama_pic'] ?? '',
+        nomor_tlp: data['nomor_tlp'] ?? '',
+        alamat: data['alamat'] ?? '',
+        bahan_baku: data['bahan_baku'] ?? '',
+        catatan: data['catatan'] ?? ''
     );
   }
 }

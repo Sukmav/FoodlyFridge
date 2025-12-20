@@ -50,7 +50,7 @@ class _VendorPageState extends State<VendorPage> {
       final response = await _dataService.selectAll(
         token,
         project,
-        '',
+        'vendor',
         appid,
       );
 
@@ -404,7 +404,7 @@ class _VendorPageState extends State<VendorPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Vendor'),
+        title: const Text(''),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,

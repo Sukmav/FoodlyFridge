@@ -199,7 +199,7 @@ class DataService {
     }
   }
 
-  Future insertStokMasuk(String appid, String kode_bahan, String tanggal_masuk, String qty_pembelian, String total_qty, String harga_satuan, String total_harga, String vendor_id) async {
+  Future insertStokMasuk(String appid, String kode_bahan, String tanggal_masuk, String qty_pembelian, String total_qty, String harga_satuan, String total_harga, String vendor_id, String catatan) async {
     String uri = 'https://api.247go.app/v5/insert/';
 
     try {
@@ -214,7 +214,8 @@ class DataService {
         'total_qty': total_qty,
         'harga_satuan': harga_satuan,
         'total_harga': total_harga,
-        'vendor_id': vendor_id
+        'vendor_id': vendor_id,
+        'catatan': catatan
       });
 
       if (response.statusCode == 200) {
