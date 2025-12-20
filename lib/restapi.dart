@@ -38,7 +38,23 @@ class DataService {
     }
   }
 
-  Future insertBahanBaku(String appid, String foto_bahan, String nama_bahan, String unit, String gross_qty, String harga_per_gross, String harga_per_unit, String stok_tersedia, String estimasi_umur, String tanggal_masuk, String tanggal_kadaluarsa, String kategori, String tempat_penyimpanan, String catatan) async {
+  Future insertBahanBaku(
+    String appid,
+    String nama_bahan,
+    String unit,
+    String harga_per_gross,
+    String harga_per_unit,
+    String stok_tersedia,
+    String stok_minimal,
+    String estimasi_umur,
+    String tanggal_masuk,
+    String tanggal_kadaluarsa,
+    String kategori,
+    String tempat_penyimpanan,
+    String gross_qty,
+    String catatan,
+    String foto_bahan
+  ) async {
     String uri = 'https://api.247go.app/v5/insert/';
 
     try {
@@ -54,6 +70,7 @@ class DataService {
         'harga_per_gross': harga_per_gross,
         'harga_per_unit': harga_per_unit,
         'stok_tersedia': stok_tersedia,
+        'stok_minimal': stok_minimal,
         'estimasi_umur': estimasi_umur,
         'tanggal_masuk': tanggal_masuk,
         'tanggal_kadaluarsa': tanggal_kadaluarsa,

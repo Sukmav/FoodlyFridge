@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter/foundation.dart';
 import 'kedai_page.dart';
+import '../helpers/kedai_service.dart';
+
 
 class PengaturanPage extends StatefulWidget {
-  const PengaturanPage({super.key});
+  final String userId;
+
+  const PengaturanPage({super.key, required this.userId});
 
   @override
   State<PengaturanPage> createState() => _PengaturanPageState();
@@ -13,6 +18,7 @@ class PengaturanPage extends StatefulWidget {
 
 class _PengaturanPageState extends State<PengaturanPage> {
   final Color _primaryColor = const Color(0xFF7A9B3B);
+  final KedaiService _kedaiService = KedaiService();
 
   void _navigateToProfile() {
     // TODO: Navigate to Profile page
@@ -22,12 +28,60 @@ class _PengaturanPageState extends State<PengaturanPage> {
     );
   }
 
-  void _navigateToKedai() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const KedaiPage()),
-    );
+  void _navigateToKedai() async {
+    // Cek apakah user sudah punya data kedai
+    try {
+      final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+
+      if (kedai != null) {
+        // Jika sudah ada data, navigasi ke KedaiPage (akan load data otomatis)
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => KedaiPage(userId: widget.userId),
+          ),
+        );
+
+        // Jika ada perubahan data dari edit
+        if (result == true && mounted) {
+          if (kDebugMode) {
+            print('Data kedai berhasil diupdate dari Pengaturan');
+          }
+          Fluttertoast.showToast(
+            msg: "Data kedai berhasil diperbarui",
+            backgroundColor: Colors.green,
+          );
+        }
+      } else {
+        // Jika belum ada data kedai, navigasi ke form kedai
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => KedaiPage(userId: widget.userId),
+          ),
+        );
+
+        if (result == true && mounted) {
+          if (kDebugMode) {
+            print('Data kedai berhasil dibuat dari Pengaturan');
+          }
+          Fluttertoast.showToast(
+            msg: "Data kedai berhasil disimpan",
+            backgroundColor: Colors.green,
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error navigating to kedai: $e');
+      }
+      Fluttertoast.showToast(
+        msg: "Terjadi kesalahan: ${e.toString()}",
+        backgroundColor: Colors.red,
+      );
+    }
   }
+
 
   void _navigateToChangePassword() {
     // TODO: Navigate to Change Password page

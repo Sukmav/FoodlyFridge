@@ -1,14 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import '../restapi.dart';
 import '../config.dart';
 import '../model/bahan_baku_model.dart';
 import '../helpers/image_helper.dart';
-import 'package:intl/intl.dart';
 
 class BahanBakuPage extends StatefulWidget {
   const BahanBakuPage({super.key});
@@ -136,568 +135,556 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     });
   }
 
-  // Helper untuk menghitung tanggal kadaluarsa
-  String _calculateExpiryDate(String tanggalMasuk, String estimasiUmur) {
-    try {
-      if (tanggalMasuk.isEmpty || estimasiUmur.isEmpty) return '';
-
-      final masuk = DateFormat('yyyy-MM-dd').parse(tanggalMasuk);
-      final hari = int.tryParse(estimasiUmur) ?? 0;
-
-      if (hari <= 0) return '';
-
-      final kadaluarsa = masuk.add(Duration(days: hari));
-      return DateFormat('yyyy-MM-dd').format(kadaluarsa);
-    } catch (e) {
-      print('Error calculating expiry: $e');
-      return '';
-    }
-  }
-
   void _showAddEditDialog({BahanBakuModel? bahanBaku}) {
     final bool isEdit = bahanBaku != null;
 
-    final TextEditingController namaBahanController = TextEditingController(text: bahanBaku?.nama_bahan ?? '');
-    final TextEditingController unitController = TextEditingController(text: bahanBaku?.unit ?? '');
-    final TextEditingController grossQtyController = TextEditingController(text: bahanBaku?.gross_qty ?? '');
-    final TextEditingController hargaPerGrossController = TextEditingController(text: bahanBaku?.harga_per_gross ?? '');
-    final TextEditingController hargaPerUnitController = TextEditingController(text: bahanBaku?.harga_per_unit ?? '');
+    final TextEditingController namaController = TextEditingController(text: bahanBaku?.nama_bahan ?? '');
+    String selectedUnit = bahanBaku?.unit ?? 'kg';
+    final TextEditingController hargaGrossController = TextEditingController(text: bahanBaku?.harga_per_gross ?? '');
+    final TextEditingController hargaUnitController = TextEditingController(text: bahanBaku?.harga_per_unit ?? '');
     final TextEditingController stokTersediaController = TextEditingController(text: bahanBaku?.stok_tersedia ?? '');
+    String stokMinimal = bahanBaku?.stok_minimal ?? '5';
     final TextEditingController estimasiUmurController = TextEditingController(text: bahanBaku?.estimasi_umur ?? '');
-    final TextEditingController kategoriController = TextEditingController(text: bahanBaku?.kategori ?? '');
-    final TextEditingController tempatPenyimpananController = TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
-    final TextEditingController catatanController = TextEditingController(text: bahanBaku?.catatan ?? '');
-
-    // Untuk tanggal, gunakan DateTime dan tampilkan di TextField
-    DateTime? selectedTanggalMasuk = bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
+    DateTime? tanggalMasuk = bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_masuk)
         : null;
-
-    final TextEditingController tanggalMasukController = TextEditingController(
-      text: selectedTanggalMasuk != null
-          ? DateFormat('yyyy-MM-dd').format(selectedTanggalMasuk)
-          : ''
-    );
-
-    // Tanggal kadaluarsa akan dihitung otomatis
-    final TextEditingController tanggalKadaluarsaController = TextEditingController(
-      text: bahanBaku?.tanggal_kadaluarsa ?? ''
-    );
+    DateTime? tanggalKadaluarsa = bahanBaku?.tanggal_kadaluarsa != null && bahanBaku!.tanggal_kadaluarsa.isNotEmpty
+        ? DateTime.tryParse(bahanBaku.tanggal_kadaluarsa)
+        : null;
+    final TextEditingController kategoriController = TextEditingController(text: bahanBaku?.kategori ?? '');
+    final TextEditingController tempatPenyimpananController = TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
+    final TextEditingController grossQtyController = TextEditingController(text: bahanBaku?.gross_qty ?? '');
+    final TextEditingController catatanController = TextEditingController(text: bahanBaku?.catatan ?? '');
 
     // Variable untuk menyimpan gambar yang dipilih
     File? selectedImage;
     String? selectedImagePath = bahanBaku?.foto_bahan;
 
-    // Fungsi untuk update tanggal kadaluarsa otomatis
-    void updateTanggalKadaluarsa() {
-      final tanggalMasuk = tanggalMasukController.text;
-      final estimasi = estimasiUmurController.text;
-      final kadaluarsa = _calculateExpiryDate(tanggalMasuk, estimasi);
-      tanggalKadaluarsaController.text = kadaluarsa;
+    // Function untuk set stok minimal otomatis berdasarkan unit
+    String getStokMinimalByUnit(String unit) {
+      switch (unit) {
+        case 'kg':
+          return '5';
+        case 'gr':
+          return '1000';
+        case 'dus':
+          return '5';
+        default:
+          return '5';
+      }
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: SingleChildScrollView(
+    // Function untuk kalkulasi tanggal kadaluarsa
+    DateTime? calculateExpiryDate(DateTime? startDate, String estimasi) {
+      if (startDate == null || estimasi.isEmpty) return null;
+      try {
+        int days = int.parse(estimasi);
+        return startDate.add(Duration(days: days));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Set stok minimal default
+    stokMinimal = getStokMinimalByUnit(selectedUnit);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Scaffold(
+              backgroundColor: Colors.white,
+              appBar: AppBar(
+                title: Text(isEdit ? 'Edit Data' : 'Tambah Data'),
+                backgroundColor: Colors.green[700],
+                foregroundColor: Colors.white,
+              ),
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Widget untuk preview dan upload gambar
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          GestureDetector(
-                            onTap: () async {
-                              final imageFile = await ImageHelper.showImageSourceDialog(context);
-                              if (imageFile != null) {
-                                setDialogState(() {
-                                  selectedImage = imageFile;
-                                  if (kIsWeb) {
-                                    selectedImagePath = imageFile.path;
-                                  }
-                                });
+                    // Icon Upload Gambar
+                    Center(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final imageFile = await ImageHelper.showImageSourceDialog(context);
+                          if (imageFile != null) {
+                            setDialogState(() {
+                              selectedImage = imageFile;
+                              if (kIsWeb) {
+                                selectedImagePath = imageFile.path;
                               }
-                            },
-                            child: Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFB53929), width: 2),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: _buildImagePreview(selectedImage, selectedImagePath),
-                              ),
-                            ),
+                            });
+                          }
+                        },
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: Colors.green[700],
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFB53929),
-                                shape: BoxShape.circle,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (selectedImage != null || (selectedImagePath != null && selectedImagePath!.isNotEmpty))
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: _buildImagePreview(selectedImage, selectedImagePath),
+                                )
+                              else
+                                Icon(
+                                  Icons.camera_alt,
+                                  size: 50,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              Positioned(
+                                bottom: 10,
+                                right: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.add_circle,
+                                    color: Colors.green[700],
+                                    size: 24,
+                                  ),
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 20,
-                                color: Colors.white,
-                              ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        'Tap untuk memilih/mengambil gambar',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey,
-                          fontStyle: FontStyle.italic,
+                    const SizedBox(height: 30),
+
+                    // Informasi Utama Section
+                    _buildSectionTitle('Informasi Utama'),
+                    const SizedBox(height: 16),
+
+                    _buildTextField(namaController, 'Nama Bahan Baku'),
+                    const SizedBox(height: 16),
+
+                    // Unit Dropdown
+                    _buildDropdown(
+                      label: 'Unit',
+                      value: selectedUnit,
+                      items: ['kg', 'gr', 'dus'],
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setDialogState(() {
+                            selectedUnit = newValue;
+                            stokMinimal = getStokMinimalByUnit(newValue);
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildTextField(grossQtyController, 'Gross Qty', TextInputType.number),
+                    const SizedBox(height: 16),
+                    _buildTextField(hargaGrossController, 'Harga Per Gross Qty', TextInputType.number),
+                    const SizedBox(height: 16),
+                    _buildTextField(hargaUnitController, 'Harga Per Unit', TextInputType.number),
+                    const SizedBox(height: 30),
+
+                    // Stok Section
+                    _buildSectionTitle('Stok'),
+                    const SizedBox(height: 16),
+
+                    _buildTextField(stokTersediaController, 'Stok Tersedia', TextInputType.number),
+                    const SizedBox(height: 16),
+
+                    // Stok Minimal (Read-only, auto-calculated)
+                    _buildReadOnlyField('Stok Minimal', '$stokMinimal $selectedUnit'),
+                    const SizedBox(height: 30),
+
+                    // Kadaluarsa dan Penyimpanan Section
+                    _buildSectionTitle('Kadaluarsa dan Penyimpanan'),
+                    const SizedBox(height: 16),
+
+                    // Tanggal Masuk (Date Picker)
+                    InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: tanggalMasuk ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: ColorScheme.light(
+                                  primary: Colors.orange[700]!,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            tanggalMasuk = picked;
+                            tanggalKadaluarsa = calculateExpiryDate(picked, estimasiUmurController.text);
+                          });
+                        }
+                      },
+                      child: IgnorePointer(
+                        child: _buildTextField(
+                          TextEditingController(
+                            text: tanggalMasuk != null
+                                ? '${tanggalMasuk!.day.toString().padLeft(2, '0')}/${tanggalMasuk!.month.toString().padLeft(2, '0')}/${tanggalMasuk!.year}'
+                                : '',
+                          ),
+                          'Tanggal Masuk',
+                          null,
+                          Icons.calendar_today,
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Informasi Utama',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: const Color(0xFFB53929),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Divider(color: Color(0xFFB53929), thickness: 1),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(namaBahanController, 'Nama Bahan'),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(unitController, 'Unit/Satuan'),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(grossQtyController, 'Gross Quantity', TextInputType.number),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(hargaPerGrossController, 'Harga Per Gross', TextInputType.number),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(hargaPerUnitController, 'Harga Per Unit', TextInputType.number),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Stok',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: const Color(0xFFB53929),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Divider(color: Color(0xFFB53929), thickness: 1),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(stokTersediaController, 'Stok Tersedia', TextInputType.number),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Tanggal dan Penyimpanan',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: const Color(0xFFB53929),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Divider(color: Color(0xFFB53929), thickness: 1),
-                          const SizedBox(height: 16),
-                          // Tanggal Masuk dengan Date Picker
-                          InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedTanggalMasuk ?? DateTime.now(),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  selectedTanggalMasuk = picked;
-                                  tanggalMasukController.text = DateFormat('yyyy-MM-dd').format(picked);
-                                  updateTanggalKadaluarsa();
-                                });
-                              }
-                            },
-                            child: IgnorePointer(
-                              child: _buildStyledTextField(
-                                tanggalMasukController,
-                                'Tanggal Masuk',
-                                null,
-                                Icons.calendar_today,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Estimasi Umur dengan keterangan "hari" otomatis
-                          TextField(
-                            controller: estimasiUmurController,
-                            keyboardType: TextInputType.number,
-                            onChanged: (value) {
-                              setDialogState(() {
-                                updateTanggalKadaluarsa();
-                              });
-                            },
-                            style: GoogleFonts.poppins(),
-                            decoration: InputDecoration(
-                              hintText: 'Estimasi Umur Simpan',
-                              hintStyle: GoogleFonts.poppins(),
-                              suffixText: 'hari',
-                              suffixStyle: GoogleFonts.poppins(
-                                color: const Color(0xFFB53929),
-                                fontWeight: FontWeight.w500,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFB53929)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFB53929)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFB53929), width: 2),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Tanggal Kadaluarsa (read-only, otomatis)
-                          IgnorePointer(
-                            child: TextField(
-                              controller: tanggalKadaluarsaController,
-                              style: GoogleFonts.poppins(),
-                              decoration: InputDecoration(
-                                hintText: 'Tanggal Kadaluarsa (Otomatis)',
-                                hintStyle: GoogleFonts.poppins(),
-                                suffixIcon: const Icon(Icons.lock, color: Colors.grey),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFFB53929)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          InkWell(
-                            onTap: () => _showKategoriDialog(kategoriController),
-                            child: IgnorePointer(
-                              child: _buildStyledTextField(
-                                kategoriController,
-                                'Pilih Kategori',
-                                null,
-                                Icons.arrow_drop_down,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildStyledTextField(tempatPenyimpananController, 'Tempat Penyimpanan'),
-                          const SizedBox(height: 24),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFFB53929)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Text(
-                                    'Catatan Tambahan',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: const Color(0xFFB53929),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                                  child: TextField(
-                                    controller: catatanController,
-                                    maxLines: 3,
-                                    style: GoogleFonts.poppins(),
-                                    decoration: InputDecoration(
-                                      hintText: 'Tambahkan catatan...',
-                                      hintStyle: GoogleFonts.poppins(fontSize: 14),
-                                      border: InputBorder.none,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (namaBahanController.text.isEmpty) {
-                                  Fluttertoast.showToast(
-                                    msg: "Nama bahan harus diisi!",
-                                    backgroundColor: Colors.red,
-                                  );
-                                  return;
-                                }
 
-                                // Proses upload gambar jika ada
-                                String imageUrl = '';
+                    // Estimasi Umur Simpan
+                    _buildTextField(
+                      estimasiUmurController,
+                      'Estimasi Penyimpanan (hari)',
+                      TextInputType.number,
+                      null,
+                      (value) {
+                        setDialogState(() {
+                          tanggalKadaluarsa = calculateExpiryDate(tanggalMasuk, value);
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
 
-                                if (selectedImage != null) {
-                                  try {
-                                    Fluttertoast.showToast(
-                                      msg: "Memproses gambar...",
-                                      backgroundColor: Colors.blue,
-                                    );
+                    // Tanggal Kadaluarsa (Auto-calculated, Read-only)
+                    _buildReadOnlyField(
+                      'Tgl Kadaluarsa',
+                      tanggalKadaluarsa != null
+                          ? '${tanggalKadaluarsa!.day.toString().padLeft(2, '0')}/${tanggalKadaluarsa!.month.toString().padLeft(2, '0')}/${tanggalKadaluarsa!.year}'
+                          : '',
+                    ),
+                    const SizedBox(height: 16),
 
-                                    print('=== MULAI PROSES UPLOAD GAMBAR ===');
-                                    print('File gambar: ${selectedImage!.path}');
-
-                                    if (!kIsWeb) {
-                                      final localPath = await ImageHelper.saveImageToAssets(
-                                        selectedImage!,
-                                        namaBahanController.text.replaceAll(' ', '_'),
-                                      );
-
-                                      if (localPath != null) {
-                                        imageUrl = localPath;
-                                        print('✓ Gambar disimpan lokal: $localPath');
-                                      }
-                                    }
-
-                                    print('Mencoba upload ke GoCloud...');
-                                    final cloudUrl = await ImageHelper.uploadImageToGoCloud(
-                                      imageFile: selectedImage!,
-                                      token: token,
-                                      project: project,
-                                      fileName: namaBahanController.text.replaceAll(' ', '_'),
-                                    );
-
-                                    if (cloudUrl != null && cloudUrl.isNotEmpty) {
-                                      imageUrl = cloudUrl;
-                                      print('✓ Gambar berhasil diupload ke cloud: $cloudUrl');
-                                      Fluttertoast.showToast(
-                                        msg: "Gambar berhasil diupload!",
-                                        backgroundColor: Colors.green,
-                                      );
-                                    } else {
-                                      print('Upload ke cloud gagal, menggunakan Base64...');
-
-                                      final base64Image = await ImageHelper.convertImageToBase64(selectedImage!);
-
-                                      if (base64Image != null && base64Image.isNotEmpty) {
-                                        imageUrl = base64Image;
-                                        print('✓ Gambar berhasil dikonversi ke Base64');
-                                        Fluttertoast.showToast(
-                                          msg: kIsWeb
-                                              ? "Gambar disimpan sebagai Base64"
-                                              : "Gambar disimpan lokal",
-                                          backgroundColor: Colors.green,
-                                        );
-                                      } else {
-                                        print('✗ Konversi Base64 gagal');
-                                        if (kIsWeb) {
-                                          Fluttertoast.showToast(
-                                            msg: "Gagal memproses gambar",
-                                            backgroundColor: Colors.orange,
-                                          );
-                                          imageUrl = '';
-                                        }
-                                      }
-                                    }
-
-                                    print('URL gambar final: ${imageUrl.length > 100 ? imageUrl.substring(0, 100) + "..." : imageUrl}');
-                                  } catch (e) {
-                                    print('✗ Error memproses gambar: $e');
-                                    Fluttertoast.showToast(
-                                      msg: "Error memproses gambar: $e",
-                                      backgroundColor: Colors.red,
-                                    );
-                                    imageUrl = '';
-                                  }
-                                } else {
-                                  if (isEdit && bahanBaku.foto_bahan.isNotEmpty) {
-                                    imageUrl = bahanBaku.foto_bahan;
-                                  } else {
-                                    imageUrl = '';
-                                  }
-                                }
-
-                                Navigator.pop(context);
-
-                                if (isEdit) {
-                                  await _updateBahanBaku(
-                                    bahanBaku.id,
-                                    namaBahanController.text,
-                                    imageUrl,
-                                    unitController.text,
-                                    grossQtyController.text,
-                                    hargaPerGrossController.text,
-                                    hargaPerUnitController.text,
-                                    stokTersediaController.text,
-                                    estimasiUmurController.text,
-                                    tanggalMasukController.text,
-                                    tanggalKadaluarsaController.text,
-                                    kategoriController.text,
-                                    tempatPenyimpananController.text,
-                                    catatanController.text,
-                                    bahanBaku.nama_bahan,
-                                  );
-                                } else {
-                                  await _addBahanBaku(
-                                    namaBahanController.text,
-                                    imageUrl,
-                                    unitController.text,
-                                    grossQtyController.text,
-                                    hargaPerGrossController.text,
-                                    hargaPerUnitController.text,
-                                    stokTersediaController.text,
-                                    estimasiUmurController.text,
-                                    tanggalMasukController.text,
-                                    tanggalKadaluarsaController.text,
-                                    kategoriController.text,
-                                    tempatPenyimpananController.text,
-                                    catatanController.text,
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFB53929),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Text(
-                                'Simpan',
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
+                    // Kategori
+                    InkWell(
+                      onTap: () => _showKategoriDialog(kategoriController),
+                      child: IgnorePointer(
+                        child: _buildTextField(
+                          kategoriController,
+                          'Kategori',
+                          null,
+                          Icons.arrow_drop_down,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    _buildTextField(tempatPenyimpananController, 'Tempat Penyimpanan'),
+                    const SizedBox(height: 30),
+
+                    // Catatan Section
+                    _buildSectionTitle('Catatan Tambahan (Opsional)'),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: catatanController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Tambahkan catatan...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.orange[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.orange[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Simpan Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (namaController.text.isEmpty) {
+                            Fluttertoast.showToast(
+                              msg: "Nama bahan harus diisi!",
+                              backgroundColor: Colors.red,
+                            );
+                            return;
+                          }
+
+                          // Proses upload gambar jika ada
+                          String imageUrl = '';
+
+                          if (selectedImage != null) {
+                            try {
+                              Fluttertoast.showToast(
+                                msg: "Memproses gambar...",
+                                backgroundColor: Colors.blue,
+                              );
+
+                              if (!kIsWeb) {
+                                final localPath = await ImageHelper.saveImageToAssets(
+                                  selectedImage!,
+                                  namaController.text.replaceAll(' ', '_'),
+                                );
+                                if (localPath != null) {
+                                  imageUrl = localPath;
+                                }
+                              }
+
+                              final cloudUrl = await ImageHelper.uploadImageToGoCloud(
+                                imageFile: selectedImage!,
+                                token: token,
+                                project: project,
+                                fileName: namaController.text.replaceAll(' ', '_'),
+                              );
+
+                              if (cloudUrl != null && cloudUrl.isNotEmpty) {
+                                imageUrl = cloudUrl;
+                              } else {
+                                final base64Image = await ImageHelper.convertImageToBase64(selectedImage!);
+                                if (base64Image != null && base64Image.isNotEmpty) {
+                                  imageUrl = base64Image;
+                                }
+                              }
+                            } catch (e) {
+                              print('Error memproses gambar: $e');
+                            }
+                          } else {
+                            if (isEdit && bahanBaku.foto_bahan.isNotEmpty) {
+                              imageUrl = bahanBaku.foto_bahan;
+                            }
+                          }
+
+                          Navigator.pop(context);
+
+                          // Format tanggal untuk database
+                          String tanggalMasukStr = tanggalMasuk != null
+                              ? '${tanggalMasuk!.year}-${tanggalMasuk!.month.toString().padLeft(2, '0')}-${tanggalMasuk!.day.toString().padLeft(2, '0')}'
+                              : '';
+                          String tanggalKadaluarsaStr = tanggalKadaluarsa != null
+                              ? '${tanggalKadaluarsa!.year}-${tanggalKadaluarsa!.month.toString().padLeft(2, '0')}-${tanggalKadaluarsa!.day.toString().padLeft(2, '0')}'
+                              : '';
+
+                          if (isEdit) {
+                            await _updateBahanBaku(
+                              bahanBaku.id,
+                              namaController.text,
+                              selectedUnit,
+                              hargaGrossController.text,
+                              hargaUnitController.text,
+                              stokTersediaController.text,
+                              stokMinimal,
+                              estimasiUmurController.text,
+                              tanggalMasukStr,
+                              tanggalKadaluarsaStr,
+                              kategoriController.text,
+                              tempatPenyimpananController.text,
+                              grossQtyController.text,
+                              catatanController.text,
+                              imageUrl,
+                              bahanBaku.nama_bahan,
+                            );
+                          } else {
+                            await _addBahanBaku(
+                              namaController.text,
+                              selectedUnit,
+                              hargaGrossController.text,
+                              hargaUnitController.text,
+                              stokTersediaController.text,
+                              stokMinimal,
+                              estimasiUmurController.text,
+                              tanggalMasukStr,
+                              tanggalKadaluarsaStr,
+                              kategoriController.text,
+                              tempatPenyimpananController.text,
+                              grossQtyController.text,
+                              catatanController.text,
+                              imageUrl,
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B4513),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Simpan Data Bahan',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Colors.orange[700],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, [
+    TextInputType? keyboardType,
+    IconData? suffixIcon,
+    Function(String)? onChanged,
+  ]) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            hintText: label,
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: Colors.orange[700]) : null,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.orange[300]!),
             ),
-          );
-        },
-      ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.orange[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+      ],
     );
   }
 
-  // Helper method untuk menampilkan preview gambar yang mendukung Web dan Mobile
-  Widget _buildImagePreview(File? selectedImage, String? imagePath) {
-    if (selectedImage != null && !kIsWeb) {
-      // Mobile: Gunakan Image.file
-      return Image.file(
-        selectedImage,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(
-            Icons.inventory_2,
-            size: 50,
-            color: Colors.grey,
-          );
-        },
-      );
-    } else if (imagePath != null && imagePath.isNotEmpty) {
-      // Web atau path dari database
-      if (imagePath.startsWith('http')) {
-        return Image.network(
-          imagePath,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              size: 50,
-              color: Colors.grey,
-            );
-          },
-        );
-      } else if (!kIsWeb) {
-        // Mobile: path lokal
-        return Image.file(
-          File(imagePath),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              size: 50,
-              color: Colors.grey,
-            );
-          },
-        );
-      }
-    }
-
-    // Default: tampilkan icon
-    return const Icon(
-      Icons.inventory_2,
-      size: 50,
-      color: Colors.grey,
+  Widget _buildReadOnlyField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildStyledTextField(
-      TextEditingController controller,
-      String hint, [
-        TextInputType? keyboardType,
-        IconData? suffixIcon,
-      ]) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: GoogleFonts.poppins(),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.poppins(),
-        suffixIcon: suffixIcon != null ? Icon(suffixIcon) : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFB53929)),
+  Widget _buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFB53929)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: value,
+          decoration: InputDecoration(
+            hintText: 'Pilih $label',
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.orange[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.orange[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(item),
+            );
+          }).toList(),
+          onChanged: onChanged,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFB53929), width: 2),
-        ),
-      ),
+      ],
     );
   }
 
@@ -717,15 +704,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFB53929),
+                  color: Color(0xFF8B5A3C),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
                   ),
                 ),
-                child: Text(
+                child: const Text(
                   'Pilih Kategori',
-                  style: GoogleFonts.poppins(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -739,8 +726,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   itemBuilder: (context, index) {
                     if (index == _kategoriList.length) {
                       return ListTile(
-                        leading: const Icon(Icons.add, color: Color(0xFFB53929)),
-                        title: Text('Tambah Kategori Baru', style: GoogleFonts.poppins()),
+                        leading: const Icon(Icons.add, color: Color(0xFF8B5A3C)),
+                        title: const Text('Tambah Kategori Baru'),
                         onTap: () {
                           Navigator.pop(context);
                           _showTambahKategoriDialog(kategoriController);
@@ -748,7 +735,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       );
                     }
                     return ListTile(
-                      title: Text(_kategoriList[index], style: GoogleFonts.poppins()),
+                      title: Text(_kategoriList[index]),
                       onTap: () {
                         kategoriController.text = _kategoriList[index];
                         Navigator.pop(context);
@@ -779,9 +766,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              const Text(
                 'Tambah Kategori Baru',
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -789,10 +776,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               const SizedBox(height: 24),
               TextField(
                 controller: newKategoriController,
-                style: GoogleFonts.poppins(),
                 decoration: InputDecoration(
                   hintText: 'Nama Kategori',
-                  hintStyle: GoogleFonts.poppins(),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -810,10 +795,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB53929),
+                    backgroundColor: const Color(0xFF8B5A3C),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text('Simpan', style: GoogleFonts.poppins(color: Colors.white)),
+                  child: const Text('Simpan', style: TextStyle(color: Colors.white)),
                 ),
               ),
             ],
@@ -824,19 +809,20 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Future<void> _addBahanBaku(
-      String namaBahan,
-      String fotoBahan,
+      String nama,
       String unit,
-      String grossQty,
-      String hargaPerGross,
-      String hargaPerUnit,
+      String hargaGross,
+      String hargaUnit,
       String stokTersedia,
-      String estimasiUmur,
+      String stokMinimal,
+      String estimasi_penyimpanan,
       String tanggalMasuk,
       String tanggalKadaluarsa,
       String kategori,
       String tempatPenyimpanan,
+      String grossQty,
       String catatan,
+      String fotoBahan,
       ) async {
     setState(() {
       _isLoading = true;
@@ -846,19 +832,20 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       print('=== MULAI INSERT ===');
       final result = await _dataService.insertBahanBaku(
         appid,
-        fotoBahan,
-        namaBahan,
+        nama,
         unit,
-        grossQty,
-        hargaPerGross,
-        hargaPerUnit,
+        hargaGross,
+        hargaUnit,
         stokTersedia,
-        estimasiUmur,
+        stokMinimal,
+        estimasi_penyimpanan,
         tanggalMasuk,
         tanggalKadaluarsa,
         kategori,
         tempatPenyimpanan,
+        grossQty,
         catatan,
+        fotoBahan,
       );
 
       print('Result insert: $result');
@@ -867,7 +854,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       await _loadBahanBaku();
 
       Fluttertoast.showToast(
-        msg: "Bahan baku '$namaBahan' berhasil ditambahkan!",
+        msg: "Bahan baku '$nama' berhasil ditambahkan!",
         backgroundColor: Colors.green,
       );
     } catch (e) {
@@ -883,20 +870,21 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
   Future<void> _updateBahanBaku(
       String id,
-      String namaBahan,
-      String fotoBahan,
+      String nama,
       String unit,
-      String grossQty,
-      String hargaPerGross,
-      String hargaPerUnit,
+      String hargaGross,
+      String hargaUnit,
       String stokTersedia,
-      String estimasiUmur,
+      String stokMinimal,
+      String estimasi_penyimpanan,
       String tanggalMasuk,
       String tanggalKadaluarsa,
       String kategori,
       String tempatPenyimpanan,
+      String grossQty,
       String catatan,
-      String namaLama,
+      String fotoBahan,
+      String namaLama, // Tambahkan nama lama untuk updateWhere
       ) async {
     setState(() {
       _isLoading = true;
@@ -906,25 +894,28 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       print('=== MULAI UPDATE BAHAN BAKU ===');
       print('ID: $id');
       print('Nama Lama: $namaLama');
-      print('Nama Baru: $namaBahan');
+      print('Nama Baru: $nama');
 
+      // Karena ID mungkin kosong, gunakan updateWhere berdasarkan nama lama
       if (id.isEmpty || id == '') {
         print('ID kosong, menggunakan updateWhere berdasarkan nama');
 
+        // Update semua field menggunakan updateWhere
         final fields = {
-          'nama_bahan': namaBahan,
-          'foto_bahan': fotoBahan,
+          'nama_bahan': nama,
           'unit': unit,
-          'gross_qty': grossQty,
-          'harga_per_gross': hargaPerGross,
-          'harga_per_unit': hargaPerUnit,
+          'harga_per_gross': hargaGross,
+          'harga_per_unit': hargaUnit,
           'stok_tersedia': stokTersedia,
-          'estimasi_umur': estimasiUmur,
+          'stok_minimal': stokMinimal,
+          'estimasi_umur': estimasi_penyimpanan,
           'tanggal_masuk': tanggalMasuk,
           'tanggal_kadaluarsa': tanggalKadaluarsa,
           'kategori': kategori,
           'tempat_penyimpanan': tempatPenyimpanan,
+          'gross_qty': grossQty,
           'catatan': catatan,
+          'foto_bahan': fotoBahan,
         };
 
         for (var entry in fields.entries) {
@@ -941,22 +932,24 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
           print('Update ${entry.key}: $result');
         }
       } else {
+        // Jika ID ada, gunakan updateId
         print('Menggunakan updateId');
 
         final results = await Future.wait([
-          _dataService.updateId('nama_bahan', namaBahan, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('foto_bahan', fotoBahan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('nama_bahan', nama, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('unit', unit, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('gross_qty', grossQty, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('harga_per_gross', hargaPerGross, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('harga_per_unit', hargaPerUnit, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('harga_per_gross', hargaGross, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('harga_per_unit', hargaUnit, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('stok_tersedia', stokTersedia, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('estimasi_umur', estimasiUmur, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('stok_minimal', stokMinimal, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('estimasi_umur', estimasi_penyimpanan, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('tanggal_masuk', tanggalMasuk, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('tanggal_kadaluarsa', tanggalKadaluarsa, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('kategori', kategori, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('tempat_penyimpanan', tempatPenyimpanan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('gross_qty', grossQty, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('catatan', catatan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('foto_bahan', fotoBahan, token, project, 'bahan_baku', appid, id),
         ]);
 
         print('Update results: $results');
@@ -964,6 +957,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
       print('✓ Update berhasil di API');
 
+      // Reload data dari database untuk memastikan sinkronisasi
       await _loadBahanBaku();
 
       setState(() {
@@ -971,7 +965,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       });
 
       Fluttertoast.showToast(
-        msg: "Bahan baku '$namaBahan' berhasil diupdate!",
+        msg: "Bahan baku '$nama' berhasil diupdate!",
         backgroundColor: Colors.green,
         toastLength: Toast.LENGTH_SHORT,
       );
@@ -993,6 +987,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         toastLength: Toast.LENGTH_LONG,
       );
 
+      // Reload data untuk memastikan konsistensi
       await _loadBahanBaku();
     }
   }
@@ -1023,9 +1018,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'Hapus Bahan Baku?',
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1034,7 +1029,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               Text(
                 'Apakah Anda yakin ingin menghapus "$nama"? Data yang dihapus tidak dapat dikembalikan.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                style: TextStyle(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               Row(
@@ -1042,7 +1037,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: Text('Batal', style: GoogleFonts.poppins()),
+                      child: const Text('Batal'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1052,7 +1047,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                       ),
-                      child: Text('Hapus', style: GoogleFonts.poppins(color: Colors.white)),
+                      child: const Text('Hapus', style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],
@@ -1070,6 +1065,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       print('ID yang akan dihapus: $id');
       print('Nama bahan: $nama');
 
+      // Gunakan removeWhere berdasarkan nama (lebih reliable daripada ID)
       final result = await _dataService.removeWhere(
         token,
         project,
@@ -1082,13 +1078,16 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       print('Result delete dari API: $result');
 
       if (result == true || result == 'true' || result.toString().contains('"status":"1"')) {
+        // Delete berhasil
         print('✓ Delete berhasil di database!');
 
+        // Hapus dari list lokal
         setState(() {
           _bahanBakuList.removeWhere((item) => item.nama_bahan == nama);
           _filteredList.removeWhere((item) => item.nama_bahan == nama);
         });
 
+        // Toast sukses
         Fluttertoast.showToast(
           msg: "Bahan baku '$nama' berhasil dihapus!",
           backgroundColor: Colors.green,
@@ -1097,6 +1096,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
         print('✓ Data berhasil dihapus dari tampilan');
       } else {
+        // Delete gagal
         print('✗ Delete gagal: $result');
         throw Exception('Delete gagal: $result');
       }
@@ -1114,6 +1114,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         toastLength: Toast.LENGTH_LONG,
       );
 
+      // Reload data untuk memastikan konsistensi
       await _loadBahanBaku();
     }
   }
@@ -1124,15 +1125,14 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
+          // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               onChanged: _filterBahanBaku,
-              style: GoogleFonts.poppins(),
               decoration: InputDecoration(
                 hintText: 'Cari bahan baku...',
-                hintStyle: GoogleFonts.poppins(),
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1144,27 +1144,25 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFB53929), width: 2),
+                  borderSide: const BorderSide(color: Color(0xFF8B5A3C), width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
               ),
             ),
           ),
+          // List content
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredList.isEmpty
-                ? Center(
+                ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Tidak ada data bahan baku',
-                    style: GoogleFonts.poppins(color: Colors.grey),
-                  ),
+                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('Tidak ada data bahan baku', style: TextStyle(color: Colors.grey)),
                 ],
               ),
             )
@@ -1185,7 +1183,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFB53929).withValues(alpha: 0.1),
+                        color: const Color(0xFF8B5A3C).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ClipRRect(
@@ -1195,7 +1193,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     title: Text(
                       bahan.nama_bahan,
-                      style: GoogleFonts.poppins(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -1204,14 +1202,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text(
-                          'Stok: ${bahan.stok_tersedia} ${bahan.unit}',
-                          style: GoogleFonts.poppins(),
-                        ),
-                        Text(
-                          'Kategori: ${bahan.kategori}',
-                          style: GoogleFonts.poppins(),
-                        ),
+                        Text('Stok: ${bahan.stok_tersedia} ${bahan.unit}'),
+                        Text('Kategori: ${bahan.kategori}'),
                       ],
                     ),
                     trailing: Row(
@@ -1238,48 +1230,124 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         onPressed: () => _showAddEditDialog(),
         backgroundColor: Colors.green[700],
         icon: const Icon(Icons.add, color: Colors.white),
-        label: Text('Tambah', style: GoogleFonts.poppins(color: Colors.white)),
+        label: const Text('Tambah', style: TextStyle(color: Colors.white)),
       ),
     );
   }
 
   // Helper method untuk menampilkan gambar yang mendukung Web dan Mobile
   Widget _buildImageWidget(String imagePath) {
+    // Jika string kosong, tampilkan icon default
+    if (imagePath.isEmpty) {
+      return const Icon(
+        Icons.inventory_2,
+        color: Color(0xFF8B5A3C),
+      );
+    }
+
     if (imagePath.startsWith('http')) {
-      // URL gambar
+      // URL gambar dari internet
       return Image.network(
         imagePath,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return const Icon(
             Icons.inventory_2,
-            color: Color(0xFFB53929),
+            color: Color(0xFF8B5A3C),
           );
         },
       );
     } else if (imagePath.startsWith('data:image')) {
       // Base64 image
-      return Image.memory(
-        base64Decode(imagePath.split(',').last),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(
-            Icons.inventory_2,
-            color: Color(0xFFB53929),
-          );
-        },
-      );
+      try {
+        return Image.memory(
+          base64Decode(imagePath.split(',').last),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.inventory_2,
+              color: Color(0xFF8B5A3C),
+            );
+          },
+        );
+      } catch (e) {
+        return const Icon(
+          Icons.inventory_2,
+          color: Color(0xFF8B5A3C),
+        );
+      }
+    } else if (!kIsWeb) {
+      // Path lokal (hanya untuk mobile)
+      try {
+        return Image.file(
+          File(imagePath),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.inventory_2,
+              color: Color(0xFF8B5A3C),
+            );
+          },
+        );
+      } catch (e) {
+        return const Icon(
+          Icons.inventory_2,
+          color: Color(0xFF8B5A3C),
+        );
+      }
     } else {
-      // Path lokal (mobile)
-      return Image.file(
-        File(imagePath),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(
-            Icons.inventory_2,
-            color: Color(0xFFB53929),
-          );
-        },
+      // Web: jika bukan URL atau base64, tampilkan icon default
+      return const Icon(
+        Icons.inventory_2,
+        color: Color(0xFF8B5A3C),
+      );
+    }
+  }
+
+  // Method untuk preview gambar saat memilih gambar baru
+  Widget _buildImagePreview(File? imageFile, String? imagePath) {
+    if (imageFile != null) {
+      // Jika ada file gambar yang baru dipilih
+      if (kIsWeb) {
+        // Untuk web, gunakan Image.network jika path adalah URL
+        return Image.network(
+          imageFile.path,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.inventory_2,
+              color: Colors.white,
+              size: 50,
+            );
+          },
+        );
+      } else {
+        // Untuk mobile, gunakan Image.file
+        return Image.file(
+          imageFile,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.inventory_2,
+              color: Colors.white,
+              size: 50,
+            );
+          },
+        );
+      }
+    } else if (imagePath != null && imagePath.isNotEmpty) {
+      // Jika ada path gambar yang sudah ada (untuk edit)
+      return _buildImageWidget(imagePath);
+    } else {
+      // Default icon jika tidak ada gambar
+      return Icon(
+        Icons.camera_alt,
+        size: 50,
+        color: Colors.white.withValues(alpha: 0.8),
       );
     }
   }

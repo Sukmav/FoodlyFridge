@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:foodlyfridge/screens/vendor_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'login_page.dart';
 import 'pengaturan.dart';
 import 'bahan_baku_page.dart';
-// import 'menu_page.dart';
+import 'kedai_page.dart';
+import 'menu_page.dart';
+import '../helpers/kedai_service.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -27,35 +32,39 @@ class _HomePageState extends State<HomePage> {
 
   final Color _primaryColor = const Color(0xFFB53929);
   final Color _primaryLightColor = const Color(0xFFD14633);
-  final Color _menuColor = const Color(0xFF7A9B3B); // Olive green color from image
+  final Color _menuColor = const Color(0xFF7A9B3B);
 
-  // This will be dynamic based on store data
-  String _storeName = "Sing Wareug";
+  String _storeName = "Kedai";
+  bool _hasKedai = false;
+  bool _isCheckingKedai = true;
+  bool _dialogShown = false; // ✅ TAMBAHAN:  Flag untuk mencegah dialog muncul berulang
+
+  final TextEditingController _namaKedaiPopupController = TextEditingController();
+  final KedaiService _kedaiService = KedaiService();
 
   final List<Map<String, dynamic>> _menuItems = [
-    {'icon': Icons.home_outlined, 'label': 'Beranda', 'route': -1},
+    {'icon': Icons.home_outlined, 'label': 'Beranda', 'route':  -1},
     {'icon': Icons.restaurant_menu, 'label': 'Menu', 'route': 0},
     {'icon': Icons.arrow_upward, 'label': 'Stok Keluar', 'route': 3},
-    {'icon': Icons.arrow_downward, 'label': 'Stok Masuk', 'route': 2},
-    {'icon': Icons.eco_outlined, 'label': 'Bahan Baku', 'route': 1},
+    {'icon': Icons. arrow_downward, 'label':  'Stok Masuk', 'route': 2},
+    {'icon': Icons. eco_outlined, 'label': 'Bahan Baku', 'route': 1},
     {'icon': Icons.no_food_outlined, 'label': 'Sampah Bahan Baku', 'route': 5},
-    {'icon': Icons.people_alt_outlined, 'label': 'Staff', 'route': 7},
-    {'icon': Icons.groups_outlined, 'label': 'Vendor', 'route': 4},
-    {'icon': Icons.history, 'label': 'Riwayat', 'route': 8},
+    {'icon': Icons. people_alt_outlined, 'label': 'Staff', 'route': 7},
+    {'icon': Icons. groups_outlined, 'label': 'Vendor', 'route': 4},
+    {'icon': Icons.history, 'label': 'Riwayat', 'route':  8},
     {'icon': Icons.person_outline, 'label': 'Kasir', 'route': 9},
     {'icon': Icons.play_circle_outline, 'label': 'Tutorial', 'route': 11},
     {'icon': Icons.bar_chart, 'label': 'Laporan', 'route': 6},
-    {'icon': Icons.settings_outlined, 'label': 'Pengaturan', 'route': 10},
+    {'icon': Icons.settings_outlined, 'label': 'Pengaturan', 'route':  10},
   ];
 
-  // Dashboard menu items matching the image
   final List<Map<String, dynamic>> _dashboardMenuItems = [
-    {'icon': Icons.arrow_downward_rounded, 'label': 'Stok Masuk', 'route': 2},
+    {'icon':  Icons.arrow_downward_rounded, 'label': 'Stok Masuk', 'route': 2},
     {'icon': Icons.arrow_upward_rounded, 'label': 'Stok Keluar', 'route': 3},
     {'icon': Icons.eco_rounded, 'label': 'Bahan Baku', 'route': 1},
-    {'icon': Icons.no_food_rounded, 'label': 'Sampah Bahan\nBaku', 'route': 5},
-    {'icon': Icons.restaurant_menu_rounded, 'label': 'Menu', 'route': 0},
-    {'icon': Icons.bar_chart_rounded, 'label': 'Laporan', 'route': 6},
+    {'icon': Icons.no_food_rounded, 'label': 'Sampah Bahan\nBaku', 'route':  5},
+    {'icon':  Icons.restaurant_menu_rounded, 'label': 'Menu', 'route': 0},
+    {'icon': Icons. bar_chart_rounded, 'label': 'Laporan', 'route': 6},
     {'icon': Icons.people_alt_rounded, 'label': 'Staff', 'route': 7},
     {'icon': Icons.groups_rounded, 'label': 'Vendor', 'route': 4},
     {'icon': Icons.history_rounded, 'label': 'Riwayat', 'route': 8},
@@ -77,22 +86,36 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // Method untuk clear cache user saat logout
+  Future<void> _clearUserCache() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('nama_kedai_${widget.userId}');
+    await prefs.remove('has_kedai_${widget.userId}');
+
+    if (kDebugMode) {
+      print('User cache cleared for user:  ${widget.userId}');
+    }
+  }
+
   void _logout() async {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Konfirmasi Logout'),
-          content: const Text('Apakah Anda yakin ingin keluar?'),
+          content: const Text('Apakah Anda yakin ingin keluar? '),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed:  () {
                 Navigator.of(context).pop();
               },
               child: const Text('Batal'),
             ),
             TextButton(
               onPressed: () async {
+                // Clear user cache (optional, data tetap ada di database)
+                // await _clearUserCache();
+
                 await FirebaseAuth.instance.signOut();
                 if (mounted) {
                   Navigator.of(context).pop();
@@ -104,7 +127,7 @@ class _HomePageState extends State<HomePage> {
               },
               child: const Text(
                 'Keluar',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(color:  Colors.red),
               ),
             ),
           ],
@@ -124,7 +147,7 @@ class _HomePageState extends State<HomePage> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors. white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -141,7 +164,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   'Ringkasan Hari Ini',
                   style: GoogleFonts.poppins(
-                    fontSize: 18,
+                    fontSize:  18,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF7A9B3B),
                   ),
@@ -151,7 +174,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:  CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Kadaluarsa',
@@ -167,7 +190,7 @@ class _HomePageState extends State<HomePage> {
                                 '0',
                                 style: GoogleFonts.poppins(
                                   fontSize: 32,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight:  FontWeight.bold,
                                   color: Colors.grey[800],
                                 ),
                               ),
@@ -176,7 +199,7 @@ class _HomePageState extends State<HomePage> {
                                 'item',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
-                                  color: Colors.grey[500],
+                                  color: Colors. grey[500],
                                 ),
                               ),
                             ],
@@ -187,7 +210,7 @@ class _HomePageState extends State<HomePage> {
                     Container(
                       width: 1,
                       height: 50,
-                      color: Colors.grey[300],
+                      color: Colors. grey[300],
                     ),
                     const SizedBox(width: 20),
                     Expanded(
@@ -197,11 +220,11 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             'Hampir Habis',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.grey[600],
+                              fontSize:  14,
+                              color:  Colors.grey[600],
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height:  8),
                           Row(
                             children: [
                               Text(
@@ -237,9 +260,9 @@ class _HomePageState extends State<HomePage> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate:  const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              crossAxisSpacing: 16,
+              crossAxisSpacing:  16,
               mainAxisSpacing: 16,
               childAspectRatio: 0.95,
             ),
@@ -247,8 +270,8 @@ class _HomePageState extends State<HomePage> {
             itemBuilder: (context, index) {
               final item = _dashboardMenuItems[index];
               return _buildDashboardMenuItem(
-                icon: item['icon'] as  IconData,
-                label: item['label'] as String,
+                icon: item['icon'] as IconData,
+                label:  item['label'] as String,
                 onTap: () => _onDashboardMenuTapped(item['route'] as int),
               );
             },
@@ -269,7 +292,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
+            color:  Colors.grey.withValues(alpha: 0.15),
             spreadRadius: 1,
             blurRadius: 6,
             offset: const Offset(0, 2),
@@ -281,7 +304,7 @@ class _HomePageState extends State<HomePage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          child: Padding(
+          child:  Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -289,8 +312,8 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _menuColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: _menuColor. withValues(alpha: 0.1),
+                    borderRadius:  BorderRadius.circular(12),
                   ),
                   child: Icon(
                     icon,
@@ -338,7 +361,7 @@ class _HomePageState extends State<HomePage> {
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height:  12),
           Text(
             'Fitur ini sedang dalam pengembangan',
             style: GoogleFonts.poppins(
@@ -354,7 +377,7 @@ class _HomePageState extends State<HomePage> {
   Widget _getSelectedContent() {
     switch (_selectedIndex) {
       case 0:
-        return _buildComingSoonContent('Menu');
+        return const MenuPage();
       case 1:
         return const BahanBakuPage();
       case 2:
@@ -362,7 +385,7 @@ class _HomePageState extends State<HomePage> {
       case 3:
         return _buildComingSoonContent('Stok Keluar');
       case 4:
-        return _buildComingSoonContent('Vendor');
+        return const VendorPage();
       case 5:
         return _buildComingSoonContent('Sampah Bahan Baku');
       case 6:
@@ -374,7 +397,7 @@ class _HomePageState extends State<HomePage> {
       case 9:
         return _buildComingSoonContent('Kasir');
       case 10:
-        return const PengaturanPage();
+        return PengaturanPage(userId: widget.userId);
       case 11:
         return _buildComingSoonContent('Tutorial');
       default:
@@ -414,15 +437,365 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _initializeHomePage();
+  }
+
+  // ✅ PERBAIKAN: Method untuk initialize home page dengan delay
+  Future<void> _initializeHomePage() async {
+    if (kDebugMode) {
+      print('========== INITIALIZING HOME PAGE ==========');
+      print('User ID: ${widget. userId}');
+    }
+
+    setState(() {
+      _isCheckingKedai = true;
+    });
+
+    // ✅ PENTING: Tunggu sedikit untuk memastikan widget sudah mounted
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Load nama kedai dan cek status
+    await _loadStoreName();
+
+    // ✅ PENTING: Tunggu sedikit sebelum hide loading
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    if (mounted) {
+      setState(() {
+        _isCheckingKedai = false;
+      });
+
+      // ✅ PENTING: Tunggu UI selesai render sebelum cek dialog
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Setelah selesai check, baru tampilkan popup jika diperlukan
+      if (mounted && !_dialogShown) {
+        _checkAndShowKedaiDialog();
+      }
+    }
+  }
+
+  // ✅ PERBAIKAN: Method untuk load nama kedai dengan retry mechanism yang lebih robust
+  Future<void> _loadStoreName() async {
+    if (kDebugMode) {
+      print('========== HOME PAGE: LOADING STORE NAME ==========');
+      print('User ID: ${widget.userId}');
+    }
+
+    int retryCount = 0;
+    const maxRetries = 5; // ✅ Tingkatkan retry dari 3 ke 5
+    bool foundInDatabase = false;
+
+    while (retryCount < maxRetries && !foundInDatabase) {
+      try {
+        if (kDebugMode && retryCount > 0) {
+          print('🔄 Retry attempt: ${retryCount + 1}/$maxRetries');
+        }
+
+        // ✅ Prioritas utama: ambil dari database dengan timeout yang lebih panjang
+        final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+
+        if (kedai != null) {
+          if (kDebugMode) {
+            print('✅✅✅ Kedai SUCCESSFULLY loaded from database: ${kedai.nama_kedai}');
+            print('Kedai ID: ${kedai.id}');
+          }
+
+          if (mounted) {
+            setState(() {
+              _storeName = kedai.nama_kedai;
+              _hasKedai = true;
+            });
+          }
+
+          // ✅ Sinkronisasi ke SharedPreferences untuk backup
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('nama_kedai_${widget.userId}', kedai.nama_kedai);
+          await prefs.setString('alamat_kedai_${widget.userId}', kedai.alamat_kedai);
+          await prefs.setString('nomor_telepon_${widget.userId}', kedai.nomor_telepon);
+          await prefs.setString('catatan_struk_${widget.userId}', kedai.catatan_struk);
+          await prefs.setString('logo_kedai_${widget.userId}', kedai.logo_kedai);
+          await prefs.setBool('has_kedai_${widget.userId}', true);
+          await prefs.setString('kedai_id_${widget.userId}', kedai.id);
+
+          if (kDebugMode) {
+            print('✅ Store data synced to SharedPreferences cache');
+            print('✅ User HAS kedai data - will show dashboard');
+          }
+
+          foundInDatabase = true;
+          return; // ✅ Berhasil, keluar dari method
+        } else {
+          if (kDebugMode) {
+            print('⚠️ No kedai found in database (attempt ${retryCount + 1}/$maxRetries)');
+          }
+
+          // ✅ Jika ini retry terakhir, cek cache sebagai fallback
+          if (retryCount == maxRetries - 1) {
+            if (kDebugMode) {
+              print('🔍 Final attempt failed, checking SharedPreferences cache...');
+            }
+
+            final SharedPreferences prefs = await SharedPreferences.getInstance();
+            final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+            final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
+
+            if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
+              if (mounted) {
+                setState(() {
+                  _storeName = savedStoreName;
+                  _hasKedai = true;
+                });
+              }
+
+              if (kDebugMode) {
+                print('✅ Loaded from SharedPreferences cache: $savedStoreName');
+                print('⚠️ Using CACHE data (database unreachable)');
+                print('✅ User HAS kedai data (from cache) - will show dashboard');
+              }
+
+              return;
+            } else {
+              // ✅ Tidak ada di database dan tidak ada di cache
+              if (mounted) {
+                setState(() {
+                  _hasKedai = false;
+                });
+              }
+
+              if (kDebugMode) {
+                print('❌ User DOES NOT have kedai data - will show setup dialog');
+              }
+              return;
+            }
+          }
+        }
+
+        // ✅ Retry dengan exponential backoff
+        retryCount++;
+        if (retryCount < maxRetries) {
+          final delayMs = 800 * retryCount; // 800ms, 1600ms, 2400ms, 3200ms, 4000ms
+          if (kDebugMode) {
+            print('⏳ Waiting ${delayMs}ms before retry...');
+          }
+          await Future.delayed(Duration(milliseconds: delayMs));
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ Error loading store name (attempt ${retryCount + 1}/$maxRetries): $e');
+        }
+
+        retryCount++;
+
+        if (retryCount >= maxRetries) {
+          if (kDebugMode) {
+            print('❌ All retry attempts exhausted, falling back to cache...');
+          }
+
+          // ✅ Semua retry gagal, fallback ke SharedPreferences
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+          final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
+
+          if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
+            if (mounted) {
+              setState(() {
+                _storeName = savedStoreName;
+                _hasKedai = true;
+              });
+            }
+
+            if (kDebugMode) {
+              print('✅ Successfully loaded from cache: $savedStoreName');
+              print('⚠️ Database connection failed, using cached data');
+            }
+          } else {
+            if (mounted) {
+              setState(() {
+                _hasKedai = false;
+              });
+            }
+
+            if (kDebugMode) {
+              print('❌ No cache available, user needs to setup kedai');
+            }
+          }
+        } else {
+          // ✅ Masih ada retry tersisa
+          final delayMs = 800 * retryCount;
+          if (kDebugMode) {
+            print('⏳ Waiting ${delayMs}ms before retry...');
+          }
+          await Future.delayed(Duration(milliseconds: delayMs));
+        }
+      }
+    }
+  }
+
+  // ✅ PERBAIKAN: Method untuk cek dan tampilkan dialog setup kedai
+  void _checkAndShowKedaiDialog() {
+    if (kDebugMode) {
+      print('========== CHECK AND SHOW KEDAI DIALOG ==========');
+      print('Has Kedai: $_hasKedai');
+      print('Dialog Shown: $_dialogShown');
+    }
+
+    // ✅ PENTING:  Hanya tampilkan popup jika user TIDAK punya kedai DAN dialog belum pernah ditampilkan
+    if (!_hasKedai && !_dialogShown && mounted) {
+      if (kDebugMode) {
+        print('User does NOT have kedai - showing setup dialog');
+      }
+      _dialogShown = true;
+
+      // Delay sedikit untuk memastikan UI sudah siap
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _showSetupKedaiDialog();
+        }
+      });
+    } else {
+      if (kDebugMode) {
+        if (_hasKedai) {
+          print('✅ User already has kedai - showing dashboard directly');
+        } else if (_dialogShown) {
+          print('⚠️ Dialog already shown - skipping');
+        }
+      }
+    }
+  }
+
+  void _showSetupKedaiDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false, // ✅ Mencegah dismiss dengan back button
+          child:  Align(
+            alignment: Alignment. bottomCenter,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors. white,
+                  borderRadius:  BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      spreadRadius: 2,
+                      blurRadius: 10,
+                      offset: const Offset(0, -3),
+                    ),
+                  ],
+                ),
+                child:  Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Atur nama kedaimu, sekarang',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width:  double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+
+                          if (kDebugMode) {
+                            print('User clicked Ayo!  - navigating to KedaiPage');
+                          }
+
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:  (context) => KedaiPage(userId: widget.userId),
+                            ),
+                          );
+
+                          if (result == true) {
+                            if (kDebugMode) {
+                              print('Kedai setup completed successfully - reloading data');
+                            }
+                            await _loadStoreName();
+                            if (mounted) {
+                              setState(() {
+                                _hasKedai = true;
+                              });
+                            }
+                          }
+                        },
+                        style: ElevatedButton. styleFrom(
+                          backgroundColor:  _primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Ayo! ',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors. white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isCheckingKedai) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: _primaryColor,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Memuat data...',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors. grey[50],
       appBar: AppBar(
-        backgroundColor: _primaryColor,
+        backgroundColor:  _primaryColor,
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
+            icon:  const Icon(Icons.menu, color: Colors.white),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
@@ -453,7 +826,7 @@ class _HomePageState extends State<HomePage> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color:  Colors.white,
               ),
               child: Row(
                 children: [
@@ -461,7 +834,7 @@ class _HomePageState extends State<HomePage> {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color:  Colors.grey[300],
                       shape: BoxShape.circle,
                     ),
                     child: ClipOval(
@@ -472,7 +845,7 @@ class _HomePageState extends State<HomePage> {
                           return Icon(
                             Icons.person,
                             size: 30,
-                            color: Colors.grey[600],
+                            color: Colors. grey[600],
                           );
                         },
                       ),
@@ -481,7 +854,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:  CrossAxisAlignment.start,
                       children: [
                         Text(
                           widget.username,
@@ -498,7 +871,7 @@ class _HomePageState extends State<HomePage> {
                           widget.email,
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Colors. grey[600],
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -523,10 +896,10 @@ class _HomePageState extends State<HomePage> {
               child: Container(
                 color: Colors.grey[50],
                 child: ListView(
-                  padding: EdgeInsets.zero,
+                  padding: EdgeInsets. zero,
                   children: [
                     const SizedBox(height: 8),
-                    ...List.generate(_menuItems.length, (index) {
+                    ... List.generate(_menuItems.length, (index) {
                       final item = _menuItems[index];
                       final isSelected = _selectedIndex == item['route'];
                       return Container(
@@ -536,7 +909,7 @@ class _HomePageState extends State<HomePage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: ListTile(
-                          leading: Icon(
+                          leading:  Icon(
                             item['icon'] as IconData,
                             color: _menuColor,
                             size: 24,
@@ -569,7 +942,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: ListTile(
-                      leading: Icon(
+                      leading:  Icon(
                         Icons.logout,
                         color: _primaryColor,
                         size: 24,
@@ -596,3 +969,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
