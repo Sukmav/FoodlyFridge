@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import '../restapi.dart';
 import '../config.dart';
 import '../model/bahan_baku_model.dart';
+import 'menu_detail_page.dart';
 
 class MenuPage extends StatefulWidget {
   const MenuPage({super.key});
@@ -234,6 +235,7 @@ class _MenuPageState extends State<MenuPage> {
                       color: Colors.green[700],
                     ),
                   ),
+                  onTap: () => _showDetailMenu(menu),
                 ),
               );
             },
@@ -273,6 +275,23 @@ class _MenuPageState extends State<MenuPage> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showDetailMenu(Map<String, dynamic> menu) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MenuDetailPage(
+          menu: menu,
+          onMenuUpdated: () {
+            _loadMenu();
+          },
+          onMenuDeleted: () {
+            _loadMenu();
+          },
+        ),
+      ),
     );
   }
 
