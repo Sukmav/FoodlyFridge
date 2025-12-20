@@ -1119,6 +1119,270 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     }
   }
 
+  void _showDetailBahanBaku(BahanBakuModel bahan) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              bahan.nama_bahan,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image Header
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    border: Border.all(color: Colors.orange[300]!, width: 3),
+                  ),
+                  child: bahan.foto_bahan.isNotEmpty
+                      ? _buildImageWidget(bahan.foto_bahan)
+                      : const Icon(
+                          Icons.inventory_2,
+                          size: 80,
+                          color: Colors.grey,
+                        ),
+                ),
+
+                // Tabs
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.orange[700]!,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            'Detail',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: const Text(
+                            'Riwayat',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Informasi Pembelian
+                      _buildDetailSection(
+                        'Informasi Pembelian',
+                        Colors.orange[700]!,
+                        [
+                          _buildDetailRow('Satuan Pembelian', '${bahan.gross_qty} ${bahan.unit}', Colors.green[700]!),
+                          _buildDetailRow('Harga per Satuan', 'Rp ${bahan.harga_per_gross}', Colors.green[700]!),
+                          _buildDetailRow('Jumlah Pernah Beli', '-', Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Penggunaan untuk Menu
+                      _buildDetailSection(
+                        'Penggunaan untuk Menu',
+                        Colors.orange[700]!,
+                        [
+                          _buildDetailRow('Unit Dasar', bahan.unit, Colors.green[700]!),
+                          _buildDetailRow('Harga per unit', 'Rp${bahan.harga_per_unit}', Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Stok
+                      _buildDetailSection(
+                        'Stok',
+                        Colors.red[700]!,
+                        [
+                          _buildDetailRow('Stok tersedia', '${bahan.stok_tersedia} ${bahan.unit}', Colors.green[700]!),
+                          _buildDetailRow('Stok Minimal', '${bahan.stok_minimal} ${bahan.unit}', Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Kadaluarsa dan Penyimpanan
+                      _buildDetailSection(
+                        'Kadaluarsa dan Penyimpanan',
+                        Colors.red[700]!,
+                        [
+                          _buildDetailRow('Estimasi umur Simpan', '${bahan.estimasi_umur} hari', Colors.green[700]!),
+                          _buildDetailRow('Tgl Kedatangan', _formatDate(bahan.tanggal_masuk), Colors.green[700]!),
+                          _buildDetailRow('Tgl Kadaluarsa', _formatDate(bahan.tanggal_kadaluarsa), Colors.green[700]!),
+                          _buildDetailRow('Kategori', bahan.kategori, Colors.green[700]!),
+                          _buildDetailRow('Penyimpanan', bahan.tempat_penyimpanan, Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Catatan
+                      Text(
+                        'Catatan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.orange[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          bahan.catatan.isEmpty ? 'Tidak ada catatan' : bahan.catatan,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // Button Ubah
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showAddEditDialog(bahanBaku: bahan);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8B4513),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Ubah',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection(String title, Color titleColor, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: titleColor,
+          ),
+        ),
+        const Divider(thickness: 1),
+        const SizedBox(height: 8),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: valueColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String dateStr) {
+    if (dateStr.isEmpty) return '-';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1219,6 +1483,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         ),
                       ],
                     ),
+                    onTap: () => _showDetailBahanBaku(bahan),
                   ),
                 );
               },
