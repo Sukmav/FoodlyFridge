@@ -619,11 +619,10 @@ class _HomePageState extends State<HomePage> {
             }
 
             if (kDebugMode) {
-              print('❌ No cache available, user needs to setup kedai');
+              print('No cache available, user needs to setup kedai');
             }
           }
         } else {
-          // ✅ Masih ada retry tersisa
           final delayMs = 800 * retryCount;
           if (kDebugMode) {
             print('⏳ Waiting ${delayMs}ms before retry...');
@@ -658,9 +657,9 @@ class _HomePageState extends State<HomePage> {
     } else {
       if (kDebugMode) {
         if (_hasKedai) {
-          print('✅ User already has kedai - showing dashboard directly');
+          print('User already has kedai - showing dashboard directly');
         } else if (_dialogShown) {
-          print('⚠️ Dialog already shown - skipping');
+          print('Dialog already shown - skipping');
         }
       }
     }
@@ -672,7 +671,7 @@ class _HomePageState extends State<HomePage> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return WillPopScope(
-          onWillPop: () async => false, // ✅ Mencegah dismiss dengan back button
+          onWillPop: () async => false,
           child:  Align(
             alignment: Alignment. bottomCenter,
             child: Material(

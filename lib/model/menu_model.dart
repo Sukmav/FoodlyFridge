@@ -7,7 +7,7 @@ class MenuModel {
   final String stok;
   final List<BahanBakuItem> bahan_baku;
   final String foto_menu;
-  final String barcode; // Field baru untuk barcode
+  final String barcode;
 
   MenuModel({
     required this.id,

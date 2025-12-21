@@ -155,127 +155,160 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Widget _buildMenuList() {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
+      return Column(
+        children: [
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.8, // Ubah dari 0.75 ke 0.8 untuk lebih banyak ruang
+              ),
+              itemCount: _menuList.length,
+              itemBuilder: (context, index) {
+                final menu = _menuList[index];
+                return Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _showDetailMenu(menu),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Image - Kurangi sedikit proporsi
+                        Expanded(
+                          flex: 5, // Ubah dari 3 ke 5
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green[100],
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(12),
+                              ),
+                            ),
+                            child: menu['foto_menu'] != null && menu['foto_menu'].toString().isNotEmpty
+                                ? ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(12),
+                              ),
+                              child: Image.network(
+                                menu['foto_menu'],
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.restaurant,
+                                    color: Colors.green[700],
+                                    size: 48,
+                                  );
+                                },
+                              ),
+                            )
+                                : Icon(
+                              Icons.restaurant,
+                              color: Colors.green[700],
+                              size: 48,
+                            ),
+                          ),
+                        ),
+
+                        // Content - Tambah proporsi dan kurangi padding
+                        Expanded(
+                          flex: 4, // Ubah dari 2 ke 4
+                          child: Padding(
+                            padding: const EdgeInsets.all(8), // Ubah dari 12 ke 8
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Ubah dari spaceBetween
+                              children: [
+                                // Nama menu
+                                Text(
+                                  menu['nama_menu'] ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 14, // Ubah dari 16 ke 14
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2C3E50),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+
+                                // Kode Menu
+                                Text(
+                                  'Kode Menu : ${menu['id_menu'] ?? ''}',
+                                  style: TextStyle(
+                                    fontSize: 11, // Ubah dari 12 ke 11
+                                    color: Colors.grey[600],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+
+                                // Harga
+                                Text(
+                                  'Harga: ${_formatNumber(double.tryParse(menu['harga_jual']?.toString() ?? '0') ?? 0)}',
+                                  style: const TextStyle(
+                                    fontSize: 13, // Ubah dari 14 ke 13
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2C3E50),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Container(
             padding: const EdgeInsets.all(16),
-            itemCount: _menuList.length,
-            itemBuilder: (context, index) {
-              final menu = _menuList[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                elevation: 2,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.2),
+                  spreadRadius: 1,
+                  blurRadius: 5,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: _showAddMenuForm,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Tambah Menu',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                minimumSize: const Size(double.infinity, 55),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.green[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: menu['foto_menu'] != null && menu['foto_menu'].toString().isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              menu['foto_menu'],
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  Icons.restaurant,
-                                  color: Colors.green[700],
-                                  size: 28,
-                                );
-                              },
-                            ),
-                          )
-                        : Icon(
-                            Icons.restaurant,
-                            color: Colors.green[700],
-                            size: 28,
-                          ),
-                  ),
-                  title: Text(
-                    menu['nama_menu'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        'Kode: ${menu['id_menu'] ?? ''}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        menu['kategori'] ?? '',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: Text(
-                    'Rp${_formatNumber(double.tryParse(menu['harga_jual']?.toString() ?? '0') ?? 0)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                  onTap: () => _showDetailMenu(menu),
-                ),
-              );
-            },
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.2),
-                spreadRadius: 1,
-                blurRadius: 5,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: ElevatedButton.icon(
-            onPressed: _showAddMenuForm,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text(
-              'Tambah Menu',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[700],
-              minimumSize: const Size(double.infinity, 55),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
   }
 
   void _showDetailMenu(Map<String, dynamic> menu) {

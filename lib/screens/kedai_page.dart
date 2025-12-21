@@ -411,18 +411,10 @@ class _KedaiPageState extends State<KedaiPage> {
             style:  GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF5B7FBD),
+              color: const Color(0xFF000000),
             ),
           ),
           const SizedBox(height:  8),
-          Text(
-            'pastikan background\nberwarna putih',
-            textAlign: TextAlign.center,
-            style: GoogleFonts. poppins(
-              fontSize:  10,
-              color: const Color(0xFFC4A853),
-            ),
-          ),
         ],
       ),
     );
@@ -513,7 +505,7 @@ class _KedaiPageState extends State<KedaiPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon:  const Icon(Icons.arrow_back, color: Color(0xFF5B7FBD)),
+          icon:  const Icon(Icons.arrow_back, color: Color(0xFF000000)),
           onPressed: (_isLoading || _isSaving) ? null : () => Navigator.pop(context),
         ),
         title: Text(
@@ -521,7 +513,7 @@ class _KedaiPageState extends State<KedaiPage> {
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF5B7FBD),
+            color: const Color(0xFF000000),
           ),
         ),
       ),
