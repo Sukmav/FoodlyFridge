@@ -343,14 +343,13 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.green[300]!, width: 2),
                             ),
                             child: Column(
                               children: [
                                 BarcodeWidget(
                                   barcode: Barcode.code128(),
                                   data: widget.menu['barcode'],
-                                  width: 250,
+                                  width: 500,
                                   height: 100,
                                   drawText: false,
                                 ),
@@ -373,7 +372,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                         // Ringkasan Perhitungan
                         _buildDetailSection(
                           'Ringkasan Perhitungan',
-                          Colors.orange[700]!,
+                          Colors.green[700]!,
                           [
                             _buildDetailRow('Total Recipe Cost', 'Rp ${_formatNumber(totalRecipeCost)}', Colors.green[700]!),
                             _buildDetailRow('Food Cost %', '${foodCostPercentage.toStringAsFixed(1)}%', Colors.green[700]!),
@@ -387,7 +386,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange[700],
+                            color: Colors.green[700],
                           ),
                         ),
                         const Divider(thickness: 1),
@@ -407,53 +406,146 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                             ),
                           )
                         else
-                          ...bahanBakuList.asMap().entries.map((entry) {
-                            int index = entry.key;
-                            Map<String, dynamic> bahan = entry.value;
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.green[300]!),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${index + 1}. ${bahan['nama']}',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.orange[300]!, width: 2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                // Table Header
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange[700],
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(10),
+                                      topRight: Radius.circular(10),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                  child: Row(
                                     children: [
-                                      Text(
-                                        'Qty: ${bahan['jumlah']} ${bahan['satuan']}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[700],
+                                      Expanded(
+                                        flex: 1,
+                                        child: Text(
+                                          'No',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
-                                      Text(
-                                        'Rp ${_formatNumber(double.tryParse(bahan['biaya']) ?? 0)}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green[700],
+                                      Expanded(
+                                        flex: 3,
+                                        child: Text(
+                                          'Nama Bahan',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Text(
+                                          'Jumlah',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Text(
+                                          'Biaya',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            );
-                          }),
+                                ),
+                                // Table Rows
+                                ...bahanBakuList.asMap().entries.map((entry) {
+                                  int index = entry.key;
+                                  Map<String, dynamic> bahan = entry.value;
+                                  bool isEven = index % 2 == 0;
+
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: isEven ? Colors.white : Colors.grey[50],
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.grey[300]!,
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 1,
+                                          child: Text(
+                                            '${index + 1}',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 3,
+                                          child: Text(
+                                            bahan['nama'],
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            '${bahan['jumlah']} ${bahan['satuan']}',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            'Rp${_formatNumber(double.tryParse(bahan['biaya']) ?? 0)}',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green[700],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
 
                         const SizedBox(height: 30),
 
@@ -571,4 +663,3 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
     );
   }
 }
-
