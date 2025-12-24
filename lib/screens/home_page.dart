@@ -37,7 +37,7 @@ class _HomePageState extends State<HomePage> {
   String _storeName = "Kedai";
   bool _hasKedai = false;
   bool _isCheckingKedai = true;
-  bool _dialogShown = false; // ✅ TAMBAHAN:  Flag untuk mencegah dialog muncul berulang
+  bool _dialogShown = false;
 
   final TextEditingController _namaKedaiPopupController = TextEditingController();
   final KedaiService _kedaiService = KedaiService();
@@ -87,15 +87,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Method untuk clear cache user saat logout
-  Future<void> _clearUserCache() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('nama_kedai_${widget.userId}');
-    await prefs.remove('has_kedai_${widget.userId}');
-
-    if (kDebugMode) {
-      print('User cache cleared for user:  ${widget.userId}');
-    }
-  }
+  // Future<void> _clearUserCache() async {
+  //   final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   await prefs.remove('nama_kedai_${widget.userId}');
+  //   await prefs.remove('has_kedai_${widget.userId}');
+  //
+  //   if (kDebugMode) {
+  //     print('User cache cleared for user:  ${widget.userId}');
+  //   }
+  // }
 
   void _logout() async {
     showDialog(
@@ -442,7 +442,7 @@ class _HomePageState extends State<HomePage> {
     _initializeHomePage();
   }
 
-  // ✅ PERBAIKAN: Method untuk initialize home page dengan delay
+  //PERBAIKAN: Method untuk initialize home page dengan delay
   Future<void> _initializeHomePage() async {
     if (kDebugMode) {
       print('========== INITIALIZING HOME PAGE ==========');
@@ -453,22 +453,22 @@ class _HomePageState extends State<HomePage> {
       _isCheckingKedai = true;
     });
 
-    // ✅ PENTING: Tunggu sedikit untuk memastikan widget sudah mounted
-    await Future.delayed(const Duration(milliseconds: 300));
+    // PENTING: Tunggu sedikit untuk memastikan widget sudah mounted
+    await Future.delayed(const Duration(milliseconds: 200));
 
     // Load nama kedai dan cek status
     await _loadStoreName();
 
-    // ✅ PENTING: Tunggu sedikit sebelum hide loading
-    await Future.delayed(const Duration(milliseconds: 200));
+    //PENTING: Tunggu sedikit sebelum hide loading
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (mounted) {
       setState(() {
         _isCheckingKedai = false;
       });
 
-      // ✅ PENTING: Tunggu UI selesai render sebelum cek dialog
-      await Future.delayed(const Duration(milliseconds: 300));
+      //PENTING: Tunggu UI selesai render sebelum cek dialog
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Setelah selesai check, baru tampilkan popup jika diperlukan
       if (mounted && !_dialogShown) {
@@ -477,163 +477,104 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ✅ PERBAIKAN: Method untuk load nama kedai dengan retry mechanism yang lebih robust
+  // PERBAIKAN: Method untuk load nama kedai dengan retry mechanism yang lebih robust
   Future<void> _loadStoreName() async {
-    if (kDebugMode) {
+    // ✅ Suppress log untuk web platform
+    final bool shouldLog = kDebugMode && !kIsWeb;
+
+    if (shouldLog) {
       print('========== HOME PAGE: LOADING STORE NAME ==========');
       print('User ID: ${widget.userId}');
     }
 
-    int retryCount = 0;
-    const maxRetries = 5; // ✅ Tingkatkan retry dari 3 ke 5
-    bool foundInDatabase = false;
+    try {
+      // ✅ PERBAIKAN: Panggil sekali saja, kedai_service sudah handle cache & retry
+      final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
 
-    while (retryCount < maxRetries && !foundInDatabase) {
-      try {
-        if (kDebugMode && retryCount > 0) {
-          print('🔄 Retry attempt: ${retryCount + 1}/$maxRetries');
+      if (kedai != null) {
+        if (shouldLog) {
+          print('✅ Kedai loaded: ${kedai.nama_kedai}');
         }
 
-        // ✅ Prioritas utama: ambil dari database dengan timeout yang lebih panjang
-        final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+        if (mounted) {
+          setState(() {
+            _storeName = kedai.nama_kedai;
+            _hasKedai = true;
+          });
+        }
 
-        if (kedai != null) {
-          if (kDebugMode) {
-            print('✅✅✅ Kedai SUCCESSFULLY loaded from database: ${kedai.nama_kedai}');
-            print('Kedai ID: ${kedai.id}');
-          }
+        // Sinkronisasi ke SharedPreferences untuk backup
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('nama_kedai_${widget.userId}', kedai.nama_kedai);
+        await prefs.setString('alamat_kedai_${widget.userId}', kedai.alamat_kedai);
+        await prefs.setString('nomor_telepon_${widget.userId}', kedai.nomor_telepon);
+        await prefs.setString('catatan_struk_${widget.userId}', kedai.catatan_struk);
+        await prefs.setString('logo_kedai_${widget.userId}', kedai.logo_kedai);
+        await prefs.setBool('has_kedai_${widget.userId}', true);
+        await prefs.setString('kedai_id_${widget.userId}', kedai.id);
 
+        if (shouldLog) {
+          print('✅ Store data synced to SharedPreferences');
+        }
+      } else {
+        // Tidak ada kedai, cek cache SharedPreferences sebagai fallback
+        if (shouldLog) {
+          print('No kedai from service, checking SharedPreferences...');
+        }
+
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+        final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
+
+        if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
           if (mounted) {
             setState(() {
-              _storeName = kedai.nama_kedai;
+              _storeName = savedStoreName;
               _hasKedai = true;
             });
           }
 
-          // ✅ Sinkronisasi ke SharedPreferences untuk backup
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString('nama_kedai_${widget.userId}', kedai.nama_kedai);
-          await prefs.setString('alamat_kedai_${widget.userId}', kedai.alamat_kedai);
-          await prefs.setString('nomor_telepon_${widget.userId}', kedai.nomor_telepon);
-          await prefs.setString('catatan_struk_${widget.userId}', kedai.catatan_struk);
-          await prefs.setString('logo_kedai_${widget.userId}', kedai.logo_kedai);
-          await prefs.setBool('has_kedai_${widget.userId}', true);
-          await prefs.setString('kedai_id_${widget.userId}', kedai.id);
-
-          if (kDebugMode) {
-            print('✅ Store data synced to SharedPreferences cache');
-            print('✅ User HAS kedai data - will show dashboard');
-          }
-
-          foundInDatabase = true;
-          return; // ✅ Berhasil, keluar dari method
-        } else {
-          if (kDebugMode) {
-            print('⚠️ No kedai found in database (attempt ${retryCount + 1}/$maxRetries)');
-          }
-
-          // ✅ Jika ini retry terakhir, cek cache sebagai fallback
-          if (retryCount == maxRetries - 1) {
-            if (kDebugMode) {
-              print('🔍 Final attempt failed, checking SharedPreferences cache...');
-            }
-
-            final SharedPreferences prefs = await SharedPreferences.getInstance();
-            final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
-            final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
-
-            if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
-              if (mounted) {
-                setState(() {
-                  _storeName = savedStoreName;
-                  _hasKedai = true;
-                });
-              }
-
-              if (kDebugMode) {
-                print('✅ Loaded from SharedPreferences cache: $savedStoreName');
-                print('⚠️ Using CACHE data (database unreachable)');
-                print('✅ User HAS kedai data (from cache) - will show dashboard');
-              }
-
-              return;
-            } else {
-              // ✅ Tidak ada di database dan tidak ada di cache
-              if (mounted) {
-                setState(() {
-                  _hasKedai = false;
-                });
-              }
-
-              if (kDebugMode) {
-                print('❌ User DOES NOT have kedai data - will show setup dialog');
-              }
-              return;
-            }
-          }
-        }
-
-        // ✅ Retry dengan exponential backoff
-        retryCount++;
-        if (retryCount < maxRetries) {
-          final delayMs = 800 * retryCount; // 800ms, 1600ms, 2400ms, 3200ms, 4000ms
-          if (kDebugMode) {
-            print('⏳ Waiting ${delayMs}ms before retry...');
-          }
-          await Future.delayed(Duration(milliseconds: delayMs));
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('❌ Error loading store name (attempt ${retryCount + 1}/$maxRetries): $e');
-        }
-
-        retryCount++;
-
-        if (retryCount >= maxRetries) {
-          if (kDebugMode) {
-            print('❌ All retry attempts exhausted, falling back to cache...');
-          }
-
-          // ✅ Semua retry gagal, fallback ke SharedPreferences
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
-          final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
-
-          if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
-            if (mounted) {
-              setState(() {
-                _storeName = savedStoreName;
-                _hasKedai = true;
-              });
-            }
-
-            if (kDebugMode) {
-              print('✅ Successfully loaded from cache: $savedStoreName');
-              print('⚠️ Database connection failed, using cached data');
-            }
-          } else {
-            if (mounted) {
-              setState(() {
-                _hasKedai = false;
-              });
-            }
-
-            if (kDebugMode) {
-              print('No cache available, user needs to setup kedai');
-            }
+          if (shouldLog) {
+            print('✅ Loaded from SharedPreferences cache: $savedStoreName');
           }
         } else {
-          final delayMs = 800 * retryCount;
-          if (kDebugMode) {
-            print('⏳ Waiting ${delayMs}ms before retry...');
+          // Tidak ada data sama sekali
+          if (mounted) {
+            setState(() {
+              _hasKedai = false;
+            });
           }
-          await Future.delayed(Duration(milliseconds: delayMs));
+
+          if (shouldLog) {
+            print('ℹ️ User does not have kedai data');
+          }
+        }
+      }
+    } catch (e) {
+      // ✅ Suppress error log untuk web
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+      final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
+
+      if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
+        if (mounted) {
+          setState(() {
+            _storeName = savedStoreName;
+            _hasKedai = true;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _hasKedai = false;
+          });
         }
       }
     }
   }
 
-  // ✅ PERBAIKAN: Method untuk cek dan tampilkan dialog setup kedai
+  // PERBAIKAN: Method untuk cek dan tampilkan dialog setup kedai
   void _checkAndShowKedaiDialog() {
     if (kDebugMode) {
       print('========== CHECK AND SHOW KEDAI DIALOG ==========');
@@ -641,7 +582,7 @@ class _HomePageState extends State<HomePage> {
       print('Dialog Shown: $_dialogShown');
     }
 
-    // ✅ PENTING:  Hanya tampilkan popup jika user TIDAK punya kedai DAN dialog belum pernah ditampilkan
+    // PENTING:  Hanya tampilkan popup jika user TIDAK punya kedai DAN dialog belum pernah ditampilkan
     if (!_hasKedai && !_dialogShown && mounted) {
       if (kDebugMode) {
         print('User does NOT have kedai - showing setup dialog');
@@ -813,7 +754,6 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {
-              // TODO: Implement notification feature
             },
           ),
         ],
@@ -968,4 +908,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
