@@ -1,19 +1,35 @@
 class StaffModel {
   final String id;
   final String nama_staff;
-  final String nomor_telepone;
+  final String email;
+  final String jabatan;
+  final String? foto_profile;
 
   StaffModel({
     required this.id,
     required this.nama_staff,
-    required this.nomor_telepone
+    required this.email,
+    required this.jabatan,
+    this.foto_profile,
   });
 
   factory StaffModel.fromJson(Map data) {
     return StaffModel(
-        id: data['_id'],
-        nama_staff: data['nama_staff'],
-        nomor_telepone: data['nomor_telepone']
+      id: data['_id'] ?? '',
+      nama_staff: data['nama_staff'] ?? '',
+      email: data['email'] ?? '',
+      jabatan: data['jabatan'] ?? '',
+      foto_profile: data['foto_profile'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'nama_staff': nama_staff,
+      'email': email,
+      'jabatan': jabatan,
+      'foto_profile': foto_profile,
+    };
   }
 }

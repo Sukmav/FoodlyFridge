@@ -9,6 +9,7 @@ import 'pengaturan.dart';
 import 'bahan_baku_page.dart';
 import 'kedai_page.dart';
 import 'menu_page.dart';
+import 'staff_page.dart';
 import '../helpers/kedai_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -391,7 +392,7 @@ class _HomePageState extends State<HomePage> {
       case 6:
         return _buildComingSoonContent('Laporan');
       case 7:
-        return _buildComingSoonContent('Staff');
+        return StaffPage(userId: widget.userId);
       case 8:
         return _buildComingSoonContent('Riwayat');
       case 9:
