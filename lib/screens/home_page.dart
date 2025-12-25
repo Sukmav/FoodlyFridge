@@ -10,6 +10,8 @@ import 'bahan_baku_page.dart';
 import 'kedai_page.dart';
 import 'menu_page.dart';
 import 'staff_page.dart';
+import 'waste_food_page.dart';
+import 'stok_masuk_page.dart';
 import '../helpers/kedai_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -382,13 +384,13 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return const BahanBakuPage();
       case 2:
-        return _buildComingSoonContent('Stok Masuk');
+        return const StokMasukPage();
       case 3:
         return _buildComingSoonContent('Stok Keluar');
       case 4:
         return const VendorPage();
       case 5:
-        return _buildComingSoonContent('Sampah Bahan Baku');
+        return WasteFoodPage(userId: widget.userId,userName: widget.username);
       case 6:
         return _buildComingSoonContent('Laporan');
       case 7:

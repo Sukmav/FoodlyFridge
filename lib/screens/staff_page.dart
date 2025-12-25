@@ -1000,8 +1000,8 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
                                 _buildDescriptionItem('3. Melihat dan memilih menu'),
                               ] else if (_selectedJabatan == 'Inventory') ...[
                                 _buildDescriptionItem('1. Mengelola stok bahan baku masuk'),
-                                _buildDescriptionItem('2. Memantau stok dan tanggal kedaluarsa'),
-                                _buildDescriptionItem('3. Mencatat dan mengelola waste bahan baku'),
+                                _buildDescriptionItem('2. Memantau stok dan tanggal kadaluarsa'),
+                                _buildDescriptionItem('3. Mencatat dan mengelola sampah bahan baku'),
                               ],
                             ],
                           ),

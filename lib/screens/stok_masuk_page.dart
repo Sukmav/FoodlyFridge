@@ -3,7 +3,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:convert';
 import '../restapi.dart';
 import '../config.dart';
-import '../model/stok_masuk.dart';
 import '../model/bahan_baku_model.dart';
 import '../model/vendor.dart';
 
@@ -200,22 +199,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF5B6D5B)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Stok Masuk',
-          style: TextStyle(
-            color: Color(0xFF5B6D5B),
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -223,69 +206,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pilih Bahan Baku
-                  GestureDetector(
-                    onTap: _navigateToPilihBahanBaku,
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8DB38D),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.eco,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Pilih Bahan Baku',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF5B6D5B),
-                                  ),
-                                ),
-                                if (_selectedBahanBaku != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      _selectedBahanBaku!.nama_bahan,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: Colors.grey[400],
-                            size: 28,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
                   // Pilih Vendor
                   GestureDetector(
                     onTap: _navigateToPilihVendor,
@@ -302,7 +222,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                             width: 50,
                             height: 50,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF8DB38D),
+                              color: const Color(0xFF7A9B3B),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -320,7 +240,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                                   'Pilih Vendor',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.bold,
                                     color: Color(0xFF5B6D5B),
                                   ),
                                 ),
@@ -348,6 +268,69 @@ class _StokMasukPageState extends State<StokMasukPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // Pilih Bahan Baku
+                  GestureDetector(
+                    onTap: _navigateToPilihBahanBaku,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7A9B3B),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.eco,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Pilih Bahan Baku',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF5B6D5B),
+                                  ),
+                                ),
+                                if (_selectedBahanBaku != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      _selectedBahanBaku!.nama_bahan,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey[400],
+                            size: 28,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // Form Input
                   if (_selectedBahanBaku != null) ...[
@@ -444,32 +427,75 @@ class _StokMasukPageState extends State<StokMasukPage> {
                       contentPadding: const EdgeInsets.all(16),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
 
-                  // Button Buat Pesanan
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _buatPesanan,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B9D5C),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  // Tombol Batal dan Buat Pesanan (tampil jika vendor dan bahan baku sudah dipilih)
+                  if (_selectedVendor != null && _selectedBahanBaku != null) ...[
+                    Row(
+                      children: [
+                        // Tombol Batal
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              // Reset form atau kembali ke halaman sebelumnya
+                              Navigator.pop(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: const BorderSide(
+                                color: Color(0xFF7A9B3B),
+                                width: 2,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Batal',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF7A9B3B),
+                              ),
+                            ),
+                          ),
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Buat Pesanan',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                        const SizedBox(width: 16),
+                        // Tombol Buat Pesanan
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _buatPesanan,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: const Color(0xFF7A9B3B),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Buat Pesanan',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
+                  ],
                 ],
               ),
             ),
