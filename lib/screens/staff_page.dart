@@ -47,6 +47,7 @@ class _StaffPageState extends State<StaffPage> {
     super.dispose();
   }
 
+  // _loadStaff aligned with pattern used in bahan_baku_page.dart (selectAll + parsing)
   Future<void> _loadStaff() async {
     setState(() {
       _isLoading = true;
@@ -121,7 +122,6 @@ class _StaffPageState extends State<StaffPage> {
       });
 
       if (kDebugMode) print('Data berhasil dimuat: ${_staffList.length} items');
-
     } catch (e, stackTrace) {
       if (mounted) {
         setState(() {
@@ -215,6 +215,7 @@ class _StaffPageState extends State<StaffPage> {
     }
   }
 
+// Ganti fungsi _deleteStaff lama dengan fungsi ini
   Future<void> _deleteStaff(StaffModel staff) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -253,27 +254,96 @@ class _StaffPageState extends State<StaffPage> {
       ),
     );
 
-    if (confirm == true) {
-      final success = await _staffService.deleteStaff(staff.id);
-      if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Staff berhasil dihapus'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          await _loadStaff();
+    if (confirm != true) return;
+
+    bool success = false;
+    String lastError = '';
+
+    // Try preferred StaffService.deleteStaff first (kept for compatibility)
+    try {
+      if (staff.id.isNotEmpty) {
+        final res = await _staffService.deleteStaff(staff.id);
+        if (res == true) {
+          success = true;
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Gagal menghapus staff'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // Note result false -> will try fallbacks below
+          if (kDebugMode) print('StaffService.deleteStaff returned false for id ${staff.id}');
         }
+      } else {
+        if (kDebugMode) print('Staff id is empty, will try fallback removals');
+      }
+    } catch (e) {
+      lastError = 'deleteStaff error: $e';
+      if (kDebugMode) print(lastError);
+    }
+
+    // Fallback 1: DataService.removeId (remove by id using restapi)
+    if (!success && staff.id.isNotEmpty) {
+      try {
+        final resRemoveId = await _dataService.removeId(token, project, 'staff', appid, staff.id);
+        if (resRemoveId == true) {
+          success = true;
+        } else if (resRemoveId is String) {
+          final s = resRemoveId.toLowerCase();
+          if (s == 'true' || s.contains('"status":"1"') || s.contains('"ok":true')) success = true;
+        }
+        if (kDebugMode) print('removeId result: $resRemoveId (success=$success)');
+      } catch (e) {
+        lastError = 'removeId error: $e';
+        if (kDebugMode) print(lastError);
       }
     }
+
+    // Fallback 2: DataService.removeWhere (remove by email)
+    if (!success && staff.email.isNotEmpty) {
+      try {
+        final resRemoveWhere = await _data_service_removeWhereEmail(staff.email);
+        if (resRemoveWhere == true) {
+          success = true;
+        } else if (resRemoveWhere is String) {
+          final s = resRemoveWhere.toLowerCase();
+          if (s == 'true' || s.contains('"status":"1"') || s.contains('"ok":true')) success = true;
+        }
+        if (kDebugMode) print('removeWhere(email) result: $resRemoveWhere (success=$success)');
+      } catch (e) {
+        lastError = 'removeWhere error: $e';
+        if (kDebugMode) print(lastError);
+      }
+    }
+
+    // Final UI feedback & refresh
+    if (success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Staff berhasil dihapus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _loadStaff();
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus staff. ${lastError.isNotEmpty ? lastError : ''}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+// Helper kecil untuk removeWhere by email dengan penanganan respons fleksibel
+  Future<dynamic> _data_service_removeWhereEmail(String email) {
+    return _dataService.removeWhere(
+      token,
+      project,
+      'staff',
+      appid,
+      'email',
+      email,
+    );
   }
 
   // Helper to convert jabatan value to displayed label (to match image wording)
@@ -569,6 +639,7 @@ class TambahStaffPage extends StatefulWidget {
 class _TambahStaffPageState extends State<TambahStaffPage> {
   final _formKey = GlobalKey<FormState>();
   final StaffService _staffService = StaffService();
+  final DataService _dataService = DataService();
 
   // Controllers
   final TextEditingController _namaController = TextEditingController();
@@ -595,6 +666,7 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
       _emailController.text = widget.staff!.email;
       _selectedJabatan = widget.staff!.jabatan;
       _fotoProfileBase64 = widget.staff!.foto;
+      // password intentionally left empty (user fills to change)
     }
   }
 
@@ -746,7 +818,38 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
           fotoProfile: _fotoProfileBase64,
         );
       } else {
-        success = await _staff_service_updateStaff();
+        // Try update by ID first; if ID empty, fallback to updateWhere
+        if (widget.staff!.id.isNotEmpty) {
+          // Use DataService.updateId for each field (server's update_id endpoint expects single-field updates)
+          final id = widget.staff!.id;
+          final futures = <Future<dynamic>>[];
+
+          futures.add(_data_service_updateIdIfChanged('nama_staff', _namaController.text.trim(), id));
+          futures.add(_data_service_updateIdIfChanged('email', _emailController.text.trim(), id));
+          if (_passwordController.text.isNotEmpty) {
+            futures.add(_data_service_updateIdIfChanged('kata_sandi', _passwordController.text, id));
+          }
+          futures.add(_data_service_updateIdIfChanged('jabatan', _selectedJabatan ?? '', id));
+          futures.add(_data_service_updateIdIfChanged('foto', _fotoProfileBase64 ?? '', id));
+
+          final results = await Future.wait(futures);
+
+          // A result can be bool true or string; consider success if all are true or 'true' or contain '"status":"1"'
+          bool allOk = true;
+          for (var r in results) {
+            if (r == true) continue;
+            if (r is String) {
+              final s = r.toLowerCase();
+              if (s == 'true' || s.contains('"status":"1"') || s.contains('"ok":true')) continue;
+            }
+            allOk = false;
+            if (kDebugMode) print('updateId returned unexpected result: $r');
+          }
+          success = allOk;
+        } else {
+          // fallback: update by where (email or nama_staff)
+          success = await _updateStaffByWhere();
+        }
       }
 
       if (mounted) {
@@ -783,6 +886,9 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
           ),
         );
       }
+      if (kDebugMode) {
+        print('Error _simpanStaff: $e\n$stackTrace');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -792,16 +898,56 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
     }
   }
 
-  Future<bool> _staff_service_updateStaff() {
-    return _staffService.updateStaff(
-      staffId: widget.staff!.id,
-      userId: widget.userId,
-      namaStaff: _namaController.text.trim(),
-      email: _emailController.text.trim(),
-      password: _passwordController.text.isNotEmpty ? _passwordController.text : null,
-      jabatan: _selectedJabatan,
-      fotoProfile: _fotoProfileBase64,
-    );
+  Future<dynamic> _data_service_updateIdIfChanged(String field, String value, String id) {
+    // If the value didn't change and was originally empty, we still call to ensure consistency.
+    return _dataService.updateId(field, value, token, project, 'staff', appid, id);
+  }
+
+  Future<bool> _updateStaffByWhere() async {
+    // Update multiple fields using updateWhere keyed by previous email (or name)
+    final whereField = 'email';
+    final whereValue = widget.staff?.email ?? widget.staff?.nama_staff ?? '';
+
+    if (whereValue.isEmpty) return false;
+
+    final fields = {
+      'nama_staff': _namaController.text.trim(),
+      'email': _emailController.text.trim(),
+      'kata_sandi': _passwordController.text.isNotEmpty ? _passwordController.text : '',
+      'jabatan': _selectedJabatan ?? '',
+      'foto': _fotoProfileBase64 ?? '',
+    };
+
+    bool allOk = true;
+
+    for (var entry in fields.entries) {
+      try {
+        final res = await _dataService.updateWhere(
+          whereField,
+          whereValue,
+          entry.key,
+          entry.value,
+          token,
+          project,
+          'staff',
+          appid,
+        );
+        if (res != true) {
+          // some endpoints return 'true' as boolean, some as string; handle common cases
+          if (res is String && res.contains('"status":"1"')) {
+            // ok
+          } else {
+            allOk = false;
+            if (kDebugMode) print('updateWhere failed for ${entry.key}: $res');
+          }
+        }
+      } catch (e) {
+        allOk = false;
+        if (kDebugMode) print('updateWhere exception ${entry.key}: $e');
+      }
+    }
+
+    return allOk;
   }
 
   Widget _buildDescriptionItem(String text) {
@@ -814,6 +960,31 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
           color: Colors.black87,
           height: 1.5,
         ),
+      ),
+    );
+  }
+
+  // Small helper to render profile image preview (avoids inline IIFE)
+  Widget _buildProfileImagePreview() {
+    if (_selectedImage != null) {
+      return Image.file(_selectedImage!, fit: BoxFit.cover);
+    }
+    if (_fotoProfileBase64 != null && _fotoProfileBase64!.isNotEmpty) {
+      try {
+        final bytes = base64Decode(_fotoProfileBase64!);
+        return Image.memory(bytes, fit: BoxFit.cover);
+      } catch (_) {
+        // Fall through to placeholder
+      }
+    }
+    return Center(
+      child: Text(
+        'Foto Profil',
+        style: GoogleFonts.poppins(
+          color: const Color(0xFF7A9B3B),
+          fontSize: 12,
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -981,7 +1152,7 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
                 // Foto Profile Section
                 Column(
                   children: [
-                    // Profile Photo Container
+                    // Profile Photo Container (uses helper)
                     GestureDetector(
                       onTap: _showImageSourceDialog,
                       child: Container(
@@ -994,41 +1165,7 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
                             width: 2,
                           ),
                         ),
-                        child: ClipOval(
-                          child: _selectedImage != null
-                              ? Image.file(
-                            _selectedImage!,
-                            fit: BoxFit.cover,
-                          )
-                              : _fotoProfileBase64 != null && _fotoProfileBase64!.isNotEmpty
-                              ? (() {
-                            try {
-                              final bytes = base64Decode(_fotoProfileBase64!);
-                              return Image.memory(bytes, fit: BoxFit.cover);
-                            } catch (_) {
-                              return Center(
-                                child: Text(
-                                  'Foto Profil',
-                                  style: GoogleFonts.poppins(
-                                    color: const Color(0xFF7A9B3B),
-                                    fontSize: 12,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              );
-                            }
-                          })()
-                              : Center(
-                            child: Text(
-                              'Foto Profil',
-                              style: GoogleFonts.poppins(
-                                color: const Color(0xFF7A9B3B),
-                                fontSize: 12,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
+                        child: ClipOval(child: _buildProfileImagePreview()),
                       ),
                     ),
                     const SizedBox(height: 12),
