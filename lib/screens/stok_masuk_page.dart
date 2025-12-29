@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:convert';
@@ -38,8 +39,9 @@ class _StokMasukPageState extends State<StokMasukPage> {
   bool _showNotification = false;
 
   // Track selected items with quantities
-  Map<String, int> _selectedItems = {}; // bahanBakuId -> quantity
-  Map<String, BahanBakuModel> _selectedBahanBakuMap = {}; // bahanBakuId -> BahanBakuModel
+  // Use fallback key = nama_bahan when id is empty to avoid collision when id missing
+  Map<String, int> _selectedItems = {}; // key -> quantity (key = id if available else nama_bahan)
+  Map<String, BahanBakuModel> _selectedBahanBakuMap = {}; // key -> BahanBakuModel
 
   @override
   void dispose() {
@@ -60,14 +62,20 @@ class _StokMasukPageState extends State<StokMasukPage> {
       _selectedBahanBaku = bahan;
       _hargaPerUnit = double.tryParse(bahan.harga_per_unit) ?? 0;
       // Load existing quantity if item was previously selected, otherwise default to 1
-      _quantity = _selectedItems[bahan.id] ?? 1;
+      final key = (bahan.id != null && bahan.id.isNotEmpty) ? bahan.id : bahan.nama_bahan;
+      _quantity = _selectedItems[key] ?? 1;
       _calculateTotal();
     });
     _showQuantityBottomSheet();
   }
 
-  // Show bottom sheet for quantity input
+  // Show bottom sheet for quantity input (with Cancel button)
   void _showQuantityBottomSheet() {
+    // Capture current state so Cancel can revert to it
+    final prevSelectedBahan = _selectedBahanBaku;
+    final prevQuantity = _quantity;
+    final prevTotal = _totalHarga;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -154,11 +162,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
                         IconButton(
                           onPressed: () {
                             if (_quantity > 1) {
-                              setState(() {
+                              setModalState(() {
                                 _quantity--;
-                                _calculateTotal();
+                                _totalHarga = _quantity * _hargaPerUnit;
                               });
-                              setModalState(() {});
                             }
                           },
                           icon: Container(
@@ -208,11 +215,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
                         // Plus Button
                         IconButton(
                           onPressed: () {
-                            setState(() {
+                            setModalState(() {
                               _quantity++;
-                              _calculateTotal();
+                              _totalHarga = _quantity * _hargaPerUnit;
                             });
-                            setModalState(() {});
                           },
                           icon: Container(
                             width: 40,
@@ -237,7 +243,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF7A9B3B).withValues(alpha: 0.1),
+                        color: const Color(0xFF7A9B3B).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: const Color(0xFF7A9B3B),
@@ -268,19 +274,59 @@ class _StokMasukPageState extends State<StokMasukPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Buttons
+                    // Buttons row: Cancel, Tambah Lagi, Pesan
                     Row(
                       children: [
-                        // Batal Button
+                        // BATAL: discard changes and close sheet
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () {
-                              Navigator.pop(context);
+                              // Revert any in-sheet changes by restoring previous captured values
                               setState(() {
-                                _selectedBahanBaku = null;
-                                _quantity = 1;
-                                _totalHarga = 0;
+                                _selectedBahanBaku = prevSelectedBahan;
+                                _quantity = prevQuantity;
+                                _totalHarga = prevTotal;
                               });
+                              Navigator.pop(context); // just close the sheet
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(
+                                color: Colors.grey,
+                                width: 1,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Batal',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // "Tambah Lagi" keeps user on bahan list so they can add more items
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              // Save current selection then close the sheet and stay on bahan list
+                              if (_selectedBahanBaku != null) {
+                                final key = (_selectedBahanBaku!.id != null && _selectedBahanBaku!.id.isNotEmpty)
+                                    ? _selectedBahanBaku!.id
+                                    : _selectedBahanBaku!.nama_bahan;
+                                setState(() {
+                                  _selectedItems[key] = _quantity;
+                                  _selectedBahanBakuMap[key] = _selectedBahanBaku!;
+                                });
+                              }
+                              Navigator.pop(context);
+                              // do not change _currentStep so user remains on selectBahanBaku
                             },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -293,7 +339,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                               ),
                             ),
                             child: const Text(
-                              'Batal',
+                              'Tambah Lagi',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -304,12 +350,24 @@ class _StokMasukPageState extends State<StokMasukPage> {
                         ),
                         const SizedBox(width: 12),
 
-                        // Pesan Button
+                        // Pesan Button - proceed to review (keeps existing behaviour)
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
+                              // Save current selection and go to review
+                              if (_selectedBahanBaku != null) {
+                                final key = (_selectedBahanBaku!.id != null && _selectedBahanBaku!.id.isNotEmpty)
+                                    ? _selectedBahanBaku!.id
+                                    : _selectedBahanBaku!.nama_bahan;
+                                setState(() {
+                                  _selectedItems[key] = _quantity;
+                                  _selectedBahanBakuMap[key] = _selectedBahanBaku!;
+                                });
+                              }
                               Navigator.pop(context);
-                              _proceedToReview();
+                              setState(() {
+                                _currentStep = StokMasukStep.reviewOrder;
+                              });
                             },
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -340,20 +398,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
         );
       },
     );
-  }
-
-  // Show order summary popup at bottom
-  void _proceedToReview() {
-    // Save selected item with quantity
-    if (_selectedBahanBaku != null) {
-      setState(() {
-        _selectedItems[_selectedBahanBaku!.id] = _quantity;
-        _selectedBahanBakuMap[_selectedBahanBaku!.id] = _selectedBahanBaku!;
-      });
-
-      // Show bottom summary popup
-      _showBottomSummaryPopup();
-    }
   }
 
   // Show bottom summary popup with total and items
@@ -433,6 +477,20 @@ class _StokMasukPageState extends State<StokMasukPage> {
                 ],
               ),
               const SizedBox(height: 20),
+
+              // Add a small "Tambah Lagi" link so user can add more items without leaving list
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // keep user on bahan list (no change to _currentStep)
+                },
+                child: Text(
+                  'Tambah bahan lain',
+                  style: TextStyle(color: Colors.green[700]),
+                ),
+              ),
+              const SizedBox(height: 8),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -476,6 +534,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
       _quantity = 1;
       _totalHarga = 0;
       _currentStep = StokMasukStep.selectVendor;
+
+      // IMPORTANT: clear selected items so UI returns to unselected state
+      _selectedItems.clear();
+      _selectedBahanBakuMap.clear();
     });
   }
 
@@ -540,55 +602,54 @@ class _StokMasukPageState extends State<StokMasukPage> {
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Vendor siap mengirim Pesanan Anda, ditunggu ya!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: 150,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.of(context).pop(); // Close dialog
-                      await _showNotificationBanner();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF8B4513), width: 2), // warna & tebal garis
-                      foregroundColor: const Color(0xFF8B4513), // warna teks
-                      backgroundColor: Colors.white, // biarkan transparan
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Siap',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        // color: Colors.white,
-                      ),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Vendor siap mengirim Pesanan Anda, ditunggu ya!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: 150,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop(); // Close dialog
+                        await _showNotificationBanner();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF8B4513), width: 2), // warna & tebal garis
+                        foregroundColor: const Color(0xFF8B4513), // warna teks
+                        backgroundColor: Colors.white, // biarkan transparan
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Siap',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-         ),
-       );
-     },
-   );
- }
+        );
+      },
+    );
+  }
 
   Future<void> _showNotificationBanner() async {
     setState(() {
@@ -662,6 +723,30 @@ class _StokMasukPageState extends State<StokMasukPage> {
     );
   }
 
+  Widget _buildReviewRow(String label, String value, {bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTotal ? 16 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+            color: isTotal ? Colors.black87 : Colors.grey[600],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isTotal ? 18 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+            color: isTotal ? const Color(0xFF7A9B3B) : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPopupRow(String label, String value, {bool isBold = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -703,10 +788,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
           backgroundColor: Colors.transparent,
           child: Container(
             padding: const EdgeInsets.all(40),
-            // decoration: BoxDecoration(
-            //   color: Colors.white,
-            //   borderRadius: BorderRadius.circular(20),
-            // ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -742,6 +823,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
       _quantity = 1;
       _totalHarga = 0;
       _currentStep = StokMasukStep.selectVendor;
+
+      // IMPORTANT: clear selected items so UI returns to unselected state after confirming
+      _selectedItems.clear();
+      _selectedBahanBakuMap.clear();
     });
 
     Fluttertoast.showToast(
@@ -773,7 +858,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
         _selectedVendor!.id,
       );
 
-      print('Result insert stok masuk: $result');
+      if (kDebugMode) print('Result insert stok masuk: $result');
 
       // Update stok tersedia bahan baku
       if (_selectedBahanBaku!.id.isNotEmpty) {
@@ -794,17 +879,32 @@ class _StokMasukPageState extends State<StokMasukPage> {
       setState(() {
         _isLoading = false;
       });
-
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
 
-      print('Error menyimpan stok masuk: $e');
+      if (kDebugMode) print('Error menyimpan stok masuk: $e');
       Fluttertoast.showToast(
         msg: "Gagal menyimpan: ${e.toString()}",
         backgroundColor: Colors.red,
       );
+    }
+  }
+
+  Future<String> _data_service_selectAll() async {
+    final res = await _dataService.selectAll(
+      token,
+      project,
+      'bahan_baku',
+      appid,
+    );
+    if (res == null) return '';
+    if (res is String) return res;
+    try {
+      return json.encode(res);
+    } catch (_) {
+      return res.toString();
     }
   }
 
@@ -903,7 +1003,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                 border: Border.all(color: Colors.grey[300]!),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.1),
+                    color: Colors.grey.withOpacity(0.1),
                     spreadRadius: 1,
                     blurRadius: 4,
                     offset: const Offset(0, 2),
@@ -968,10 +1068,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
           GestureDetector(
             onTap: _selectedVendor != null
                 ? () {
-                    setState(() {
-                      _currentStep = StokMasukStep.selectBahanBaku;
-                    });
-                  }
+              setState(() {
+                _currentStep = StokMasukStep.selectBahanBaku;
+              });
+            }
                 : null,
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -986,7 +1086,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                 boxShadow: [
                   if (_selectedVendor != null)
                     BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.1),
+                      color: Colors.grey.withOpacity(0.1),
                       spreadRadius: 1,
                       blurRadius: 4,
                       offset: const Offset(0, 2),
@@ -1044,6 +1144,9 @@ class _StokMasukPageState extends State<StokMasukPage> {
     // Create unique key from Map content to force rebuild when items change
     final mapKey = _selectedItems.entries.map((e) => '${e.key}:${e.value}').join(',');
 
+    // Safety: if vendor not selected, fallback to vendor step
+    if (_selectedVendor == null) return _buildSelectVendorStep();
+
     return PilihBahanBakuFromVendorPage(
       key: ValueKey(mapKey), // Force rebuild when Map content changes
       vendor: _selectedVendor!,
@@ -1051,7 +1154,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
       selectedItems: Map.from(_selectedItems), // Pass copy to ensure new reference
     );
   }
-
 
   Widget _buildReviewOrderStep() {
     // Calculate totals from all selected items
@@ -1249,30 +1351,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
       ),
     );
   }
-
-  Widget _buildReviewRow(String label, String value, {bool isTotal = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isTotal ? 16 : 14,
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
-            color: isTotal ? Colors.black87 : Colors.grey[600],
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isTotal ? 18 : 14,
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-            color: isTotal ? const Color(0xFF7A9B3B) : Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // ==================== HALAMAN PILIH BAHAN BAKU FROM VENDOR ====================
@@ -1317,12 +1395,7 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
     });
 
     try {
-      final response = await _dataService.selectAll(
-        token,
-        project,
-        'bahan_baku',
-        appid,
-      );
+      final response = await _data_service_selectAll();
 
       if (response == '[]' || response.isEmpty || response == 'null') {
         setState(() {
@@ -1369,6 +1442,22 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
     }
   }
 
+  Future<String> _data_service_selectAll() async {
+    final res = await _dataService.selectAll(
+      token,
+      project,
+      'bahan_baku',
+      appid,
+    );
+    if (res == null) return '';
+    if (res is String) return res;
+    try {
+      return json.encode(res);
+    } catch (_) {
+      return res.toString();
+    }
+  }
+
   void _filterBahanBaku(String query) {
     setState(() {
       if (query.isEmpty) {
@@ -1376,8 +1465,8 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
       } else {
         _filteredList = _bahanBakuList
             .where((bahan) =>
-                bahan.nama_bahan.toLowerCase().contains(query.toLowerCase()) ||
-                bahan.kategori.toLowerCase().contains(query.toLowerCase()))
+        bahan.nama_bahan.toLowerCase().contains(query.toLowerCase()) ||
+            bahan.kategori.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -1395,7 +1484,7 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.1),
+                color: Colors.grey.withOpacity(0.1),
                 spreadRadius: 1,
                 blurRadius: 4,
                 offset: const Offset(0, 2),
@@ -1467,95 +1556,98 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _filteredList.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text('Tidak ada data bahan baku', style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _filteredList.length,
-                      padding: const EdgeInsets.all(16),
-                      itemBuilder: (context, index) {
-                        final bahan = _filteredList[index];
-                        final quantity = widget.selectedItems[bahan.id] ?? 0;
-                        final isSelected = quantity > 0;
+              ? const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text('Tidak ada data bahan baku', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          )
+              : ListView.builder(
+            itemCount: _filteredList.length,
+            padding: const EdgeInsets.all(16),
+            itemBuilder: (context, index) {
+              final bahan = _filteredList[index];
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: isSelected
-                                ? const BorderSide(color: Color(0xFF7A9B3B), width: 2)
-                                : BorderSide.none,
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B5A3C).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.inventory_2,
-                                color: Color(0xFF8B5A3C),
-                              ),
-                            ),
-                            title: Text(
-                              bahan.nama_bahan,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text('Stok: ${bahan.stok_tersedia} ${bahan.unit}'),
-                                Text('Harga: Rp ${bahan.harga_per_unit}/${bahan.unit}'),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (isSelected)
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF7A9B3B),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      '$quantity',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                const Icon(Icons.chevron_right),
-                              ],
-                            ),
-                            onTap: () {
-                              widget.onBahanBakuSelected(bahan);
-                            },
-                          ),
-                        );
-                      },
+              // Use same key logic as parent: id if present else nama_bahan
+              final key = (bahan.id != null && bahan.id.isNotEmpty) ? bahan.id : bahan.nama_bahan;
+              final quantity = widget.selectedItems[key] ?? 0;
+              final isSelected = quantity > 0;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isSelected
+                      ? const BorderSide(color: Color(0xFF7A9B3B), width: 2)
+                      : BorderSide.none,
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  leading: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5A3C).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: const Icon(
+                      Icons.inventory_2,
+                      color: Color(0xFF8B5A3C),
+                    ),
+                  ),
+                  title: Text(
+                    bahan.nama_bahan,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text('Stok: ${bahan.stok_tersedia} ${bahan.unit}'),
+                      Text('Harga: Rp ${bahan.harga_per_unit}/${bahan.unit}'),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7A9B3B),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$quantity',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () {
+                    widget.onBahanBakuSelected(bahan);
+                  },
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
@@ -1654,8 +1746,8 @@ class _PilihVendorPageState extends State<PilihVendorPage> {
       } else {
         _filteredList = _vendorList
             .where((vendor) =>
-                vendor.nama_vendor.toLowerCase().contains(query.toLowerCase()) ||
-                vendor.nama_pic.toLowerCase().contains(query.toLowerCase()))
+        vendor.nama_vendor.toLowerCase().contains(query.toLowerCase()) ||
+            vendor.nama_pic.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -1714,68 +1806,67 @@ class _PilihVendorPageState extends State<PilihVendorPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredList.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.store_outlined, size: 64, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text('Tidak ada data vendor', style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _filteredList.length,
-                        padding: const EdgeInsets.all(16),
-                        itemBuilder: (context, index) {
-                          final vendor = _filteredList[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              leading: Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF8B5A3C).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.store,
-                                  color: Color(0xFF8B5A3C),
-                                ),
-                              ),
-                              title: Text(
-                                vendor.nama_vendor,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 4),
-                                  Text('PIC: ${vendor.nama_pic}'),
-                                  Text('Telp: ${vendor.nomor_tlp}'),
-                                ],
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () {
-                                Navigator.pop(context, vendor);
-                              },
-                            ),
-                          );
-                        },
+                ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.store_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('Tidak ada data vendor', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            )
+                : ListView.builder(
+              itemCount: _filteredList.length,
+              padding: const EdgeInsets.all(16),
+              itemBuilder: (context, index) {
+                final vendor = _filteredList[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5A3C).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      child: const Icon(
+                        Icons.store,
+                        color: Color(0xFF8B5A3C),
+                      ),
+                    ),
+                    title: Text(
+                      vendor.nama_vendor,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text('PIC: ${vendor.nama_pic}'),
+                        Text('Telp: ${vendor.nomor_tlp}'),
+                      ],
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context, vendor);
+                    },
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 }
-
