@@ -6,6 +6,8 @@ class WasteFoodModel {
   final String tanggal;
   final String catatan;
   final String foto;
+  final String total_kerugian;
+  final String kode_bahan;
 
   WasteFoodModel({
     required this.id,
@@ -14,7 +16,9 @@ class WasteFoodModel {
     required this.jumlah_terbuang,
     required this.tanggal,
     required this.catatan,
-    required this.foto
+    required this.foto,
+    required this.total_kerugian,
+    required this.kode_bahan
   });
 
   factory WasteFoodModel.fromJson(Map data) {
@@ -25,7 +29,9 @@ class WasteFoodModel {
         jumlah_terbuang: data['jumlah_terbuang'],
         tanggal: data['tanggal'],
         catatan: data['catatan'],
-        foto: data['foto']
+        foto: data['foto'],
+        total_kerugian: data['total_kerugian'],
+        kode_bahan: data['kode_bahan']
     );
   }
 }

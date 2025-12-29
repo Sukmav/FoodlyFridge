@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -355,7 +356,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       'Estimasi Penyimpanan (hari)',
                       TextInputType.number,
                       null,
-                      (value) {
+                          (value) {
                         setDialogState(() {
                           tanggalKadaluarsa = calculateExpiryDate(tanggalMasuk, value);
                         });
@@ -467,7 +468,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               print('Error memproses gambar: $e');
                             }
                           } else {
-                            if (isEdit && bahanBaku.foto_bahan.isNotEmpty) {
+                            if (isEdit && bahanBaku!.foto_bahan.isNotEmpty) {
                               imageUrl = bahanBaku.foto_bahan;
                             }
                           }
@@ -484,7 +485,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
                           if (isEdit) {
                             await _updateBahanBaku(
-                              bahanBaku.id,
+                              bahanBaku!.id,
                               namaController.text,
                               selectedUnit,
                               hargaGrossController.text,
@@ -559,12 +560,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Widget _buildTextField(
-    TextEditingController controller,
-    String label, [
-    TextInputType? keyboardType,
-    IconData? suffixIcon,
-    Function(String)? onChanged,
-  ]) {
+      TextEditingController controller,
+      String label, [
+        TextInputType? keyboardType,
+        IconData? suffixIcon,
+        Function(String)? onChanged,
+      ]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -822,7 +823,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       String tempatPenyimpanan,
       String grossQty,
       String catatan,
-      String fotoBahan,
+      String foto_bahan,
       ) async {
     setState(() {
       _isLoading = true;
@@ -830,22 +831,24 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
     try {
       print('=== MULAI INSERT ===');
+
+      // Map parameters to DataService.insertBahanBaku signature:
+      // insertBahanBaku(String appid, String foto_bahan, String nama_bahan, String unit, String gross_qty, String harga_per_gross, String harga_per_unit, String stok_tersedia, String estimasi_umur, String tanggal_masuk, String tanggal_kadaluarsa, String kategori, String tempat_penyimpanan, String catatan)
       final result = await _dataService.insertBahanBaku(
         appid,
+        foto_bahan,
         nama,
         unit,
+        grossQty,
         hargaGross,
         hargaUnit,
         stokTersedia,
-        stokMinimal,
         estimasi_penyimpanan,
         tanggalMasuk,
         tanggalKadaluarsa,
         kategori,
         tempatPenyimpanan,
-        grossQty,
         catatan,
-        fotoBahan,
       );
 
       print('Result insert: $result');
@@ -883,7 +886,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       String tempatPenyimpanan,
       String grossQty,
       String catatan,
-      String fotoBahan,
+      String foto_bahan,
       String namaLama, // Tambahkan nama lama untuk updateWhere
       ) async {
     setState(() {
@@ -915,7 +918,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
           'tempat_penyimpanan': tempatPenyimpanan,
           'gross_qty': grossQty,
           'catatan': catatan,
-          'foto_bahan': fotoBahan,
+          'foto_bahan': foto_bahan,
         };
 
         for (var entry in fields.entries) {
@@ -949,7 +952,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
           _dataService.updateId('tempat_penyimpanan', tempatPenyimpanan, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('gross_qty', grossQty, token, project, 'bahan_baku', appid, id),
           _dataService.updateId('catatan', catatan, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('foto_bahan', fotoBahan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('foto_bahan', foto_bahan, token, project, 'bahan_baku', appid, id),
         ]);
 
         print('Update results: $results');
@@ -1156,10 +1159,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   child: bahan.foto_bahan.isNotEmpty
                       ? _buildImageWidget(bahan.foto_bahan)
                       : const Icon(
-                          Icons.inventory_2,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
+                    Icons.inventory_2,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
                 ),
 
                 // Tabs

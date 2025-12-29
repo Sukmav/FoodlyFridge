@@ -6,7 +6,7 @@ class StokMasukModel {
   final String total_qty;
   final String harga_satuan;
   final String total_harga;
-  final String vendor_id;
+  final String nama_vendor;
 
   StokMasukModel({
     required this.id,
@@ -16,7 +16,7 @@ class StokMasukModel {
     required this.total_qty,
     required this.harga_satuan,
     required this.total_harga,
-    required this.vendor_id
+    required this.nama_vendor
   });
 
   factory StokMasukModel.fromJson(Map data) {
@@ -28,7 +28,7 @@ class StokMasukModel {
         total_qty: data['total_qty'],
         harga_satuan: data['harga_satuan'],
         total_harga: data['total_harga'],
-        vendor_id: data['vendor_id']
+        nama_vendor: data['nama_vendor']
     );
   }
 }

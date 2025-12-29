@@ -18,12 +18,14 @@ class HomePage extends StatefulWidget {
   final String username;
   final String email;
   final String userId;
+  final String? role;  // 'admin', 'kasir', 'inventory'
 
   const HomePage({
     super.key,
     required this.username,
     required this.email,
     required this.userId,
+    this.role,
   });
 
   @override
@@ -44,6 +46,49 @@ class _HomePageState extends State<HomePage> {
 
   final TextEditingController _namaKedaiPopupController = TextEditingController();
   final KedaiService _kedaiService = KedaiService();
+
+  // Get filtered menu items based on role
+  List<Map<String, dynamic>> get _filteredMenuItems {
+    final role = widget.role?.toLowerCase() ?? 'admin';
+
+    if (role == 'kasir') {
+      // Kasir can only access: Menu, Kasir
+      return _menuItems.where((item) {
+        final route = item['route'];
+        return route == -1 || route == 0 || route == 9; // Beranda, Menu, Kasir
+      }).toList();
+    } else if (role == 'inventory') {
+      // Inventory can access: Bahan Baku, Stok Masuk, Sampah Bahan Baku
+      return _menuItems.where((item) {
+        final route = item['route'];
+        return route == -1 || route == 1 || route == 2 || route == 5; // Beranda, Bahan Baku, Stok Masuk, Sampah Bahan Baku
+      }).toList();
+    }
+
+    // admin has full access
+    return _menuItems;
+  }
+
+  List<Map<String, dynamic>> get _filteredDashboardMenuItems {
+    final role = widget.role?.toLowerCase() ?? 'admin';
+
+    if (role == 'kasir') {
+      // Kasir dashboard: Menu, Kasir
+      return _dashboardMenuItems.where((item) {
+        final route = item['route'];
+        return route == 0 || route == 9; // Menu, Kasir
+      }).toList();
+    } else if (role == 'inventory') {
+      // Inventory dashboard: Stok Masuk, Bahan Baku, Sampah Bahan Baku
+      return _dashboardMenuItems.where((item) {
+        final route = item['route'];
+        return route == 1 || route == 2 || route == 5; // Bahan Baku, Stok Masuk, Sampah Bahan Baku
+      }).toList();
+    }
+
+    // admin has full access
+    return _dashboardMenuItems;
+  }
 
   final List<Map<String, dynamic>> _menuItems = [
     {'icon': Icons.home_outlined, 'label': 'Beranda', 'route':  -1},
@@ -269,9 +314,9 @@ class _HomePageState extends State<HomePage> {
               mainAxisSpacing: 16,
               childAspectRatio: 0.95,
             ),
-            itemCount: _dashboardMenuItems.length,
+            itemCount: _filteredDashboardMenuItems.length,
             itemBuilder: (context, index) {
-              final item = _dashboardMenuItems[index];
+              final item = _filteredDashboardMenuItems[index];
               return _buildDashboardMenuItem(
                 icon: item['icon'] as IconData,
                 label:  item['label'] as String,
@@ -474,7 +519,9 @@ class _HomePageState extends State<HomePage> {
       await Future.delayed(const Duration(milliseconds: 100));
 
       // Setelah selesai check, baru tampilkan popup jika diperlukan
-      if (mounted && !_dialogShown) {
+      // Skip dialog for staff - only admins need to setup kedai
+      final role = widget.role?.toLowerCase() ?? 'admin';
+      if (mounted && !_dialogShown && role == 'admin') {
         _checkAndShowKedaiDialog();
       }
     }
@@ -754,11 +801,6 @@ class _HomePageState extends State<HomePage> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {
-            },
-          ),
         ],
       ),
       drawer: Drawer(
@@ -820,7 +862,9 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Admin',
+                          widget.role != null && widget.role!.isNotEmpty
+                            ? widget.role!.toUpperCase()
+                            : 'ADMIN',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -841,8 +885,8 @@ class _HomePageState extends State<HomePage> {
                   padding: EdgeInsets. zero,
                   children: [
                     const SizedBox(height: 8),
-                    ... List.generate(_menuItems.length, (index) {
-                      final item = _menuItems[index];
+                    ... List.generate(_filteredMenuItems.length, (index) {
+                      final item = _filteredMenuItems[index];
                       final isSelected = _selectedIndex == item['route'];
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

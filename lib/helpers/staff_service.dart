@@ -71,39 +71,39 @@ class StaffService {
           List<StaffModel> staffList = [];
           for (var data in dataList) {
             try {
-              final staff = StaffModel.fromJson(data as Map<dynamic, dynamic>);
+              final staff = StaffModel.fromJson(Map<String, dynamic>.from(data));
               staffList.add(staff);
               if (kDebugMode) {
-                print('✅ Parsed: ${staff.nama_staff}');
+                print('Parsed: ${staff.nama_staff}');
               }
             } catch (e) {
               if (kDebugMode) {
-                print('⚠️ Error parsing item: $e');
+                print('Error parsing item: $e');
                 print('Item data: $data');
               }
             }
           }
 
           if (kDebugMode) {
-            print('✅ Found ${staffList.length} staff items');
+            print('Found ${staffList.length} staff items');
           }
           return staffList;
         } catch (e, stackTrace) {
           if (kDebugMode) {
-            print('⚠️ Error parsing response: $e');
+            print('Error parsing response: $e');
             print('Stack trace: $stackTrace');
           }
           return [];
         }
       } else {
         if (kDebugMode) {
-          print('❌ Failed to fetch staff. Status: ${response.statusCode}');
+          print('Failed to fetch staff. Status: ${response.statusCode}');
         }
         return [];
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ Error in getStaffByUserId: $e');
+        print('Error in getStaffByUserId: $e');
         print('Stack trace: $stackTrace');
       }
       return [];
@@ -116,7 +116,6 @@ class StaffService {
     required String namaStaff,
     required String email,
     required String password,
-    required String nomorTelepon,
     required String jabatan,
     String? fotoProfile,
   }) async {
@@ -139,14 +138,12 @@ class StaffService {
         'user_id': userId,
         'nama_staff': namaStaff,
         'email': email,
-        'password': password,
-        'nomor_telepone': nomorTelepon,
+        'kata_sandi': password, // Field name sesuai dengan model
         'jabatan': jabatan,
+        'foto': fotoProfile ?? '', // Tambahkan foto field
       };
 
-      if (fotoProfile != null && fotoProfile.isNotEmpty) {
-        body['foto_profile'] = fotoProfile;
-      }
+      // Tidak perlu check foto_profile karena sudah ada field 'foto'
 
       final response = await http.post(
         Uri.parse(uri),
@@ -160,18 +157,18 @@ class StaffService {
 
       if (response.statusCode == 200) {
         if (kDebugMode) {
-          print('✅ Staff added successfully');
+          print('Staff added successfully');
         }
         return true;
       } else {
         if (kDebugMode) {
-          print('❌ Failed to add staff. Status: ${response.statusCode}');
+          print('Failed to add staff. Status: ${response.statusCode}');
         }
         return false;
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ Error in addStaff: $e');
+        print('Error in addStaff: $e');
         print('Stack trace: $stackTrace');
       }
       return false;
@@ -185,7 +182,6 @@ class StaffService {
     String? namaStaff,
     String? email,
     String? password,
-    String? nomorTelepon,
     String? jabatan,
     String? fotoProfile,
   }) async {
@@ -209,10 +205,9 @@ class StaffService {
 
       if (namaStaff != null) body['nama_staff'] = namaStaff;
       if (email != null) body['email'] = email;
-      if (password != null) body['password'] = password;
-      if (nomorTelepon != null) body['nomor_telepone'] = nomorTelepon;
+      if (password != null) body['kata_sandi'] = password; // Field name sesuai dengan model
       if (jabatan != null) body['jabatan'] = jabatan;
-      if (fotoProfile != null) body['foto_profile'] = fotoProfile;
+      if (fotoProfile != null) body['foto'] = fotoProfile; // Field name sesuai dengan model
 
       final response = await http.post(
         Uri.parse(uri),
@@ -226,18 +221,18 @@ class StaffService {
 
       if (response.statusCode == 200) {
         if (kDebugMode) {
-          print('✅ Staff updated successfully');
+          print('Staff updated successfully');
         }
         return true;
       } else {
         if (kDebugMode) {
-          print('❌ Failed to update staff. Status: ${response.statusCode}');
+          print('Failed to update staff. Status: ${response.statusCode}');
         }
         return false;
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ Error in updateStaff: $e');
+        print('Error in updateStaff: $e');
         print('Stack trace: $stackTrace');
       }
       return false;
@@ -271,21 +266,177 @@ class StaffService {
 
       if (response.statusCode == 200) {
         if (kDebugMode) {
-          print('✅ Staff deleted successfully');
+          print('Staff deleted successfully');
         }
         return true;
       } else {
         if (kDebugMode) {
-          print('❌ Failed to delete staff. Status: ${response.statusCode}');
+          print('Failed to delete staff. Status: ${response.statusCode}');
         }
         return false;
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ Error in deleteStaff: $e');
+        print('Error in deleteStaff: $e');
         print('Stack trace: $stackTrace');
       }
       return false;
+    }
+  }
+
+  // Authenticate staff by email and password
+  Future<StaffModel?> authenticateStaff({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      if (kDebugMode) {
+        print('========== AUTHENTICATING STAFF ==========');
+        print('Email: $email');
+      }
+
+      final uri = '$_baseUrl/select/';
+      final response = await http.post(
+        Uri.parse(uri),
+        body: {
+          'token': token,
+          'project': project,
+          'collection': _collection,
+          'appid': appid,
+          'email': email,
+        },
+      );
+
+      if (kDebugMode) {
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        try {
+          if (response.body.isEmpty || response.body == 'null' || response.body == '[]') {
+            if (kDebugMode) {
+              print('No staff found with this email');
+            }
+            return null;
+          }
+
+          final responseData = json.decode(response.body);
+
+          List<dynamic> dataList = [];
+
+          if (responseData is List) {
+            dataList = responseData;
+          } else if (responseData is Map) {
+            if (responseData.containsKey('data')) {
+              dataList = responseData['data'] is List ? responseData['data'] : [responseData['data']];
+            } else {
+              dataList = [responseData];
+            }
+          }
+
+          if (dataList.isEmpty) {
+            if (kDebugMode) {
+              print('No staff found with this email');
+            }
+            return null;
+          }
+
+          // Get the first staff with matching email
+          final staffData = Map<String, dynamic>.from(dataList.first);
+          final staff = StaffModel.fromJson(staffData);
+
+          // Verify password
+          if (staff.kata_sandi == password) {
+            if (kDebugMode) {
+              print('Staff authenticated successfully');
+              print('Staff Name: ${staff.nama_staff}');
+              print('Jabatan: ${staff.jabatan}');
+            }
+            return staff;
+          } else {
+            if (kDebugMode) {
+              print('Invalid password');
+            }
+            return null;
+          }
+        } catch (e, stackTrace) {
+          if (kDebugMode) {
+            print('Error parsing response: $e');
+            print('Stack trace: $stackTrace');
+          }
+          return null;
+        }
+      } else {
+        if (kDebugMode) {
+          print('Failed to authenticate staff. Status: ${response.statusCode}');
+        }
+        return null;
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('Error in authenticateStaff: $e');
+        print('Stack trace: $stackTrace');
+      }
+      return null;
+    }
+  }
+
+  // Get staff owner's user_id
+  Future<String?> getStaffOwnerUserId(String staffId) async {
+    try {
+      if (kDebugMode) {
+        print('========== GETTING STAFF OWNER USER ID ==========');
+        print('Staff ID: $staffId');
+      }
+
+      final uri = '$_baseUrl/select/';
+      final response = await http.post(
+        Uri.parse(uri),
+        body: {
+          'token': token,
+          'project': project,
+          'collection': _collection,
+          'appid': appid,
+          '_id': staffId,
+        },
+      );
+
+      if (kDebugMode) {
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        try {
+          if (response.body.isEmpty || response.body == 'null' || response.body == '[]') {
+            return null;
+          }
+
+          final responseData = json.decode(response.body);
+
+          if (responseData is Map && responseData.containsKey('user_id')) {
+            return responseData['user_id'] as String;
+          } else if (responseData is List && responseData.isNotEmpty) {
+            final firstItem = responseData.first as Map<dynamic, dynamic>;
+            return firstItem['user_id'] as String?;
+          }
+
+          return null;
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ Error parsing response: $e');
+          }
+          return null;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error in getStaffOwnerUserId: $e');
+      }
+      return null;
     }
   }
 }

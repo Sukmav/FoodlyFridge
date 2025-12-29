@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'register_page.dart';
 import 'home_page.dart';
+import '../helpers/staff_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,6 +64,42 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      // First, try to authenticate as staff
+      final staffService = StaffService();
+      final staff = await staffService.authenticateStaff(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (staff != null) {
+        // Staff login successful
+        Fluttertoast.showToast(
+          msg: "Login sebagai ${staff.jabatan} berhasil!",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+        );
+
+        if (mounted) {
+          // Navigate to HomePage with staff role
+          // Use admin's userId from staff data
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HomePage(
+                username: staff.nama_staff,
+                email: staff.email,
+                userId: staff.user_id ?? staff.id, // Use admin's userId or fallback to staff id
+                role: staff.jabatan.toLowerCase(),
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      // If not staff, try Firebase authentication (regular user/admin)
       final UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -104,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                   userCredential.user!.email?.split('@')[0] ?? 'User',
               email: userCredential.user!.email ?? '',
               userId: userCredential.user!.uid,
+              role: 'admin', // Admin role
             ),
           ),
         );
@@ -181,7 +219,7 @@ class _LoginPageState extends State<LoginPage> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
+                            color: Colors.grey.withValues(alpha: 0.2),
                             spreadRadius: 5,
                             blurRadius: 10,
                             offset: const Offset(0, 3),
