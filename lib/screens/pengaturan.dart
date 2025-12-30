@@ -5,7 +5,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/foundation.dart';
 import 'kedai_page.dart';
 import '../helpers/kedai_service.dart';
-
+import 'ubah_kata_sandi.dart'; // new page
 
 class PengaturanPage extends StatefulWidget {
   final String userId;
@@ -29,65 +29,35 @@ class _PengaturanPageState extends State<PengaturanPage> {
   }
 
   void _navigateToKedai() async {
-    // Cek apakah user sudah punya data kedai
-    try {
-      final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+    // To avoid long blocking time when opening Pengaturan, navigate immediately
+    // and let KedaiPage handle its own loading. We still trigger a background
+    // check (non-blocking) to keep compatibility with existing logic, but
+    // we do not await it here so UI stays responsive.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KedaiPage(userId: widget.userId),
+      ),
+    );
 
-      if (kedai != null) {
-        // Jika sudah ada data, navigasi ke KedaiPage (akan load data otomatis)
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => KedaiPage(userId: widget.userId),
-          ),
-        );
-
-        // Jika ada perubahan data dari edit
-        if (result == true && mounted) {
-          if (kDebugMode) {
-            print('Data kedai berhasil diupdate dari Pengaturan');
-          }
-          Fluttertoast.showToast(
-            msg: "Data kedai berhasil diperbarui",
-            backgroundColor: Colors.green,
-          );
-        }
-      } else {
-        // Jika belum ada data kedai, navigasi ke form kedai
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => KedaiPage(userId: widget.userId),
-          ),
-        );
-
-        if (result == true && mounted) {
-          if (kDebugMode) {
-            print('Data kedai berhasil dibuat dari Pengaturan');
-          }
-          Fluttertoast.showToast(
-            msg: "Data kedai berhasil disimpan",
-            backgroundColor: Colors.green,
-          );
-        }
-      }
-    } catch (e) {
+    // Fire-and-forget check (keeps original behavior but does not block UI)
+    _kedaiService.getKedaiByUserId(widget.userId).then((kedai) {
       if (kDebugMode) {
-        print('Error navigating to kedai: $e');
+        print('Background kedai check finished for user ${widget.userId}. kedai != null: ${kedai != null}');
       }
-      Fluttertoast.showToast(
-        msg: "Terjadi kesalahan: ${e.toString()}",
-        backgroundColor: Colors.red,
-      );
-    }
+      // We don't show toasts here to avoid surprising the user while on KedaiPage.
+    }).catchError((e) {
+      if (kDebugMode) print('Background kedai check failed: $e');
+    });
   }
 
-
   void _navigateToChangePassword() {
-    // TODO: Navigate to Change Password page
-    Fluttertoast.showToast(
-      msg: "Fitur Ubah Kata Sandi akan segera hadir",
-      backgroundColor: Colors.blue,
+    // Open the dedicated Ubah Kata Sandi page instead of a bottom sheet
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UbahKataSandiPage(userId: widget.userId),
+      ),
     );
   }
 
