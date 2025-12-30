@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -30,7 +31,17 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _nameController.text = widget.initialName ?? '';
+    // isi nama awal dari widget.initialName jika ada, kalau tidak ambil dari FirebaseAuth bila tersedia
+    if (widget.initialName != null && widget.initialName!.isNotEmpty) {
+      _nameController.text = widget.initialName!;
+    } else {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+        _nameController.text = user.displayName!;
+      } else {
+        _nameController.text = '';
+      }
+    }
   }
 
   @override
@@ -92,14 +103,32 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isSaving = true);
 
     try {
-      // Tidak mengubah logika existing — di sini hanya menampilkan toast.
-      // Tempat untuk memanggil API update profil jika diperlukan.
+      // Update displayName di Firebase Auth (jika user login via Firebase)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          await user.updateDisplayName(_nameController.text.trim());
+          // Note: updatePhotoURL expects a URL. Jika Anda memiliki endpoint upload untuk foto,
+          // Anda bisa upload _imageBase64 dan kemudian set user.updatePhotoURL(url).
+        } catch (e) {
+          if (kDebugMode) print('Failed updating firebase profile: $e');
+        }
+      }
+
+      // Tunda kecil untuk UX (sama seperti sebelumnya)
       await Future.delayed(const Duration(milliseconds: 400));
       Fluttertoast.showToast(msg: 'Profil berhasil disimpan', backgroundColor: Colors.green);
 
-      if (mounted) Navigator.of(context).pop(true);
+      // Kembalikan data yang baru ke pemanggil agar UI (mis. sidebar) dapat langsung diupdate
+      final result = {
+        'name': _nameController.text.trim(),
+        'photoBase64': _imageBase64, // bisa null jika tidak diubah
+      };
+
+      if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
       Fluttertoast.showToast(msg: 'Gagal menyimpan profil: $e', backgroundColor: Colors.red);
+      if (mounted) Navigator.of(context).pop(null);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -134,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: () => Navigator.of(context).pop(null),
         ),
         title: Text(
           'Profil',
