@@ -74,22 +74,63 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
         throw Exception('Email pengguna tidak tersedia');
       }
 
+      // Reauthenticate with old password
       final credential = EmailAuthProvider.credential(
         email: email,
         password: _oldController.text.trim(),
       );
 
       await user.reauthenticateWithCredential(credential);
+
+      // Update Firebase Auth password
       await user.updatePassword(_newController.text.trim());
 
+      // reload user state
+      await user.reload();
+
+      // Mark update in 'user' document (no plaintext password)
       try {
         await _firestore.collection('user').doc(user.uid).set({
           'password_updated_at': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Failed to update Firestore marker: $e');
+        if (kDebugMode) debugPrint('Failed to update Firestore user marker: $e');
+      }
+
+      // Try to update staff document (so StaffService login uses new password if staff stored password in Firestore)
+      try {
+        String? staffDocId;
+        // Strategy 1: doc id == widget.userId
+        final docById = await _firestore.collection('staff').doc(widget.userId).get();
+        if (docById.exists) {
+          staffDocId = widget.userId;
+        } else {
+          // Strategy 2: find by user_id field
+          final q1 = await _firestore.collection('staff').where('user_id', isEqualTo: widget.userId).limit(1).get();
+          if (q1.docs.isNotEmpty) {
+            staffDocId = q1.docs.first.id;
+          } else if (email.isNotEmpty) {
+            // Strategy 3: find by email
+            final q2 = await _firestore.collection('staff').where('email', isEqualTo: email).limit(1).get();
+            if (q2.docs.isNotEmpty) staffDocId = q2.docs.first.id;
+          }
         }
+
+        if (staffDocId != null) {
+          // WARNING: Storing plaintext password is insecure.
+          // This mirrors existing project behavior where staff password might be stored for StaffService auth.
+          await _firestore.collection('staff').doc(staffDocId).set({
+            'password': _newController.text.trim(),
+            'kata_sandi': _newController.text.trim(),
+            'password_updated_at': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          if (kDebugMode) debugPrint('Staff doc $staffDocId updated with new password.');
+        } else {
+          if (kDebugMode) debugPrint('No staff document found to update.');
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('Failed updating staff doc: $e');
       }
 
       Fluttertoast.showToast(
@@ -97,7 +138,8 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
         backgroundColor: Colors.green,
       );
 
-      if (Navigator.canPop(context)) Navigator.pop(context);
+      // Close and return true to previous screen (Pengaturan) so it can react if needed
+      if (Navigator.canPop(context)) Navigator.pop(context, true);
     } on FirebaseAuthException catch (e) {
       String msg = 'Gagal memperbarui kata sandi';
 

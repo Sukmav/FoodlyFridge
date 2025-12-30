@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -18,7 +17,7 @@ class BahanBakuPage extends StatefulWidget {
 }
 
 class _BahanBakuPageState extends State<BahanBakuPage> {
-  final DataService _data_service = DataService();
+  final DataService _dataService = DataService();
   List<BahanBakuModel> _bahanBakuList = [];
   List<BahanBakuModel> _filteredList = [];
   bool _isLoading = false;
@@ -58,18 +57,18 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     });
 
     try {
-      if (kDebugMode) print('=== LOADING DATA ===');
-      final response = await _data_service.selectAll(
+      print('=== LOADING DATA ===');
+      final response = await _dataService.selectAll(
         token,
         project,
         'bahan_baku',
         appid,
       );
 
-      if (kDebugMode) print('Response: $response');
+      print('Response: $response');
 
       if (response == '[]' || response.isEmpty || response == 'null') {
-        if (kDebugMode) print('Data kosong atau null');
+        print('Data kosong atau null');
         setState(() {
           _bahanBakuList = [];
           _filteredList = [];
@@ -93,7 +92,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         dataList = [];
       }
 
-      if (kDebugMode) print('Jumlah data yang dimuat: ${dataList.length}');
+      print('Jumlah data yang dimuat: ${dataList.length}');
 
       final newList = dataList.map((json) => BahanBakuModel.fromJson(json)).toList();
 
@@ -103,12 +102,11 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         _isLoading = false;
       });
 
-      if (kDebugMode) print('Data berhasil dimuat: ${_bahanBakuList.length} items');
+      print('Data berhasil dimuat: ${_bahanBakuList.length} items');
+
     } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('Error: $e');
-        print('StackTrace: $stackTrace');
-      }
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
 
       setState(() {
         _bahanBakuList = [];
@@ -159,10 +157,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     final TextEditingController catatanController = TextEditingController(text: bahanBaku?.catatan ?? '');
 
     // Variable untuk menyimpan gambar yang dipilih
-    // selectedImage may be File (mobile) or Uint8List (web bytes) or XFile
-    dynamic selectedImage;
+    File? selectedImage;
     String? selectedImagePath = bahanBaku?.foto_bahan;
 
+    // Function untuk set stok minimal otomatis berdasarkan unit
     String getStokMinimalByUnit(String unit) {
       switch (unit) {
         case 'kg':
@@ -176,6 +174,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       }
     }
 
+    // Function untuk kalkulasi tanggal kadaluarsa
     DateTime? calculateExpiryDate(DateTime? startDate, String estimasi) {
       if (startDate == null || estimasi.isEmpty) return null;
       try {
@@ -186,6 +185,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       }
     }
 
+    // Set stok minimal default
     stokMinimal = getStokMinimalByUnit(selectedUnit);
 
     Navigator.push(
@@ -209,65 +209,14 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     Center(
                       child: GestureDetector(
                         onTap: () async {
-                          final dynamic imageFile = await ImageHelper.showImageSourceDialog(context);
-                          if (imageFile == null) return;
-
-                          if (kIsWeb) {
-                            try {
-                              Uint8List bytes;
-                              if (imageFile is XFile) {
-                                bytes = await imageFile.readAsBytes();
-                              } else if (imageFile is Uint8List) {
-                                bytes = imageFile;
-                              } else if (imageFile is List<int>) {
-                                bytes = Uint8List.fromList(imageFile.cast<int>());
-                              } else if (imageFile is File) {
-                                bytes = await imageFile.readAsBytes();
-                              } else {
-                                final path = imageFile?.path;
-                                if (path != null) {
-                                  bytes = await File(path).readAsBytes();
-                                } else {
-                                  bytes = Uint8List(0);
-                                }
+                          final imageFile = await ImageHelper.showImageSourceDialog(context);
+                          if (imageFile != null) {
+                            setDialogState(() {
+                              selectedImage = imageFile;
+                              if (kIsWeb) {
+                                selectedImagePath = imageFile.path;
                               }
-
-                              if (bytes.isNotEmpty) {
-                                final dataUrl = 'data:image/png;base64,${base64Encode(bytes)}';
-                                if (kDebugMode) print('[IMAGE] web selected bytes=${bytes.length}');
-                                setDialogState(() {
-                                  selectedImage = bytes;
-                                  selectedImagePath = dataUrl;
-                                });
-                              }
-                            } catch (e) {
-                              if (kDebugMode) print('[IMAGE] error reading web image: $e');
-                            }
-                          } else {
-                            try {
-                              if (imageFile is XFile) {
-                                final f = File(imageFile.path);
-                                if (kDebugMode) print('[IMAGE] mobile selected XFile path=${f.path}');
-                                setDialogState(() {
-                                  selectedImage = f;
-                                  selectedImagePath = f.path;
-                                });
-                              } else if (imageFile is File) {
-                                if (kDebugMode) print('[IMAGE] mobile selected File path=${imageFile.path}');
-                                setDialogState(() {
-                                  selectedImage = imageFile;
-                                  selectedImagePath = imageFile.path;
-                                });
-                              } else {
-                                if (kDebugMode) print('[IMAGE] mobile selected unknown type=${imageFile.runtimeType}');
-                                setDialogState(() {
-                                  selectedImage = imageFile;
-                                  selectedImagePath = imageFile?.path ?? selectedImagePath;
-                                });
-                              }
-                            } catch (e) {
-                              if (kDebugMode) print('[IMAGE] error handling mobile image: $e');
-                            }
+                            });
                           }
                         },
                         child: Container(
@@ -289,7 +238,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                                 Icon(
                                   Icons.camera_alt,
                                   size: 50,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                 ),
                               Positioned(
                                 bottom: 10,
@@ -479,111 +428,43 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                             return;
                           }
 
-                          // Proses upload/generate image URL jika ada gambar yang dipilih
+                          // Proses upload gambar jika ada
                           String imageUrl = '';
 
                           if (selectedImage != null) {
-                            if (kDebugMode) print('[IMAGE] selectedImage runtimeType=${selectedImage.runtimeType} selectedImagePath=$selectedImagePath');
-
                             try {
                               Fluttertoast.showToast(
                                 msg: "Memproses gambar...",
                                 backgroundColor: Colors.blue,
                               );
 
-                              // 1) Try save local asset on mobile
                               if (!kIsWeb) {
-                                try {
-                                  File? fileToSave;
-                                  if (selectedImage is File) {
-                                    fileToSave = selectedImage;
-                                  } else if (selectedImage is XFile) {
-                                    fileToSave = File(selectedImage.path);
-                                  }
-                                  if (fileToSave != null) {
-                                    final localPath = await ImageHelper.saveImageToAssets(
-                                      fileToSave,
-                                      namaController.text.replaceAll(' ', '_'),
-                                    );
-                                    if (localPath != null && localPath.isNotEmpty) {
-                                      imageUrl = localPath;
-                                      if (kDebugMode) print('[IMAGE] saved local path: $imageUrl');
-                                    }
-                                  }
-                                } catch (e) {
-                                  if (kDebugMode) print('[IMAGE] saveImageToAssets failed: $e');
+                                final localPath = await ImageHelper.saveImageToAssets(
+                                  selectedImage!,
+                                  namaController.text.replaceAll(' ', '_'),
+                                );
+                                if (localPath != null) {
+                                  imageUrl = localPath;
                                 }
                               }
 
-                              // 2) Try upload to GoCloud (if helper supports File)
-                              try {
-                                File? fileForUpload;
-                                if (selectedImage is File) {
-                                  fileForUpload = selectedImage;
-                                } else if (selectedImage is XFile) {
-                                  fileForUpload = File(selectedImage.path);
-                                }
-                                if (fileForUpload != null) {
-                                  final cloudUrl = await ImageHelper.uploadImageToGoCloud(
-                                    imageFile: fileForUpload,
-                                    token: token,
-                                    project: project,
-                                    fileName: namaController.text.replaceAll(' ', '_'),
-                                  );
-                                  if (cloudUrl != null && cloudUrl.isNotEmpty) {
-                                    imageUrl = cloudUrl;
-                                    if (kDebugMode) print('[IMAGE] uploaded to cloud: $imageUrl');
-                                  }
-                                }
-                              } catch (e) {
-                                if (kDebugMode) print('[IMAGE] uploadImageToGoCloud failed: $e');
-                              }
+                              final cloudUrl = await ImageHelper.uploadImageToGoCloud(
+                                imageFile: selectedImage!,
+                                token: token,
+                                project: project,
+                                fileName: namaController.text.replaceAll(' ', '_'),
+                              );
 
-                              // 3) Fallback to base64/data URL (ensures imageUrl is produced)
-                              if (imageUrl.isEmpty) {
-                                try {
-                                  Uint8List bytes = Uint8List(0);
-                                  if (selectedImage is File) {
-                                    bytes = await selectedImage.readAsBytes();
-                                  } else if (selectedImage is XFile) {
-                                    bytes = await selectedImage.readAsBytes();
-                                  } else if (selectedImage is Uint8List) {
-                                    bytes = selectedImage;
-                                  }
-
-                                  if (bytes.isNotEmpty) {
-                                    final b64 = base64Encode(bytes);
-                                    imageUrl = 'data:image/png;base64,$b64';
-                                    if (kDebugMode) print('[IMAGE] fallback to data url length=${imageUrl.length}');
-                                  } else {
-                                    // safe check for selectedImagePath data url
-                                    final path = selectedImagePath;
-                                    if (path != null && path.startsWith('data:image')) {
-                                      imageUrl = path;
-                                      if (kDebugMode) print('[IMAGE] used selectedImagePath data url');
-                                    }
-                                  }
-                                } catch (e) {
-                                  if (kDebugMode) print('[IMAGE] convert to base64 failed: $e');
-                                }
-                              }
-
-                              // 4) Extra safety: if still empty, try selectedImagePath if valid
-                              if (imageUrl.isEmpty) {
-                                final path = selectedImagePath;
-                                if (path != null) {
-                                  if (path.startsWith('data:image')) {
-                                    imageUrl = path;
-                                  } else if (!kIsWeb) {
-                                    try {
-                                      final f = File(path);
-                                      if (await f.exists()) imageUrl = path;
-                                    } catch (_) {}
-                                  }
+                              if (cloudUrl != null && cloudUrl.isNotEmpty) {
+                                imageUrl = cloudUrl;
+                              } else {
+                                final base64Image = await ImageHelper.convertImageToBase64(selectedImage!);
+                                if (base64Image != null && base64Image.isNotEmpty) {
+                                  imageUrl = base64Image;
                                 }
                               }
                             } catch (e) {
-                              if (kDebugMode) print('[IMAGE] Error memproses gambar: $e');
+                              print('Error memproses gambar: $e');
                             }
                           } else {
                             if (isEdit && bahanBaku!.foto_bahan.isNotEmpty) {
@@ -591,10 +472,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                             }
                           }
 
-                          if (kDebugMode) print('[IMAGE] final imageUrl=$imageUrl');
-
                           Navigator.pop(context);
 
+                          // Format tanggal untuk database
                           String tanggalMasukStr = tanggalMasuk != null
                               ? '${tanggalMasuk!.year}-${tanggalMasuk!.month.toString().padLeft(2, '0')}-${tanggalMasuk!.day.toString().padLeft(2, '0')}'
                               : '';
@@ -662,362 +542,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _addBahanBaku(
-      String nama,
-      String unit,
-      String hargaGross,
-      String hargaUnit,
-      String stokTersedia,
-      String stokMinimal,
-      String estimasi_penyimpanan,
-      String tanggalMasuk,
-      String tanggalKadaluarsa,
-      String kategori,
-      String tempatPenyimpanan,
-      String grossQty,
-      String catatan,
-      String foto_bahan,
-      ) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      if (kDebugMode) print('=== MULAI INSERT ===');
-
-      final result = await _data_service.insertBahanBaku(
-        appid,
-        foto_bahan,
-        nama,
-        unit,
-        grossQty,
-        hargaGross,
-        hargaUnit,
-        stokTersedia,
-        estimasi_penyimpanan,
-        tanggalMasuk,
-        tanggalKadaluarsa,
-        kategori,
-        tempatPenyimpanan,
-        catatan,
-      );
-
-      if (kDebugMode) print('Result insert: $result');
-
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _loadBahanBaku();
-
-      Fluttertoast.showToast(
-        msg: "Bahan baku '$nama' berhasil ditambahkan!",
-        backgroundColor: Colors.green,
-      );
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      Fluttertoast.showToast(
-        msg: "Gagal menambahkan: ${e.toString()}",
-        backgroundColor: Colors.red,
-      );
-    }
-  }
-
-  Future<void> _updateBahanBaku(
-      String id,
-      String nama,
-      String unit,
-      String hargaGross,
-      String hargaUnit,
-      String stokTersedia,
-      String stokMinimal,
-      String estimasi_penyimpanan,
-      String tanggalMasuk,
-      String tanggalKadaluarsa,
-      String kategori,
-      String tempatPenyimpanan,
-      String grossQty,
-      String catatan,
-      String foto_bahan,
-      String namaLama,
-      ) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      if (kDebugMode) {
-        print('=== MULAI UPDATE BAHAN BAKU ===');
-        print('ID: $id');
-        print('Nama Lama: $namaLama');
-        print('Nama Baru: $nama');
-      }
-
-      if (id.isEmpty || id == '') {
-        if (kDebugMode) print('ID kosong, menggunakan updateWhere berdasarkan nama');
-
-        final fields = {
-          'nama_bahan': nama,
-          'unit': unit,
-          'harga_per_gross': hargaGross,
-          'harga_per_unit': hargaUnit,
-          'stok_tersedia': stokTersedia,
-          'stok_minimal': stokMinimal,
-          'estimasi_umur': estimasi_penyimpanan,
-          'tanggal_masuk': tanggalMasuk,
-          'tanggal_kadaluarsa': tanggalKadaluarsa,
-          'kategori': kategori,
-          'tempat_penyimpanan': tempatPenyimpanan,
-          'gross_qty': grossQty,
-          'catatan': catatan,
-          'foto_bahan': foto_bahan,
-        };
-
-        for (var entry in fields.entries) {
-          final result = await _data_service.updateWhere(
-            'nama_bahan',
-            namaLama,
-            entry.key,
-            entry.value,
-            token,
-            project,
-            'bahan_baku',
-            appid,
-          );
-          if (kDebugMode) print('Update ${entry.key}: $result');
-        }
-      } else {
-        if (kDebugMode) print('Menggunakan updateId');
-
-        final results = await Future.wait([
-          _data_service.updateId('nama_bahan', nama, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('unit', unit, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('harga_per_gross', hargaGross, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('harga_per_unit', hargaUnit, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('stok_tersedia', stokTersedia, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('stok_minimal', stokMinimal, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('estimasi_umur', estimasi_penyimpanan, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('tanggal_masuk', tanggalMasuk, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('tanggal_kadaluarsa', tanggalKadaluarsa, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('kategori', kategori, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('tempat_penyimpanan', tempatPenyimpanan, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('gross_qty', grossQty, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('catatan', catatan, token, project, 'bahan_baku', appid, id),
-          _data_service.updateId('foto_bahan', foto_bahan, token, project, 'bahan_baku', appid, id),
-        ]);
-
-        if (kDebugMode) print('Update results: $results');
-      }
-
-      if (kDebugMode) print('✓ Update berhasil di API');
-
-      await _loadBahanBaku();
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      Fluttertoast.showToast(
-        msg: "Bahan baku '$nama' berhasil diupdate!",
-        backgroundColor: Colors.green,
-        toastLength: Toast.LENGTH_SHORT,
-      );
-
-      if (kDebugMode) print('=== SELESAI UPDATE ===');
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('=== ERROR UPDATE ===');
-        print('Error: $e');
-        print('StackTrace: $stackTrace');
-      }
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      Fluttertoast.showToast(
-        msg: "Gagal mengupdate: ${e.toString()}",
-        backgroundColor: Colors.red,
-        toastLength: Toast.LENGTH_LONG,
-      );
-
-      await _loadBahanBaku();
-    }
-  }
-
-  Future<void> _deleteBahanBaku(String id, String nama) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_rounded,
-                  color: Colors.red,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Hapus Bahan Baku?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Apakah Anda yakin ingin menghapus "$nama"? Data yang dihapus tidak dapat dikembalikan.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Batal'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      if (kDebugMode) {
-        print('=== MULAI DELETE BAHAN BAKU ===');
-        print('ID yang akan dihapus: $id');
-        print('Nama bahan: $nama');
-      }
-
-      final result = await _data_service.removeWhere(
-        token,
-        project,
-        'bahan_baku',
-        appid,
-        'nama_bahan',
-        nama,
-      );
-
-      if (kDebugMode) print('Result delete dari API: $result');
-
-      if (result == true || result == 'true' || result.toString().contains('"status":"1"')) {
-        if (kDebugMode) print('✓ Delete berhasil di database!');
-
-        setState(() {
-          _bahanBakuList.removeWhere((item) => item.nama_bahan == nama);
-          _filteredList.removeWhere((item) => item.nama_bahan == nama);
-        });
-
-        Fluttertoast.showToast(
-          msg: "Bahan baku '$nama' berhasil dihapus!",
-          backgroundColor: Colors.green,
-          toastLength: Toast.LENGTH_SHORT,
-        );
-
-        if (kDebugMode) print('✓ Data berhasil dihapus dari tampilan');
-      } else {
-        if (kDebugMode) print('✗ Delete gagal: $result');
-        throw Exception('Delete gagal: $result');
-      }
-
-      if (kDebugMode) print('=== SELESAI DELETE ===');
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('=== ERROR DELETE ===');
-        print('Error: $e');
-        print('StackTrace: $stackTrace');
-      }
-
-      Fluttertoast.showToast(
-        msg: "Gagal menghapus bahan baku: ${e.toString()}",
-        backgroundColor: Colors.red,
-        toastLength: Toast.LENGTH_LONG,
-      );
-
-      await _loadBahanBaku();
-    }
-  }
-
-  void _showDetailBahanBaku(BahanBakuModel bahan) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              bahan.nama_bahan,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border.all(color: Colors.orange[300]!, width: 3),
-                  ),
-                  child: bahan.foto_bahan.isNotEmpty
-                      ? _buildImageWidget(bahan.foto_bahan)
-                      : const Icon(
-                    Icons.inventory_2,
-                    size: 80,
-                    color: Colors.grey,
-                  ),
-                ),
-                // rest unchanged ...
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -1132,7 +656,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           decoration: InputDecoration(
             hintText: 'Pilih $label',
             hintStyle: TextStyle(color: Colors.grey[400]),
@@ -1284,12 +808,590 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
+  Future<void> _addBahanBaku(
+      String nama,
+      String unit,
+      String hargaGross,
+      String hargaUnit,
+      String stokTersedia,
+      String stokMinimal,
+      String estimasi_penyimpanan,
+      String tanggalMasuk,
+      String tanggalKadaluarsa,
+      String kategori,
+      String tempatPenyimpanan,
+      String grossQty,
+      String catatan,
+      String foto_bahan,
+      ) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('=== MULAI INSERT ===');
+
+      // Map parameters to DataService.insertBahanBaku signature:
+      // insertBahanBaku(String appid, String foto_bahan, String nama_bahan, String unit, String gross_qty, String harga_per_gross, String harga_per_unit, String stok_tersedia, String estimasi_umur, String tanggal_masuk, String tanggal_kadaluarsa, String kategori, String tempat_penyimpanan, String catatan)
+      final result = await _dataService.insertBahanBaku(
+        appid,
+        foto_bahan,
+        nama,
+        unit,
+        grossQty,
+        hargaGross,
+        hargaUnit,
+        stokTersedia,
+        estimasi_penyimpanan,
+        tanggalMasuk,
+        tanggalKadaluarsa,
+        kategori,
+        tempatPenyimpanan,
+        catatan,
+      );
+
+      print('Result insert: $result');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _loadBahanBaku();
+
+      Fluttertoast.showToast(
+        msg: "Bahan baku '$nama' berhasil ditambahkan!",
+        backgroundColor: Colors.green,
+      );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      Fluttertoast.showToast(
+        msg: "Gagal menambahkan: ${e.toString()}",
+        backgroundColor: Colors.red,
+      );
+    }
+  }
+
+  Future<void> _updateBahanBaku(
+      String id,
+      String nama,
+      String unit,
+      String hargaGross,
+      String hargaUnit,
+      String stokTersedia,
+      String stokMinimal,
+      String estimasi_penyimpanan,
+      String tanggalMasuk,
+      String tanggalKadaluarsa,
+      String kategori,
+      String tempatPenyimpanan,
+      String grossQty,
+      String catatan,
+      String foto_bahan,
+      String namaLama, // Tambahkan nama lama untuk updateWhere
+      ) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('=== MULAI UPDATE BAHAN BAKU ===');
+      print('ID: $id');
+      print('Nama Lama: $namaLama');
+      print('Nama Baru: $nama');
+
+      // Karena ID mungkin kosong, gunakan updateWhere berdasarkan nama lama
+      if (id.isEmpty || id == '') {
+        print('ID kosong, menggunakan updateWhere berdasarkan nama');
+
+        // Update semua field menggunakan updateWhere
+        final fields = {
+          'nama_bahan': nama,
+          'unit': unit,
+          'harga_per_gross': hargaGross,
+          'harga_per_unit': hargaUnit,
+          'stok_tersedia': stokTersedia,
+          'stok_minimal': stokMinimal,
+          'estimasi_umur': estimasi_penyimpanan,
+          'tanggal_masuk': tanggalMasuk,
+          'tanggal_kadaluarsa': tanggalKadaluarsa,
+          'kategori': kategori,
+          'tempat_penyimpanan': tempatPenyimpanan,
+          'gross_qty': grossQty,
+          'catatan': catatan,
+          'foto_bahan': foto_bahan,
+        };
+
+        for (var entry in fields.entries) {
+          final result = await _dataService.updateWhere(
+            'nama_bahan',
+            namaLama,
+            entry.key,
+            entry.value,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+          );
+          print('Update ${entry.key}: $result');
+        }
+      } else {
+        // Jika ID ada, gunakan updateId
+        print('Menggunakan updateId');
+
+        final results = await Future.wait([
+          _dataService.updateId('nama_bahan', nama, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('unit', unit, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('harga_per_gross', hargaGross, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('harga_per_unit', hargaUnit, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('stok_tersedia', stokTersedia, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('stok_minimal', stokMinimal, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('estimasi_umur', estimasi_penyimpanan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('tanggal_masuk', tanggalMasuk, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('tanggal_kadaluarsa', tanggalKadaluarsa, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('kategori', kategori, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('tempat_penyimpanan', tempatPenyimpanan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('gross_qty', grossQty, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('catatan', catatan, token, project, 'bahan_baku', appid, id),
+          _dataService.updateId('foto_bahan', foto_bahan, token, project, 'bahan_baku', appid, id),
+        ]);
+
+        print('Update results: $results');
+      }
+
+      print('✓ Update berhasil di API');
+
+      // Reload data dari database untuk memastikan sinkronisasi
+      await _loadBahanBaku();
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      Fluttertoast.showToast(
+        msg: "Bahan baku '$nama' berhasil diupdate!",
+        backgroundColor: Colors.green,
+        toastLength: Toast.LENGTH_SHORT,
+      );
+
+      print('=== SELESAI UPDATE ===');
+
+    } catch (e, stackTrace) {
+      print('=== ERROR UPDATE ===');
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      Fluttertoast.showToast(
+        msg: "Gagal mengupdate: ${e.toString()}",
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+
+      // Reload data untuk memastikan konsistensi
+      await _loadBahanBaku();
+    }
+  }
+
+  Future<void> _deleteBahanBaku(String id, String nama) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_rounded,
+                  color: Colors.red,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Hapus Bahan Baku?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Apakah Anda yakin ingin menghapus "$nama"? Data yang dihapus tidak dapat dikembalikan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      print('=== MULAI DELETE BAHAN BAKU ===');
+      print('ID yang akan dihapus: $id');
+      print('Nama bahan: $nama');
+
+      // Gunakan removeWhere berdasarkan nama (lebih reliable daripada ID)
+      final result = await _dataService.removeWhere(
+        token,
+        project,
+        'bahan_baku',
+        appid,
+        'nama_bahan',
+        nama,
+      );
+
+      print('Result delete dari API: $result');
+
+      if (result == true || result == 'true' || result.toString().contains('"status":"1"')) {
+        // Delete berhasil
+        print('✓ Delete berhasil di database!');
+
+        // Hapus dari list lokal
+        setState(() {
+          _bahanBakuList.removeWhere((item) => item.nama_bahan == nama);
+          _filteredList.removeWhere((item) => item.nama_bahan == nama);
+        });
+
+        // Toast sukses
+        Fluttertoast.showToast(
+          msg: "Bahan baku '$nama' berhasil dihapus!",
+          backgroundColor: Colors.green,
+          toastLength: Toast.LENGTH_SHORT,
+        );
+
+        print('✓ Data berhasil dihapus dari tampilan');
+      } else {
+        // Delete gagal
+        print('✗ Delete gagal: $result');
+        throw Exception('Delete gagal: $result');
+      }
+
+      print('=== SELESAI DELETE ===');
+
+    } catch (e, stackTrace) {
+      print('=== ERROR DELETE ===');
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+
+      Fluttertoast.showToast(
+        msg: "Gagal menghapus bahan baku: ${e.toString()}",
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+
+      // Reload data untuk memastikan konsistensi
+      await _loadBahanBaku();
+    }
+  }
+
+  void _showDetailBahanBaku(BahanBakuModel bahan) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              bahan.nama_bahan,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image Header
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    border: Border.all(color: Colors.orange[300]!, width: 3),
+                  ),
+                  child: bahan.foto_bahan.isNotEmpty
+                      ? _buildImageWidget(bahan.foto_bahan)
+                      : const Icon(
+                    Icons.inventory_2,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
+                ),
+
+                // Tabs
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.orange[700]!,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            'Detail',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: const Text(
+                            'Riwayat',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Informasi Pembelian
+                      _buildDetailSection(
+                        'Informasi Pembelian',
+                        Colors.orange[700]!,
+                        [
+                          _buildDetailRow('Satuan Pembelian', '${bahan.gross_qty} ${bahan.unit}', Colors.green[700]!),
+                          _buildDetailRow('Harga per Satuan', 'Rp ${bahan.harga_per_gross}', Colors.green[700]!),
+                          _buildDetailRow('Jumlah Pernah Beli', '-', Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Penggunaan untuk Menu
+                      _buildDetailSection(
+                        'Penggunaan untuk Menu',
+                        Colors.orange[700]!,
+                        [
+                          _buildDetailRow('Unit Dasar', bahan.unit, Colors.green[700]!),
+                          _buildDetailRow('Harga per unit', 'Rp${bahan.harga_per_unit}', Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Stok
+                      _buildDetailSection(
+                        'Stok',
+                        Colors.red[700]!,
+                        [
+                          _buildDetailRow('Stok tersedia', '${bahan.stok_tersedia} ${bahan.unit}', Colors.green[700]!),
+                          _buildDetailRow('Stok Minimal', '${bahan.stok_minimal} ${bahan.unit}', Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Kadaluarsa dan Penyimpanan
+                      _buildDetailSection(
+                        'Kadaluarsa dan Penyimpanan',
+                        Colors.red[700]!,
+                        [
+                          _buildDetailRow('Estimasi umur Simpan', '${bahan.estimasi_umur} hari', Colors.green[700]!),
+                          _buildDetailRow('Tgl Kedatangan', _formatDate(bahan.tanggal_masuk), Colors.green[700]!),
+                          _buildDetailRow('Tgl Kadaluarsa', _formatDate(bahan.tanggal_kadaluarsa), Colors.green[700]!),
+                          _buildDetailRow('Kategori', bahan.kategori, Colors.green[700]!),
+                          _buildDetailRow('Penyimpanan', bahan.tempat_penyimpanan, Colors.green[700]!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Catatan
+                      Text(
+                        'Catatan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.orange[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          bahan.catatan.isEmpty ? 'Tidak ada catatan' : bahan.catatan,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // Button Ubah
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showAddEditDialog(bahanBaku: bahan);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8B4513),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Ubah',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection(String title, Color titleColor, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: titleColor,
+          ),
+        ),
+        const Divider(thickness: 1),
+        const SizedBox(height: 8),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: valueColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String dateStr) {
+    if (dateStr.isEmpty) return '-';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
+          // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -1315,6 +1417,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               ),
             ),
           ),
+          // List content
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -1346,7 +1449,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8B5A3C).withOpacity(0.1),
+                        color: const Color(0xFF8B5A3C).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ClipRRect(
@@ -1401,6 +1504,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
   // Helper method untuk menampilkan gambar yang mendukung Web dan Mobile
   Widget _buildImageWidget(String imagePath) {
+    // Jika string kosong, tampilkan icon default
     if (imagePath.isEmpty) {
       return const Icon(
         Icons.inventory_2,
@@ -1409,6 +1513,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     }
 
     if (imagePath.startsWith('http')) {
+      // URL gambar dari internet
       return Image.network(
         imagePath,
         fit: BoxFit.cover,
@@ -1420,6 +1525,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         },
       );
     } else if (imagePath.startsWith('data:image')) {
+      // Base64 image
       try {
         return Image.memory(
           base64Decode(imagePath.split(',').last),
@@ -1438,25 +1544,18 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         );
       }
     } else if (!kIsWeb) {
+      // Path lokal (hanya untuk mobile)
       try {
-        final file = File(imagePath);
-        if (file.existsSync()) {
-          return Image.file(
-            file,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return const Icon(
-                Icons.inventory_2,
-                color: Color(0xFF8B5A3C),
-              );
-            },
-          );
-        } else {
-          return const Icon(
-            Icons.inventory_2,
-            color: Color(0xFF8B5A3C),
-          );
-        }
+        return Image.file(
+          File(imagePath),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.inventory_2,
+              color: Color(0xFF8B5A3C),
+            );
+          },
+        );
       } catch (e) {
         return const Icon(
           Icons.inventory_2,
@@ -1464,6 +1563,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         );
       }
     } else {
+      // Web: jika bukan URL atau base64, tampilkan icon default
       return const Icon(
         Icons.inventory_2,
         color: Color(0xFF8B5A3C),
@@ -1472,11 +1572,13 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   // Method untuk preview gambar saat memilih gambar baru
-  Widget _buildImagePreview(dynamic imageObj, String? imagePath) {
-    if (imageObj != null) {
-      if (imageObj is Uint8List) {
-        return Image.memory(
-          imageObj,
+  Widget _buildImagePreview(File? imageFile, String? imagePath) {
+    if (imageFile != null) {
+      // Jika ada file gambar yang baru dipilih
+      if (kIsWeb) {
+        // Untuk web, gunakan Image.network jika path adalah URL
+        return Image.network(
+          imageFile.path,
           width: 120,
           height: 120,
           fit: BoxFit.cover,
@@ -1488,23 +1590,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
             );
           },
         );
-      } else if (imageObj is File) {
+      } else {
+        // Untuk mobile, gunakan Image.file
         return Image.file(
-          imageObj,
-          width: 120,
-          height: 120,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              color: Colors.white,
-              size: 50,
-            );
-          },
-        );
-      } else if (imageObj is XFile) {
-        return Image.file(
-          File(imageObj.path),
+          imageFile,
           width: 120,
           height: 120,
           fit: BoxFit.cover,
@@ -1518,13 +1607,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         );
       }
     } else if (imagePath != null && imagePath.isNotEmpty) {
+      // Jika ada path gambar yang sudah ada (untuk edit)
       return _buildImageWidget(imagePath);
+    } else {
+      // Default icon jika tidak ada gambar
+      return Icon(
+        Icons.camera_alt,
+        size: 50,
+        color: Colors.white.withValues(alpha: 0.8),
+      );
     }
-
-    return Icon(
-      Icons.camera_alt,
-      size: 50,
-      color: Colors.white.withOpacity(0.8),
-    );
   }
 }
