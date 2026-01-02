@@ -188,6 +188,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
     stokMinimal = getStokMinimalByUnit(selectedUnit);
 
+    //menuju halaman edit data bahan baku atau pun tambah data baru
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1227,6 +1228,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
+  //bagian dropdown tambah kategori baru
   void _showTambahKategoriDialog(TextEditingController kategoriController) {
     final TextEditingController newKategoriController = TextEditingController();
 
@@ -1284,6 +1286,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
+  //ini bagian utama tampilan halaman bahan baku
   @override
   Widget build(BuildContext context) {
     return Scaffold(

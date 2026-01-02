@@ -1,9 +1,7 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:barcode_widget/barcode_widget.dart';
-
 import '../config.dart';
 import '../restapi.dart';
 import 'add_menu_form.dart';
@@ -24,23 +22,45 @@ class MenuDetailPage extends StatefulWidget {
   State<MenuDetailPage> createState() => _MenuDetailPageState();
 }
 
-class _MenuDetailPageState extends State<MenuDetailPage> {
+class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProviderStateMixin {
   final DataService _dataService = DataService();
   bool _isLoading = false;
+  late TabController _tabController;
+  
+  // Gradient Colors
+  static const LinearGradient priceTagGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF9C4DFF),
+      Color(0xFF7B2CBF),
+      Color(0xFF5A189A),
+    ],
+    stops: [0.0, 0.5, 1.0],
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   String _formatNumber(double number) {
     return number.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
+      (Match m) => '${m[1]}.',
     );
   }
 
-  // Robust parser for bahan_baku supporting structured list and legacy comma-separated fields.
   List<Map<String, dynamic>> _parseBahanBaku() {
     final List<Map<String, dynamic>> result = [];
-
     try {
-      // 1) structured 'bahan_baku' (List or JSON string)
       final rawStructured = widget.menu['bahan_baku'];
       if (rawStructured != null) {
         if (rawStructured is List) {
@@ -67,24 +87,17 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               }
               return result;
             }
-          } catch (_) {
-            // fallthrough to legacy parsing
-          }
+          } catch (_) {}
         }
       }
 
-      // 2) legacy comma-separated fields
       final bahanStr = widget.menu['bahan']?.toString() ?? '';
       if (bahanStr.isEmpty) return result;
 
-      final jumlahStr = widget.menu['jumlah']?.toString() ?? '';
-      final satuanStr = widget.menu['satuan']?.toString() ?? '';
-      final biayaStr = widget.menu['biaya']?.toString() ?? '';
-
       final bahanList = bahanStr.split(',');
-      final jumlahList = jumlahStr.split(',');
-      final satuanList = satuanStr.split(',');
-      final biayaList = biayaStr.split(',');
+      final jumlahList = (widget.menu['jumlah']?.toString() ?? '').split(',');
+      final satuanList = (widget.menu['satuan']?.toString() ?? '').split(',');
+      final biayaList = (widget.menu['biaya']?.toString() ?? '').split(',');
 
       for (int i = 0; i < bahanList.length; i++) {
         result.add({
@@ -95,10 +108,8 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
         });
       }
     } catch (e) {
-      // If parse fails, return empty list (defensive)
       debugPrint('Error parsing bahan baku: $e');
     }
-
     return result;
   }
 
@@ -122,65 +133,84 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
   }
 
   Future<void> _deleteMenu() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
-              child: const Icon(Icons.warning_rounded, color: Colors.red, size: 32),
-            ),
-            const SizedBox(height: 16),
-            const Text('Hapus Menu?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              'Apakah Anda yakin ingin menghapus "${widget.menu['nama_menu']}"? Data yang dihapus tidak dapat dikembalikan.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 24),
-            Row(children: [
-              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal'))),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-                ),
-              ),
-            ]),
-          ]),
-        ),
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() => _isLoading = true);
-
     try {
-      final id = widget.menu['_id']?.toString() ?? widget.menu['id']?.toString() ?? '';
-      if (id.isEmpty) throw Exception('ID menu tidak ditemukan');
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning_rounded, color: Colors.red),
+              SizedBox(width: 10),
+              Text('Hapus Menu?'),
+            ],
+          ),
+          content: Text('Apakah Anda yakin ingin menghapus "${widget.menu['nama_menu']}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text('Hapus', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
 
-      // Use DataService.removeId to delete by id
-      final success = await _data_service_removeIdSafe(id);
-      if (success) {
-        Fluttertoast.showToast(msg: "Menu '${widget.menu['nama_menu']}' berhasil dihapus!", backgroundColor: Colors.green);
-        widget.onMenuDeleted?.call();
-        if (Navigator.canPop(context)) Navigator.pop(context);
-      } else {
-        throw Exception('Hapus gagal');
+      // Debug: Cek apakah dialog return nilai
+      debugPrint('Dialog result: $confirm');
+
+      if (confirm != true) {
+        debugPrint('User cancelled delete');
+        return;
       }
-    } catch (e) {
-      debugPrint('Error delete menu: $e');
-      setState(() => _isLoading = false);
-      Fluttertoast.showToast(msg: "Gagal menghapus menu: ${e.toString()}", backgroundColor: Colors.red);
+
+      setState(() => _isLoading = true);
+
+      final id = widget.menu['_id']?.toString() ?? widget.menu['id']?.toString() ?? '';
+      debugPrint('Attempting to delete menu with ID: $id');
+      
+      if (id.isEmpty) {
+        Fluttertoast.showToast(msg: "ID menu tidak ditemukan", backgroundColor: Colors.red);
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final success = await _data_service_removeIdSafe(id);
+      debugPrint('Delete result: $success');
+
+      if (success) {
+        Fluttertoast.showToast(
+          msg: "Menu '${widget.menu['nama_menu']}' berhasil dihapus!",
+          backgroundColor: Colors.green,
+          toastLength: Toast.LENGTH_LONG,
+        );
+        widget.onMenuDeleted?.call();
+        Navigator.pop(context);
+      } else {
+        Fluttertoast.showToast(
+          msg: "Gagal menghapus menu",
+          backgroundColor: Colors.red,
+          toastLength: Toast.LENGTH_LONG,
+        );
+      }
+    } catch (e, stack) {
+      // Tambahkan error handling yang lebih detail
+      debugPrint('Error in _deleteMenu: $e');
+      debugPrint('Stack trace: $stack');
+      
+      Fluttertoast.showToast(
+        msg: "Terjadi kesalahan: ${e.toString()}",
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -194,191 +224,411 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
     }
   }
 
+
   void _openEditForm() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => AddMenuForm(
-          onMenuAdded: null,
           initialData: widget.menu,
           isEditing: true,
           onMenuUpdated: () {
+            // Ini akan memperbarui halaman detail
+            debugPrint('Menu updated via callback');
             widget.onMenuUpdated?.call();
-            // refresh UI if needed
-            setState(() {});
+            
+            // Force rebuild untuk menampilkan data baru
+            if (mounted) {
+              setState(() {});
+            }
+            
+            // Tampilkan toast di detail page
+            Fluttertoast.showToast(
+              msg: "Menu telah diperbarui!",
+              backgroundColor: Colors.green,
+              toastLength: Toast.LENGTH_SHORT,
+            );
           },
         ),
+      ),
+    ).then((value) {
+      // Optional: tambahan handling jika perlu
+      debugPrint('Edit form closed');
+    });
+  }
+
+  Widget _buildRiwayatTab() {
+    // TODO: Implement riwayat content based on your data
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history_rounded, size: 80, color: Colors.grey[400]),
+          SizedBox(height: 16),
+          Text(
+            'Riwayat Menu',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Belum ada data riwayat untuk menu ini',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailTab() {
+    final bahanList = _parseBahanBaku();
+    final totalRecipe = _calculateTotalRecipeCost();
+    final foodCost = _calculateFoodCost();
+    final hargaJual = double.tryParse(widget.menu['harga_jual']?.toString() ?? widget.menu['harga']?.toString() ?? '0') ?? 0.0;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Section
+          Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: widget.menu['foto_menu'] != null && widget.menu['foto_menu'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      widget.menu['foto_menu'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, st) => Center(child: Icon(Icons.restaurant, size: 60, color: Colors.grey)),
+                    ),
+                  )
+                : Center(child: Icon(Icons.restaurant, size: 60, color: Colors.grey)),
+          ),
+          SizedBox(height: 20),
+
+          // Informasi Menu Card
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Informasi Menu',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: priceTagGradient,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Text(
+                          'Rp ${_formatNumber(hargaJual)}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  _buildInfoRow('Kode Menu', widget.menu['id_menu'] ?? '-'),
+                  _buildInfoRow('Nama Menu', widget.menu['nama_menu'] ?? '-'),
+                  _buildInfoRow('Kategori', widget.menu['kategori'] ?? '-'),
+                  Divider(height: 32),
+                  
+                  // Cost Summary
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              'Total Recipe Cost',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Rp ${_formatNumber(totalRecipe)}',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(width: 1, height: 40, color: Colors.grey[300]),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              'Food Cost',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              '${foodCost.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: foodCost > 50 ? Colors.red : Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Barcode Section
+          if (widget.menu['barcode'] != null && widget.menu['barcode'].toString().isNotEmpty)
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Barcode', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 12),
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: BarcodeWidget(
+                              barcode: Barcode.code128(),
+                              data: widget.menu['barcode'],
+                              width: 250,
+                              height: 80,
+                              drawText: false,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            widget.menu['barcode'],
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 1.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          SizedBox(height: 16),
+
+          // Bahan Baku Section
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.shopping_basket_rounded, color: Colors.orange[700]),
+                      SizedBox(width: 8),
+                      Text('Daftar Bahan Baku', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  
+                  if (bahanList.isEmpty)
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text('Tidak ada bahan baku', style: TextStyle(color: Colors.grey[600])),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text('Nama Bahan', style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(child: Text('Jumlah', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(child: Text('Biaya', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        ...bahanList.asMap().entries.map((e) {
+                          final idx = e.key;
+                          final item = e.value;
+                          return Container(
+                            decoration: BoxDecoration(
+                              border: idx < bahanList.length - 1 ? Border(bottom: BorderSide(color: Colors.grey[200]!)) : null,
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                            child: Row(
+                              children: [
+                                Expanded(child: Text('${idx + 1}. ${item['nama']}', maxLines: 2)),
+                                Expanded(
+                                  child: Text(
+                                    '${item['jumlah']} ${item['satuan']}',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.grey[700]),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    'Rp${_formatNumber(double.tryParse(item['biaya']?.toString() ?? '0') ?? 0)}',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[700]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(label, style: TextStyle(color: Colors.grey[600])),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(fontWeight: FontWeight.w500),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bahanList = _parseBahanBaku();
-    final totalRecipe = _calculateTotalRecipeCost();
-    final foodCost = _calculateFoodCost();
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: Text(widget.menu['nama_menu'] ?? '', style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold)),
+        elevation: 1,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Detail Menu',
+          style: TextStyle(
+            fontSize: 18, // Ukuran lebih kecil
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.purple,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: Colors.purple,
+          indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.tab,
+          tabs: [
+            Tab(text: 'Detail'),
+            Tab(text: 'Riwayat'),
+          ],
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Image Header
-          Container(
-            width: double.infinity,
-            height: 200,
-            decoration: BoxDecoration(color: Colors.grey[200], border: Border.all(color: Colors.green[300]!, width: 3)),
-            child: widget.menu['foto_menu'] != null && widget.menu['foto_menu'].toString().isNotEmpty
-                ? Image.network(widget.menu['foto_menu'], fit: BoxFit.cover, errorBuilder: (ctx, err, st) => const Icon(Icons.restaurant, size: 80, color: Colors.grey))
-                : const Icon(Icons.restaurant, size: 80, color: Colors.grey),
-          ),
-
-          // Tabs
-          Container(
-            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey[300]!))),
-            child: Row(children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.green[700]!, width: 3))),
-                  child: Text('Detail', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green[700])),
-                ),
-              ),
-              Expanded(child: Container(padding: const EdgeInsets.symmetric(vertical: 16), child: const Text('Riwayat', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey)))),
-            ]),
-          ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _buildDetailSection('Informasi Menu', Colors.green[700]!, [
-                _buildDetailRow('Kode Menu', widget.menu['id_menu'] ?? '-', Colors.green[700]!),
-                _buildDetailRow('Nama Menu', widget.menu['nama_menu'] ?? '-', Colors.green[700]!),
-                _buildDetailRow('Kategori', widget.menu['kategori'] ?? '-', Colors.green[700]!),
-                _buildDetailRow('Harga Jual', 'Rp ${_formatNumber(double.tryParse(widget.menu['harga_jual']?.toString() ?? widget.menu['harga']?.toString() ?? '0') ?? 0)}', Colors.green[700]!),
-              ]),
-              const SizedBox(height: 24),
-
-              if (widget.menu['barcode'] != null && widget.menu['barcode'].toString().isNotEmpty) ...[
-                Text('Barcode', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green[700])),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                  child: Column(children: [
-                    BarcodeWidget(barcode: Barcode.code128(), data: widget.menu['barcode'], width: 500, height: 100, drawText: false),
-                    const SizedBox(height: 12),
-                    Text(widget.menu['barcode'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green[700], letterSpacing: 2)),
-                  ]),
-                ),
-                const SizedBox(height: 24),
+          ? Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildDetailTab(),
+                _buildRiwayatTab(),
               ],
-
-              _buildDetailSection('Ringkasan Perhitungan', Colors.green[700]!, [
-                _buildDetailRow('Total Recipe Cost', 'Rp ${_formatNumber(totalRecipe)}', Colors.green[700]!),
-                _buildDetailRow('Food Cost %', '${foodCost.toStringAsFixed(1)}%', Colors.green[700]!),
-              ]),
-              const SizedBox(height: 24),
-
-              Text('Daftar Bahan Baku', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green[700])),
-              const Divider(thickness: 1),
-              const SizedBox(height: 12),
-
-              if (bahanList.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)),
-                  child: Text('Tidak ada bahan baku', style: TextStyle(color: Colors.grey[600]), textAlign: TextAlign.center),
-                )
-              else
-                Container(
-                  decoration: BoxDecoration(border: Border.all(color: Colors.orange[300]!, width: 2), borderRadius: BorderRadius.circular(12)),
-                  child: Column(children: [
-                    Container(
-                      decoration: BoxDecoration(color: Colors.orange[700], borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10))),
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      child: Row(children: [
-                        Expanded(flex: 1, child: Text('No', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white))),
-                        Expanded(flex: 3, child: Text('Nama Bahan', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white))),
-                        Expanded(flex: 2, child: Text('Jumlah', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white))),
-                        Expanded(flex: 2, child: Text('Biaya', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white))),
-                      ]),
-                    ),
-                    ...bahanList.asMap().entries.map((e) {
-                      final idx = e.key;
-                      final item = e.value;
-                      final isEven = idx % 2 == 0;
-                      return Container(
-                        decoration: BoxDecoration(color: isEven ? Colors.white : Colors.grey[50]),
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                        child: Row(children: [
-                          Expanded(flex: 1, child: Text('${idx + 1}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-                          Expanded(flex: 3, child: Text(item['nama'] ?? '', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-                          Expanded(flex: 2, child: Text('${item['jumlah']} ${item['satuan']}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13))),
-                          Expanded(flex: 2, child: Text('Rp${_formatNumber(double.tryParse(item['biaya']?.toString() ?? '0') ?? 0)}', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green[700]))),
-                        ]),
-                      );
-                    }).toList(),
-                  ]),
-                ),
-
-              const SizedBox(height: 30),
-
-              Row(children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 55,
-                    child: ElevatedButton(
+            ),
+            bottomNavigationBar: Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey[300]!)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
                       onPressed: _openEditForm,
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B4513), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      child: const Text('Ubah', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                      icon: Icon(Icons.edit_rounded, size: 20),
+                      label: Text('Ubah'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[700],
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: _deleteMenu,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      child: const Text('Hapus', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _deleteMenu, // Disable ketika loading
+                      icon: Icon(Icons.delete_rounded, size: 20),
+                      label: Text('Hapus'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[700],
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
                   ),
-                ),
-              ]),
-              const SizedBox(height: 20),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-
-  Widget _buildDetailSection(String title, Color titleColor, List<Widget> children) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor)),
-      const Divider(thickness: 1),
-      const SizedBox(height: 8),
-      ...children,
-    ]);
-  }
-
-  Widget _buildDetailRow(String label, String value, Color valueColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-        Flexible(child: Text(value, textAlign: TextAlign.right, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor))),
-      ]),
+                ],
+              ),
+            ),
     );
   }
 }

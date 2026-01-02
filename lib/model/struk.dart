@@ -29,3 +29,5 @@ class StrukModel {
     );
   }
 }
+
+//struk ini adalah fungsi yang akan digunakan untuk mencatat setiap transaksi penjualan yang terjadi di restoran terutama pada role kasir. Struk ini berisi informasi penting seperti kode struk, tanggal transaksi, nama kasir yang melayani, metode pembayaran yang digunakan, daftar menu yang dipesan, dan total pembayaran. Dengan adanya struk ini, restoran dapat dengan mudah melacak dan mengelola transaksi penjualan mereka.

@@ -186,7 +186,7 @@ class _KedaiPageState extends State<KedaiPage> {
           logoKedai = imageBase64;
 
           if (kDebugMode) {
-            print('✅ Image converted to base64, length: ${logoKedai.length}');
+            print('Image converted to base64, length: ${logoKedai.length}');
           }
 
           // Simpan gambar ke folder lokal untuk backup
@@ -194,12 +194,12 @@ class _KedaiPageState extends State<KedaiPage> {
           if (imagePath != null) {
             _savedImagePath = imagePath;
             if (kDebugMode) {
-              print('✅ Image also saved locally at: $imagePath');
+              print('Image also saved locally at: $imagePath');
             }
           }
         } else {
           if (kDebugMode) {
-            print('⚠️ Failed to convert image to base64');
+            print('Failed to convert image to base64');
           }
         }
       } else if (_savedImagePath != null && _savedImagePath!.isNotEmpty) {
@@ -216,12 +216,12 @@ class _KedaiPageState extends State<KedaiPage> {
               final existingBase64 = await _convertImageToBase64(existingFile);
               logoKedai = existingBase64 ?? '';
               if (kDebugMode) {
-                print('✅ Converted existing image to base64, length: ${logoKedai.length}');
+                print('Converted existing image to base64, length: ${logoKedai.length}');
               }
             }
           } catch (e) {
             if (kDebugMode) {
-              print('⚠️ Error converting existing image: $e');
+              print('Error converting existing image: $e');
             }
           }
         } else {

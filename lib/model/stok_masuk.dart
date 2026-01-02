@@ -32,3 +32,8 @@ class StokMasukModel {
     );
   }
 }
+
+//stok masuk adalah fungsi yang akan digunakan oleh bagian gudang
+// ketika ada pembelian bahan baku dari vendor, maka stok bahan baku akan bertambah
+// sesuai dengan pembelian yang dilakukan dan dicatat pada stok masuk ini
+// Stok masuk ini berisi informasi penting seperti kode bahan,

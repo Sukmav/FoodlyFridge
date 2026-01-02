@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
 import '../config.dart';
 import '../restapi.dart';
 import '../helpers/image_helper.dart';
@@ -12,7 +10,6 @@ import '../model/bahan_baku_model.dart';
 import '../model/menu_model.dart';
 
 class AddMenuForm extends StatefulWidget {
-  // onMenuAdded optional to support both add and edit callers
   const AddMenuForm({
     super.key,
     this.onMenuAdded,
@@ -46,11 +43,30 @@ class _AddMenuFormState extends State<AddMenuForm> {
   List<BahanBakuModel> _availableBahanBaku = [];
   bool _isLoadingBahanBaku = false;
 
-  // Each entry: { 'bahan': BahanBakuModel?, 'nama': String?, 'qty': TextEditingController, 'satuan': String, 'cost': double }
   List<Map<String, dynamic>> _selectedBahanBakuList = [];
-
   double _totalRecipeCost = 0.0;
   double _foodCostPercentage = 0.0;
+
+  // Gradient Colors
+  static const LinearGradient appBarGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF6A11CB),
+      Color(0xFF2575FC),
+    ],
+  );
+
+  static const LinearGradient buttonGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF9C4DFF),
+      Color(0xFF7B2CBF),
+      Color(0xFF5A189A),
+    ],
+    stops: [0.0, 0.5, 1.0],
+  );
 
   @override
   void initState() {
@@ -73,7 +89,6 @@ class _AddMenuFormState extends State<AddMenuForm> {
 
       _selectedBahanBakuList.clear();
 
-      // Structured bahan_baku preferred
       final raw = data['bahan_baku'];
       if (raw != null) {
         List<dynamic> listRaw = [];
@@ -89,10 +104,15 @@ class _AddMenuFormState extends State<AddMenuForm> {
           final jumlah = it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0';
           final unit = it['unit']?.toString() ?? '';
           final biaya = double.tryParse(it['biaya']?.toString() ?? '0') ?? 0.0;
-          _selectedBahanBakuList.add({'bahan': null, 'nama': nama, 'qty': TextEditingController(text: jumlah), 'satuan': unit, 'cost': biaya});
+          _selectedBahanBakuList.add({
+            'bahan': null, 
+            'nama': nama, 
+            'qty': TextEditingController(text: jumlah), 
+            'satuan': unit, 
+            'cost': biaya
+          });
         }
       } else {
-        // fallback to comma-separated fields
         final bahanStr = data['bahan']?.toString() ?? '';
         if (bahanStr.isNotEmpty) {
           final jumlahStr = data['jumlah']?.toString() ?? '';
@@ -109,7 +129,13 @@ class _AddMenuFormState extends State<AddMenuForm> {
             final jumlah = i < jumlahList.length ? jumlahList[i].trim() : '0';
             final satuan = i < satuanList.length ? satuanList[i].trim() : '';
             final biaya = i < biayaList.length ? double.tryParse(biayaList[i].trim()) ?? 0.0 : 0.0;
-            _selectedBahanBakuList.add({'bahan': null, 'nama': nama, 'qty': TextEditingController(text: jumlah), 'satuan': satuan, 'cost': biaya});
+            _selectedBahanBakuList.add({
+              'bahan': null, 
+              'nama': nama, 
+              'qty': TextEditingController(text: jumlah), 
+              'satuan': satuan, 
+              'cost': biaya
+            });
           }
         }
       }
@@ -159,19 +185,17 @@ class _AddMenuFormState extends State<AddMenuForm> {
 
       final newList = dataList.map((j) => BahanBakuModel.fromJson(j)).toList();
 
-      // match prefilled bahan by name
       for (var sel in _selectedBahanBakuList) {
         if (sel['bahan'] == null && sel['nama'] != null) {
           try {
-            final match = newList.firstWhere((b) => (b.nama_bahan ?? b.nama ?? '').toString().toLowerCase() == sel['nama'].toString().toLowerCase());
+            final match = newList.firstWhere((b) => 
+              (b.nama_bahan ?? b.nama ?? '').toString().toLowerCase() == sel['nama'].toString().toLowerCase());
             sel['bahan'] = match;
             sel['satuan'] = match.unit ?? sel['satuan'];
             final qty = double.tryParse(sel['qty']?.text ?? '0') ?? 0.0;
             final hargaUnit = double.tryParse(match.harga_per_unit ?? match.harga_unit ?? match.harga ?? '0') ?? 0.0;
             sel['cost'] = qty * hargaUnit;
-          } catch (_) {
-            // no match
-          }
+          } catch (_) {}
         }
       }
 
@@ -190,7 +214,13 @@ class _AddMenuFormState extends State<AddMenuForm> {
 
   void _addBahanBaku() {
     setState(() {
-      _selectedBahanBakuList.add({'bahan': null, 'nama': null, 'qty': TextEditingController(), 'satuan': '', 'cost': 0.0});
+      _selectedBahanBakuList.add({
+        'bahan': null, 
+        'nama': null, 
+        'qty': TextEditingController(), 
+        'satuan': '', 
+        'cost': 0.0
+      });
     });
   }
 
@@ -240,7 +270,7 @@ class _AddMenuFormState extends State<AddMenuForm> {
   }
 
   Future<void> _saveMenu() async {
-    // validations
+    // Validasi input
     if (_kodeMenuController.text.isEmpty) {
       Fluttertoast.showToast(msg: "Kode menu harus diisi!", backgroundColor: Colors.red);
       return;
@@ -254,89 +284,109 @@ class _AddMenuFormState extends State<AddMenuForm> {
       return;
     }
 
-    // process image
-    String imageUrl = '';
-    if (_selectedImage != null) {
-      try {
-        Fluttertoast.showToast(msg: "Memproses gambar...", backgroundColor: Colors.blue);
-
-        if (!kIsWeb) {
-          final local = await ImageHelper.saveImageToAssets(_selectedImage!, _namaMenuController.text.replaceAll(' ', '_'));
-          if (local != null && local.isNotEmpty) imageUrl = local;
-        }
-
-        final cloud = await ImageHelper.uploadImageToGoCloud(imageFile: _selectedImage!, token: token, project: project, fileName: _namaMenuController.text.replaceAll(' ', '_'));
-        if (cloud != null && cloud.isNotEmpty) {
-          imageUrl = cloud;
-        } else {
-          final base64 = await ImageHelper.convertImageToBase64(_selectedImage!);
-          if (base64 != null && base64.isNotEmpty) imageUrl = base64;
-        }
-      } catch (e) {
-        debugPrint('Error processing image: $e');
-      }
-    } else {
-      if (widget.isEditing) {
-        imageUrl = widget.initialData?['foto_menu']?.toString() ?? '';
-      }
+    // Show loading state
+    bool isLoading = false;
+    if (mounted) {
+      setState(() => isLoading = true);
     }
-
-    // build bahan lists and model bahan_baku
-    final List<BahanBakuItem> bahanForModel = [];
-    final List<String> bahanList = [];
-    final List<String> jumlahList = [];
-    final List<String> satuanList = [];
-    final List<String> biayaList = [];
-
-    for (var it in _selectedBahanBakuList) {
-      final nama = it['bahan'] != null ? (it['bahan'].nama_bahan ?? it['bahan'].nama ?? '') : (it['nama']?.toString() ?? '');
-      final qty = it['qty']?.text ?? '0';
-      final satuan = it['bahan'] != null ? (it['bahan'].unit ?? '') : (it['satuan'] ?? '');
-      final biaya = (it['cost'] is double) ? it['cost'] as double : double.tryParse((it['cost']?.toString() ?? '0')) ?? 0.0;
-
-      if (nama.isNotEmpty) {
-        bahanList.add(nama);
-        jumlahList.add(qty);
-        satuanList.add(satuan);
-        biayaList.add(biaya.toString());
-
-        bahanForModel.add(BahanBakuItem(id_bahan: it['bahan'] != null ? (it['bahan'].id?.toString() ?? '') : '', nama_bahan: nama, jumlah: qty, unit: satuan));
-      }
-    }
-
-    final menuModel = MenuModel(
-      id: widget.isEditing ? (widget.initialData?['_id']?.toString() ?? widget.initialData?['id']?.toString() ?? '') : '',
-      kode_menu: _kodeMenuController.text.trim(),
-      nama_menu: _namaMenuController.text.trim(),
-      kategori: _selectedKategori ?? (widget.initialData?['kategori']?.toString() ?? ''),
-      harga: _hargaJualController.text.trim(),
-      stok: widget.initialData?['stok']?.toString() ?? '0',
-      bahan_baku: bahanForModel,
-      foto_menu: imageUrl,
-      barcode: _barcodeController.text.isNotEmpty ? _barcodeController.text : _kodeMenuController.text,
-    );
 
     try {
-      Fluttertoast.showToast(msg: widget.isEditing ? "Memperbarui menu..." : "Menyimpan menu...", backgroundColor: Colors.blue);
+      String imageUrl = '';
+      if (_selectedImage != null) {
+        try {
+          Fluttertoast.showToast(
+            msg: "Memproses gambar...", 
+            backgroundColor: Colors.blue,
+            toastLength: Toast.LENGTH_SHORT,
+          );
 
+          if (!kIsWeb) {
+            final local = await ImageHelper.saveImageToAssets(_selectedImage!, _namaMenuController.text.replaceAll(' ', '_'));
+            if (local != null && local.isNotEmpty) imageUrl = local;
+          }
+
+          final cloud = await ImageHelper.uploadImageToGoCloud(
+            imageFile: _selectedImage!, 
+            token: token, 
+            project: project, 
+            fileName: _namaMenuController.text.replaceAll(' ', '_')
+          );
+          if (cloud != null && cloud.isNotEmpty) {
+            imageUrl = cloud;
+          } else {
+            final base64 = await ImageHelper.convertImageToBase64(_selectedImage!);
+            if (base64 != null && base64.isNotEmpty) imageUrl = base64;
+          }
+        } catch (e) {
+          debugPrint('Error processing image: $e');
+        }
+      } else {
+        if (widget.isEditing) {
+          imageUrl = widget.initialData?['foto_menu']?.toString() ?? '';
+        }
+      }
+
+      final List<BahanBakuItem> bahanForModel = [];
+      final List<String> bahanList = [];
+      final List<String> jumlahList = [];
+      final List<String> satuanList = [];
+      final List<String> biayaList = [];
+
+      for (var it in _selectedBahanBakuList) {
+        final nama = it['bahan'] != null ? (it['bahan'].nama_bahan ?? it['bahan'].nama ?? '') : (it['nama']?.toString() ?? '');
+        final qty = it['qty']?.text ?? '0';
+        final satuan = it['bahan'] != null ? (it['bahan'].unit ?? '') : (it['satuan'] ?? '');
+        final biaya = (it['cost'] is double) ? it['cost'] as double : double.tryParse((it['cost']?.toString() ?? '0')) ?? 0.0;
+
+        if (nama.isNotEmpty) {
+          bahanList.add(nama);
+          jumlahList.add(qty);
+          satuanList.add(satuan);
+          biayaList.add(biaya.toString());
+
+          bahanForModel.add(BahanBakuItem(
+            id_bahan: it['bahan'] != null ? (it['bahan'].id?.toString() ?? '') : '', 
+            nama_bahan: nama, 
+            jumlah: qty, 
+            unit: satuan
+          ));
+        }
+      }
+
+      final menuModel = MenuModel(
+        id: widget.isEditing ? (widget.initialData?['_id']?.toString() ?? widget.initialData?['id']?.toString() ?? '') : '',
+        kode_menu: _kodeMenuController.text.trim(),
+        nama_menu: _namaMenuController.text.trim(),
+        kategori: _selectedKategori ?? (widget.initialData?['kategori']?.toString() ?? ''),
+        harga: _hargaJualController.text.trim(),
+        stok: widget.initialData?['stok']?.toString() ?? '0',
+        bahan_baku: bahanForModel,
+        foto_menu: imageUrl,
+        barcode: _barcodeController.text.isNotEmpty ? _barcodeController.text : _kodeMenuController.text,
+      );
+
+      // Show saving toast
+      Fluttertoast.showToast(
+        msg: widget.isEditing ? "Memperbarui menu..." : "Menyimpan menu...", 
+        backgroundColor: Colors.blue,
+        toastLength: Toast.LENGTH_SHORT,
+      );
+
+      bool success = false;
+      
       if (widget.isEditing) {
         final id = widget.initialData?['_id']?.toString() ?? widget.initialData?['id']?.toString() ?? '';
         if (id.isEmpty) throw Exception('ID menu tidak ditemukan untuk update');
 
-        // Update allowed fields using DataService.updateId (one field per request)
-        // Update nama_menu
         final okNama = await _dataService.updateId('nama_menu', menuModel.nama_menu, token, project, 'menu', appid, id);
         if (okNama != true) throw Exception('Gagal update nama_menu');
 
-        // Update harga_jual
         final okHarga = await _dataService.updateId('harga_jual', menuModel.harga, token, project, 'menu', appid, id);
         if (okHarga != true) throw Exception('Gagal update harga_jual');
 
-        // Update foto_menu (if provided)
         final okFoto = await _dataService.updateId('foto_menu', menuModel.foto_menu, token, project, 'menu', appid, id);
         if (okFoto != true) throw Exception('Gagal update foto_menu');
 
-        // Update bahan_baku as JSON string (structured)
         final bahanBakuJson = json.encode(menuModel.bahan_baku.map((b) => {
           'id_bahan': b.id_bahan,
           'nama_bahan': b.nama_bahan,
@@ -346,7 +396,6 @@ class _AddMenuFormState extends State<AddMenuForm> {
         final okBahanBaku = await _dataService.updateId('bahan_baku', bahanBakuJson, token, project, 'menu', appid, id);
         if (okBahanBaku != true) throw Exception('Gagal update bahan_baku');
 
-        // Also update legacy comma-separated fields for compatibility
         final okBahan = await _dataService.updateId('bahan', bahanList.join(','), token, project, 'menu', appid, id);
         if (okBahan != true) throw Exception('Gagal update bahan (legacy)');
 
@@ -359,23 +408,60 @@ class _AddMenuFormState extends State<AddMenuForm> {
         final okBiaya = await _data_data_updateId_safe('biaya', biayaList.join(','));
         if (!okBiaya) throw Exception('Gagal update biaya (legacy)');
 
-        Fluttertoast.showToast(msg: "Menu berhasil diperbarui!", backgroundColor: Colors.green);
-        widget.onMenuUpdated?.call();
+        success = true;
       } else {
-        // Insert via existing insert endpoint (DataService.insertMenu)
-        await _dataService.insertMenu(appid, menuModel.kode_menu, menuModel.nama_menu, menuModel.foto_menu, menuModel.kategori, menuModel.harga, menuModel.barcode, bahanList.join(','), jumlahList.join(','), satuanList.join(','), biayaList.join(','), _catatanController.text);
-        Fluttertoast.showToast(msg: "Menu berhasil ditambahkan!", backgroundColor: Colors.green);
-        widget.onMenuAdded?.call();
+        await _dataService.insertMenu(
+          appid, 
+          menuModel.kode_menu, 
+          menuModel.nama_menu, 
+          menuModel.foto_menu, 
+          menuModel.kategori, 
+          menuModel.harga, 
+          menuModel.barcode, 
+          bahanList.join(','), 
+          jumlahList.join(','), 
+          satuanList.join(','), 
+          biayaList.join(','), 
+          _catatanController.text
+        );
+        success = true;
       }
 
-      if (Navigator.canPop(context)) Navigator.pop(context);
+      if (success) {
+        // Panggil callback untuk update parent
+        if (widget.isEditing) {
+          widget.onMenuUpdated?.call();
+        } else {
+          widget.onMenuAdded?.call();
+        }
+        
+        // Tampilkan sukses toast
+        Fluttertoast.showToast(
+          msg: widget.isEditing ? "✅ Menu berhasil diperbarui!" : "✅ Menu berhasil ditambahkan!", 
+          backgroundColor: Colors.green,
+          toastLength: Toast.LENGTH_SHORT,
+        );
+        
+        // Tunggu sebentar agar toast terlihat
+        await Future.delayed(Duration(milliseconds: 500));
+        
+        // Kembali ke halaman sebelumnya
+        Navigator.pop(context);
+      }
     } catch (e) {
       debugPrint('Error saving/updating menu: $e');
-      Fluttertoast.showToast(msg: "Gagal menyimpan menu: ${e.toString()}", backgroundColor: Colors.red);
+      Fluttertoast.showToast(
+        msg: "❌ Gagal menyimpan menu: ${e.toString()}", 
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
-  // helper wrapper to call updateId and return bool safely
   Future<bool> _data_data_updateId_safe(String field, String value) async {
     try {
       final res = await _dataService.updateId(field, value, token, project, 'menu', appid, widget.initialData?['_id']?.toString() ?? widget.initialData?['id']?.toString() ?? '');
@@ -387,162 +473,813 @@ class _AddMenuFormState extends State<AddMenuForm> {
   }
 
   String _formatNumber(double value) {
-    return value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    return value.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), 
+      (m) => '${m[1]}.'
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.isEditing ? 'Ubah Menu' : 'Tambah Menu'), backgroundColor: Colors.green[700]),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Image / picker
-          Center(
-            child: GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(color: Colors.green[700], borderRadius: BorderRadius.circular(16)),
-                child: Stack(alignment: Alignment.center, children: [
-                  if (_selectedImage != null && !kIsWeb)
-                    ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(_selectedImage!, width: 120, height: 120, fit: BoxFit.cover))
-                  else if (_selectedImagePath != null && _selectedImagePath!.isNotEmpty)
-                    ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(_selectedImagePath!, width: 120, height: 120, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt, size: 50, color: Colors.white.withOpacity(0.8))))
-                  else
-                    Icon(Icons.camera_alt, size: 50, color: Colors.white.withOpacity(0.8)),
-                  Positioned(bottom: 10, right: 10, child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Icon(Icons.add_circle, color: Colors.green[700], size: 24))),
-                ]),
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 20, top: 30),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFF667eea).withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
+          ),
+          SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 30),
-
-          _buildSectionTitle('Informasi Utama'),
-          const SizedBox(height: 16),
-          _buildTextField(controller: _kodeMenuController, label: 'Kode Menu', hint: 'Masukkan kode menu', enabled: !widget.isEditing),
-          const SizedBox(height: 16),
-          _buildTextField(controller: _namaMenuController, label: 'Nama menu', hint: 'Masukkan nama menu'),
-          const SizedBox(height: 16),
-
-          widget.isEditing ? _buildReadOnlyField(label: 'Kategori', value: _selectedKategori ?? (widget.initialData?['kategori']?.toString() ?? '-')) : _buildDropdownField(label: 'Kategori', value: _selectedKategori, items: ['Makanan', 'Minuman', 'Dessert', 'Snack'], onChanged: (v) => setState(() => _selectedKategori = v)),
-          const SizedBox(height: 16),
-
-          _buildTextField(controller: _hargaJualController, label: 'Harga Jual', hint: 'Masukkan harga jual', keyboardType: TextInputType.number),
-          const SizedBox(height: 16),
-
-          widget.isEditing ? _buildReadOnlyField(label: 'Barcode', value: _barcodeController.text.isNotEmpty ? _barcodeController.text : _kodeMenuController.text) : _buildTextField(controller: _barcodeController, label: 'Barcode (Opsional)', hint: 'Masukkan barcode'),
-          const SizedBox(height: 30),
-
-          _buildSectionTitle('Ringkasan Perhitungan'),
-          const SizedBox(height: 16),
-          _buildReadOnlyField(label: 'Total Recipe Cost (otomatis)', value: 'Rp${_formatNumber(_totalRecipeCost)}'),
-          const SizedBox(height: 16),
-          _buildReadOnlyField(label: 'Food Cost % (otomatis)', value: '${_foodCostPercentage.toStringAsFixed(1)}%'),
-          const SizedBox(height: 30),
-
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            _buildSectionTitle('Daftar Bahan Baku'),
-            ElevatedButton.icon(onPressed: _addBahanBaku, icon: const Icon(Icons.add, size: 18), label: const Text('Tambah Bahan'), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[700])),
-          ]),
-          const SizedBox(height: 16),
-
-          if (_isLoadingBahanBaku)
-            const Center(child: CircularProgressIndicator())
-          else if (_availableBahanBaku.isEmpty && _selectedBahanBakuList.isEmpty)
-            Card(child: Padding(padding: const EdgeInsets.all(16), child: Text('Belum ada bahan baku. Silakan tambahkan bahan baku terlebih dahulu.', style: TextStyle(color: Colors.grey[600]), textAlign: TextAlign.center)))
-          else
-            ..._selectedBahanBakuList.asMap().entries.map((e) => _buildBahanBakuCard(e.key)),
-
-          const SizedBox(height: 30),
-
-          if (!widget.isEditing) ...[
-            _buildSectionTitle('Catatan Tambahan (Opsional)'),
-            const SizedBox(height: 16),
-            TextField(controller: _catatanController, maxLines: 4, decoration: InputDecoration(hintText: 'Tambahkan catatan...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-            const SizedBox(height: 30),
-          ],
-
-          SizedBox(width: double.infinity, height: 55, child: ElevatedButton(onPressed: _saveMenu, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B4513), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(widget.isEditing ? 'Simpan Perubahan' : 'Simpan Menu', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)))),
-          const SizedBox(height: 30),
-        ]),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) => Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange[700]));
-
-  Widget _buildTextField({required TextEditingController controller, required String label, required String hint, bool enabled = true, TextInputType? keyboardType}) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      const SizedBox(height: 8),
-      TextField(controller: controller, enabled: enabled, keyboardType: keyboardType, decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(color: Colors.grey[400]), filled: true, fillColor: enabled ? Colors.white : Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.orange[300]!)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14))),
-    ]);
+  Widget _buildInputField({
+    required String label,
+    required TextEditingController controller,
+    bool enabled = true,
+    TextInputType? keyboardType,
+    IconData? prefixIcon,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: enabled ? Colors.white : Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: TextField(
+              controller: controller,
+              enabled: enabled,
+              keyboardType: keyboardType,
+              decoration: InputDecoration(
+                hintText: 'Masukkan $label',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey[600]) : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildReadOnlyField({required String label, required String value}) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      const SizedBox(height: 8),
-      Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[300]!)), child: Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[700]))),
-    ]);
+  Widget _buildDropdownField({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required Function(String?) onChanged,
+    IconData? icon,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: DropdownButtonFormField<String>(
+                value: value,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Pilih $label',
+                  prefixIcon: icon != null ? Icon(icon, color: Colors.grey[600]) : null,
+                ),
+                items: items.map((it) => DropdownMenuItem(
+                  value: it,
+                  child: Text(it, style: TextStyle(fontSize: 14)),
+                )).toList(),
+                onChanged: onChanged,
+                dropdownColor: Colors.white,
+                style: TextStyle(color: Colors.black87),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildDropdownField({required String label, required String? value, required List<String> items, required Function(String?) onChanged}) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      const SizedBox(height: 8),
-      DropdownButtonFormField<String>(value: value, decoration: InputDecoration(hintText: 'Pilih $label', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.orange[300]!))), items: items.map((it) => DropdownMenuItem(value: it, child: Text(it))).toList(), onChanged: onChanged),
-    ]);
+  Widget _buildCostSummaryCard() {
+    return Container(
+      margin: EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.calculate_rounded, color: Colors.white, size: 24),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'Ringkasan Perhitungan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Color(0xFFf0f7ff),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue[100]!),
+                    ),
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Total Recipe Cost',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Rp ${_formatNumber(_totalRecipeCost)}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Color(0xFFf0fff4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green[100]!),
+                    ),
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Food Cost',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          '${_foodCostPercentage.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[900],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBahanBakuCard(int index) {
     final it = _selectedBahanBakuList[index];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.orange[300]!)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Bahan Baku ${index + 1}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-          IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _removeBahanBaku(index), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-        ]),
-        const SizedBox(height: 12),
-        _availableBahanBaku.isNotEmpty
-            ? DropdownButtonFormField<BahanBakuModel>(
-          value: it['bahan'],
-          decoration: InputDecoration(hintText: 'Pilih bahan baku', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!))),
-          items: _availableBahanBaku.map((b) {
-            final nama = (b.nama_bahan ?? b.nama ?? '').toString();
-            final unit = (b.unit ?? '').toString();
-            final harga = (b.harga_per_unit ?? b.harga_unit ?? b.harga ?? '').toString();
-            return DropdownMenuItem<BahanBakuModel>(value: b, child: Text('$nama ($unit) - Rp$harga'));
-          }).toList(),
-          onChanged: (BahanBakuModel? val) {
-            setState(() {
-              it['bahan'] = val;
-              it['nama'] = val != null ? (val.nama_bahan ?? val.nama ?? '') : it['nama'];
-              it['satuan'] = val?.unit ?? it['satuan'];
-              _recalculateTotals();
-            });
-          },
-        )
-            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Nama Bahan', style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: 8),
-          TextField(controller: TextEditingController(text: it['nama']?.toString() ?? ''), onChanged: (v) => it['nama'] = v, decoration: InputDecoration(hintText: 'Masukkan nama bahan', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(flex: 2, child: TextField(controller: it['qty'], keyboardType: TextInputType.number, onChanged: (v) => _recalculateTotals(), decoration: InputDecoration(labelText: 'Qty', labelStyle: const TextStyle(fontSize: 12), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))),
-          const SizedBox(width: 12),
-          Expanded(flex: 2, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)), child: Text(it['satuan'] ?? '-', style: const TextStyle(fontSize: 14)))),
-          const SizedBox(width: 12),
-          Expanded(flex: 3, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)), child: Text('Rp${_formatNumber((it['cost'] as double?) ?? 0.0)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)))),
-        ]),
-      ]),
+      margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+        border: Border.all(color: Colors.orange[100]!),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Bahan ${index + 1}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete_rounded, color: Colors.red, size: 24),
+                  onPressed: () => _removeBahanBaku(index),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            
+            // Bahan Selection
+            Container(
+              margin: EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[200]!),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _availableBahanBaku.isNotEmpty
+                  ? DropdownButtonFormField<BahanBakuModel>(
+                      value: it['bahan'],
+                      decoration: InputDecoration(
+                        hintText: 'Pilih bahan baku',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        prefixIcon: Icon(Icons.shopping_basket_rounded, color: Colors.grey[600]),
+                      ),
+                      items: _availableBahanBaku.map((b) {
+                        final nama = (b.nama_bahan ?? b.nama ?? '').toString();
+                        final unit = (b.unit ?? '').toString();
+                        final harga = (b.harga_per_unit ?? b.harga_unit ?? b.harga ?? '').toString();
+                        return DropdownMenuItem<BahanBakuModel>(
+                          value: b,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(nama, style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 2),
+                              Text('$unit • Rp$harga', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          it['bahan'] = val;
+                          it['nama'] = val != null ? (val.nama_bahan ?? val.nama ?? '') : it['nama'];
+                          it['satuan'] = val?.unit ?? it['satuan'];
+                          _recalculateTotals();
+                        });
+                      },
+                    )
+                  : Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: TextField(
+                        controller: TextEditingController(text: it['nama']?.toString() ?? ''),
+                        onChanged: (v) => it['nama'] = v,
+                        decoration: InputDecoration(
+                          hintText: 'Masukkan nama bahan',
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+            ),
+
+            // Quantity and Cost
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[200]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: it['qty'],
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => _recalculateTotals(),
+                      decoration: InputDecoration(
+                        labelText: 'Jumlah',
+                        labelStyle: TextStyle(fontSize: 12),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue[100]!),
+                    ),
+                    child: Text(
+                      it['satuan'] ?? '-',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue[800],
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.green[50]!, Colors.lightGreen[50]!],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green[100]!),
+                    ),
+                    child: Text(
+                      'Rp${_formatNumber((it['cost'] as double?) ?? 0.0)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[900],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFf8f9ff),
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: BoxDecoration(gradient: appBarGradient),
+        ),
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          widget.isEditing ? 'Ubah Menu' : 'Tambah Menu Baru',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Section
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purple.withOpacity(0.1),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: _selectedImage != null && !kIsWeb
+                              ? Image.file(_selectedImage!, width: 200, height: 200, fit: BoxFit.cover)
+                              : _selectedImagePath != null && _selectedImagePath!.isNotEmpty
+                                  ? Image.network(_selectedImagePath!, width: 200, height: 200, fit: BoxFit.cover, 
+                                      errorBuilder: (_, __, ___) => Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                        ),
+                                        child: Icon(Icons.restaurant_menu_rounded, size: 70, color: Colors.white),
+                                      ))
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                      ),
+                                      child: Icon(Icons.restaurant_menu_rounded, size: 70, color: Colors.white),
+                                    ),
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          right: 10,
+                          child: Container(
+                            padding: EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.purple.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Icon(Icons.camera_alt_rounded, color: Colors.purple, size: 24),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Center(
+                child: Text(
+                  'Tap untuk mengganti foto',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ),
+
+              // Informasi Utama
+              _buildSectionHeader('Informasi Utama', Icons.info_outline_rounded),
+              
+              _buildInputField(
+                label: 'Kode Menu',
+                controller: _kodeMenuController,
+                enabled: !widget.isEditing,
+                prefixIcon: Icons.qr_code_2_rounded,
+              ),
+              
+              _buildInputField(
+                label: 'Nama Menu',
+                controller: _namaMenuController,
+                prefixIcon: Icons.restaurant_rounded,
+              ),
+              
+              widget.isEditing 
+                  ? Container(
+                      margin: EdgeInsets.only(bottom: 16),
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.category_rounded, color: Colors.grey[600]),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Kategori',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  _selectedKategori ?? (widget.initialData?['kategori']?.toString() ?? '-'),
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _buildDropdownField(
+                      label: 'Kategori',
+                      value: _selectedKategori,
+                      items: ['Makanan', 'Minuman', 'Dessert', 'Snack'],
+                      onChanged: (v) => setState(() => _selectedKategori = v),
+                      icon: Icons.category_rounded,
+                    ),
+              
+              _buildInputField(
+                label: 'Harga Jual',
+                controller: _hargaJualController,
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.attach_money_rounded,
+              ),
+              
+              widget.isEditing 
+                  ? Container(
+                      margin: EdgeInsets.only(bottom: 20),
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.qr_code_2_rounded, color: Colors.grey[600]),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Barcode',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  _barcodeController.text.isNotEmpty ? _barcodeController.text : _kodeMenuController.text,
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _buildInputField(
+                      label: 'Barcode (Opsional)',
+                      controller: _barcodeController,
+                      prefixIcon: Icons.qr_code_2_rounded,
+                    ),
+
+              // Ringkasan Perhitungan
+              _buildCostSummaryCard(),
+
+              // Daftar Bahan Baku
+              _buildSectionHeader('Daftar Bahan Baku', Icons.shopping_basket_rounded),
+              
+              Container(
+                margin: EdgeInsets.only(bottom: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: buttonGradient,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xFF9C4DFF).withOpacity(0.3),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: _addBahanBaku,
+                          icon: Icon(Icons.add_rounded, color: Colors.white),
+                          label: Text('Tambah Bahan'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_isLoadingBahanBaku)
+                Center(child: CircularProgressIndicator())
+              else if (_availableBahanBaku.isEmpty && _selectedBahanBakuList.isEmpty)
+                Container(
+                  padding: EdgeInsets.all(30),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[200]!, style: BorderStyle.solid, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 60, color: Colors.grey[400]),
+                      SizedBox(height: 16),
+                      Text(
+                        'Belum ada bahan baku',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tambahkan bahan baku dengan tombol di atas',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ..._selectedBahanBakuList.asMap().entries.map((e) => _buildBahanBakuCard(e.key)),
+
+              // Catatan Tambahan
+              if (!widget.isEditing) ...[
+                _buildSectionHeader('Catatan Tambahan', Icons.notes_rounded),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: TextField(
+                    controller: _catatanController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Tambahkan catatan atau deskripsi menu...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(16),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 30),
+              ],
+
+              // Save Button
+              Container(
+                margin: EdgeInsets.only(bottom: 40),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF8B4513), Color(0xFFD2691E)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF8B4513).withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: _saveMenu,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.save_rounded, color: Colors.white, size: 24),
+                      SizedBox(width: 12),
+                      Text(
+                        widget.isEditing ? 'Simpan Perubahan' : 'Simpan Menu',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -3,8 +3,8 @@ class BahanBakuModel {
   final String foto_bahan;
   final String nama_bahan;
   final String unit;
-  final String gross_qty;
-  final String harga_per_gross;
+  final String gross_qty; //ini ilangin aja
+  final String harga_per_gross; //ini juga ilangin aja
   final String harga_per_unit;
   final String stok_tersedia;
   final String stok_minimal;

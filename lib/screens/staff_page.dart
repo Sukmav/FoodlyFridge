@@ -105,7 +105,7 @@ class _StaffPageState extends State<StaffPage> {
           }
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ Error parsing staff item: $e');
+            print('Error parsing staff item: $e');
             print('Item: $item');
           }
         }
@@ -555,6 +555,8 @@ class _StaffPageState extends State<StaffPage> {
               color: Colors.grey[500],
             ),
           ),
+
+          //Bagian halaman tambah staff
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: _navigateToAddStaff,
@@ -781,6 +783,7 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
     );
   }
 
+  // fungsi logic yang digunakan untuk menyipan data
   Future<void> _simpanStaff() async {
     if (!_formKey.currentState!.validate()) {
       return;

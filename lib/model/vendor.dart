@@ -29,3 +29,7 @@ class VendorModel {
     );
   }
 }
+
+//vendor ini adalah fungsi yang akan digunakan oleh bagian gudang
+// untuk mencatat informasi tentang pemasok bahan baku restoran seperti nama vendor,
+// nama person in charge (PIC), nomor telepon, alamat, jenis bahan baku yang
