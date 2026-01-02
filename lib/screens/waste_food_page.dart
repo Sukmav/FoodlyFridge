@@ -85,8 +85,8 @@ class _WasteFoodPageState extends State<WasteFoodPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _wasteList.isEmpty
-              ? _buildEmptyState()
-              : _buildWasteList(),
+          ? _buildEmptyState()
+          : _buildWasteList(),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddWasteFood,
         backgroundColor: const Color(0xFF7A9B3B),
@@ -138,23 +138,23 @@ class _WasteFoodPageState extends State<WasteFoodPage> {
           child: ListTile(
             leading: waste.foto.isNotEmpty
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      base64Decode(waste.foto),
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                    ),
-                  )
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                base64Decode(waste.foto),
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+              ),
+            )
                 : Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.image, color: Colors.grey[600]),
-                  ),
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.image, color: Colors.grey[600]),
+            ),
             title: Text(
               waste.nama_bahan,
               style: GoogleFonts.poppins(
@@ -196,7 +196,6 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   final BahanBakuService _bahanBakuService = BahanBakuService();
 
   // Controllers
-  final TextEditingController _kodeBahanController = TextEditingController();
   final TextEditingController _jumlahTerbuangController = TextEditingController();
   final TextEditingController _totalKerugianController = TextEditingController();
   final TextEditingController _catatanController = TextEditingController();
@@ -221,12 +220,11 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   void initState() {
     super.initState();
     _loadBahanBaku();
-    _totalKerugianController.text = '(OTOMATIS)';
+    _totalKerugianController.text = 'otomatis';
   }
 
   @override
   void dispose() {
-    _kodeBahanController.dispose();
     _jumlahTerbuangController.dispose();
     _totalKerugianController.dispose();
     _catatanController.dispose();
@@ -247,11 +245,11 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   void _onBahanBakuSelected(BahanBakuModel? bahanBaku) {
     setState(() {
       _selectedBahanBaku = bahanBaku;
+      // Kode bahan dihilangkan sesuai permintaan — hanya set selected bahan dan hitung total
       if (bahanBaku != null) {
-        _kodeBahanController.text = bahanBaku.id;
         _calculateTotalKerugian();
       } else {
-        _kodeBahanController.clear();
+        _totalKerugianController.text = 'otomatis';
       }
     });
   }
@@ -265,8 +263,10 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
 
         _totalKerugianController.text = 'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
       } catch (e) {
-        _totalKerugianController.text = '(OTOMATIS)';
+        _totalKerugianController.text = 'otomatis';
       }
+    } else {
+      _totalKerugianController.text = 'otomatis';
     }
   }
 
@@ -495,41 +495,6 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
             ),
             const SizedBox(height: 16),
 
-            // Kode Bahan Baku (otomatis)
-            Text(
-              'Kode Bahan baku (otomatis)',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _kodeBahanController,
-              enabled: false,
-              decoration: InputDecoration(
-                hintText: 'Otomatis terisi',
-                hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFD4A373)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFD4A373)),
-                ),
-                disabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.grey),
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-              style: GoogleFonts.poppins(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-
             // Jenis Waste - Dropdown
             Text(
               'Jenis Waste',
@@ -613,7 +578,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
 
             // Total Kerugian (Otomatis)
             Text(
-              'Total Kerugian (Otomatis)',
+              'Total Kerugian',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -624,7 +589,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
               controller: _totalKerugianController,
               enabled: false,
               decoration: InputDecoration(
-                hintText: '(OTOMATIS)',
+                hintText: 'otomatis',
                 hintStyle: GoogleFonts.poppins(color: Colors.grey),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -736,19 +701,19 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
                   ),
                   child: _selectedImage != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                        )
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                  )
                       : Center(
-                          child: Text(
-                            'Foto Bukti',
-                            style: GoogleFonts.poppins(
-                              color: const Color(0xFFD4A373),
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    child: Text(
+                      'Foto Bukti',
+                      style: GoogleFonts.poppins(
+                        color: const Color(0xFFD4A373),
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 // Buttons
@@ -845,21 +810,21 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
                     : Text(
-                        'Simpan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                  'Simpan',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ],
@@ -868,4 +833,3 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
     );
   }
 }
-

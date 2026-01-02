@@ -5,7 +5,11 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/foundation.dart';
 import 'kedai_page.dart';
 import '../helpers/kedai_service.dart';
+import 'ubah_kata_sandi.dart';
+import 'profile_page.dart';
 
+// IMPORT HALAMAN HAPUS AKUN
+import 'hapus_akun_page.dart';
 
 class PengaturanPage extends StatefulWidget {
   final String userId;
@@ -21,148 +25,88 @@ class _PengaturanPageState extends State<PengaturanPage> {
   final KedaiService _kedaiService = KedaiService();
 
   void _navigateToProfile() {
-    // TODO: Navigate to Profile page
-    Fluttertoast.showToast(
-      msg: "Fitur Profil akan segera hadir",
-      backgroundColor: Colors.blue,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfilePage(userId: widget.userId),
+      ),
     );
   }
 
   void _navigateToKedai() async {
-    // Cek apakah user sudah punya data kedai
-    try {
-      final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KedaiPage(userId: widget.userId),
+      ),
+    );
 
-      if (kedai != null) {
-        // Jika sudah ada data, navigasi ke KedaiPage (akan load data otomatis)
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => KedaiPage(userId: widget.userId),
-          ),
-        );
-
-        // Jika ada perubahan data dari edit
-        if (result == true && mounted) {
-          if (kDebugMode) {
-            print('Data kedai berhasil diupdate dari Pengaturan');
-          }
-          Fluttertoast.showToast(
-            msg: "Data kedai berhasil diperbarui",
-            backgroundColor: Colors.green,
-          );
-        }
-      } else {
-        // Jika belum ada data kedai, navigasi ke form kedai
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => KedaiPage(userId: widget.userId),
-          ),
-        );
-
-        if (result == true && mounted) {
-          if (kDebugMode) {
-            print('Data kedai berhasil dibuat dari Pengaturan');
-          }
-          Fluttertoast.showToast(
-            msg: "Data kedai berhasil disimpan",
-            backgroundColor: Colors.green,
-          );
-        }
-      }
-    } catch (e) {
+    _kedaiService.getKedaiByUserId(widget.userId).then((kedai) {
       if (kDebugMode) {
-        print('Error navigating to kedai: $e');
+        print('Background kedai check finished for user ${widget.userId}. kedai != null: ${kedai != null}');
       }
-      Fluttertoast.showToast(
-        msg: "Terjadi kesalahan: ${e.toString()}",
-        backgroundColor: Colors.red,
-      );
-    }
+    }).catchError((e) {
+      if (kDebugMode) print('Background kedai check failed: $e');
+    });
   }
 
-
   void _navigateToChangePassword() {
-    // TODO: Navigate to Change Password page
-    Fluttertoast.showToast(
-      msg: "Fitur Ubah Kata Sandi akan segera hadir",
-      backgroundColor: Colors.blue,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UbahKataSandiPage(userId: widget.userId),
+      ),
     );
   }
 
   void _navigateToStruk() {
-    // TODO: Navigate to Struk page
     Fluttertoast.showToast(
       msg: "Fitur Struk akan segera hadir",
       backgroundColor: Colors.blue,
     );
   }
 
-  void _showDeleteAccountDialog() {
-    showDialog(
+  // NEW: tampilkan konfirmasi sebelum lanjut ke halaman Hapus Akun
+  void _showDeleteAccountConfirmation() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final display = user?.displayName?.isNotEmpty == true
+        ? user!.displayName!
+        : (user?.email ?? 'akun Anda');
+
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
+      builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Hapus Akun',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text('Hapus Akun', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
           content: Text(
-            'Apakah Anda yakin ingin menghapus akun? Tindakan ini tidak dapat dibatalkan.',
+            'Apakah Anda yakin ingin menghapus akun "$display"? Tindakan ini tidak dapat dibatalkan.',
             style: GoogleFonts.poppins(),
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Batal',
-                style: GoogleFonts.poppins(
-                  color: Colors.grey[700],
-                ),
-              ),
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text('Tidak', style: GoogleFonts.poppins(color: Colors.grey[700])),
             ),
             TextButton(
-              onPressed: () async {
-                try {
-                  User? user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    await user.delete();
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                      Fluttertoast.showToast(
-                        msg: "Akun berhasil dihapus",
-                        backgroundColor: Colors.green,
-                      );
-                    }
-                  }
-                } catch (e) {
-                  Navigator.of(context).pop();
-                  Fluttertoast.showToast(
-                    msg: "Gagal menghapus akun: ${e.toString()}",
-                    backgroundColor: Colors.red,
-                  );
-                }
-              },
-              child: Text(
-                'Hapus',
-                style: GoogleFonts.poppins(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text('Ya', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)),
             ),
           ],
         );
       },
     );
+
+    if (confirmed == true) {
+      // lanjut ke halaman HapusAkunPage untuk input password & hapus
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const HapusAkunPage()),
+      );
+    } else {
+      // batal, kembali tanpa aksi
+      if (kDebugMode) print('User canceled account deletion confirmation.');
+    }
   }
 
   Widget _buildMenuItem({
@@ -219,7 +163,7 @@ class _PengaturanPageState extends State<PengaturanPage> {
         ),
         _buildMenuItem(
           title: 'Hapus Akun',
-          onTap: _showDeleteAccountDialog,
+          onTap: _showDeleteAccountConfirmation,
           textColor: Colors.red,
         ),
       ],
