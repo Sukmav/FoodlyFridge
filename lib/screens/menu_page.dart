@@ -539,7 +539,7 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Widget _buildMenuCard(Map<String, dynamic> menu) {
-    final hargaJual = double.tryParse(menu['harga_jual']?.toString() ?? '0') ?? 0;
+    final harga = double.tryParse(menu['harga_jual']?.toString() ?? '0') ?? 0;
     final category = menu['kategori']?.toString() ?? '';
     final namaMenu = menu['nama_menu']?.toString() ?? '';
     final idMenu = menu['id_menu']?.toString() ?? '';
@@ -557,7 +557,7 @@ class _MenuPageState extends State<MenuPage> {
         onTap: () => _showDetailMenu(menu),
         child: SizedBox(
           width: double.infinity,
-          height: 260, // TINGKATKAN TINGGI CARD (dari 200 ke 220)
+          height: 265, // TINGKATKAN TINGGI CARD (dari 200 ke 220)
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Column(
@@ -644,7 +644,7 @@ class _MenuPageState extends State<MenuPage> {
                             ],
                           ),
                           child: Text(
-                            _formatNumber(hargaJual),
+                            _formatNumber(harga),
                             style: AppTextStyles.labelSmall.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -789,7 +789,7 @@ class _AddMenuPageState extends State<AddMenuPage> {
   final _kodeMenuController = TextEditingController();
   final _namaMenuController = TextEditingController();
   String? _selectedKategori;
-  final _hargaJualController = TextEditingController();
+  final _hargaController = TextEditingController();
   final _totalRecipeCostController = TextEditingController();
   final _foodCostController = TextEditingController();
   final GlobalKey _barcodeKey = GlobalKey();
@@ -811,14 +811,14 @@ class _AddMenuPageState extends State<AddMenuPage> {
         _showBarcode = _kodeMenuController.text.isNotEmpty;
       });
     });
-    _hargaJualController.addListener(_calculateFoodCost);
+    _hargaController.addListener(_calculateFoodCost);
   }
 
   @override
   void dispose() {
     _kodeMenuController.dispose();
     _namaMenuController.dispose();
-    _hargaJualController.dispose();
+    _hargaController.dispose();
     _totalRecipeCostController.dispose();
     _foodCostController.dispose();
     for (var item in _bahanBakuList) {
@@ -920,11 +920,11 @@ class _AddMenuPageState extends State<AddMenuPage> {
   }
 
   void _calculateFoodCost() {
-    if (_hargaJualController.text.isNotEmpty && _totalRecipeCost > 0) {
-      final hargaJual = double.tryParse(_hargaJualController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
-      if (hargaJual > 0) {
+    if (_hargaController.text.isNotEmpty && _totalRecipeCost > 0) {
+      final harga = double.tryParse(_hargaController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      if (harga > 0) {
         setState(() {
-          _foodCostPercentage = (_totalRecipeCost / hargaJual) * 100;
+          _foodCostPercentage = (_totalRecipeCost / harga) * 100;
           _foodCostController.text = '${_foodCostPercentage.toStringAsFixed(1)}%';
         });
       }
@@ -1103,7 +1103,7 @@ class _AddMenuPageState extends State<AddMenuPage> {
             const SizedBox(height: 16),
 
             _buildTextField(
-              controller: _hargaJualController,
+              controller: _hargaController,
               label: 'Harga Jual',
               hint: 'Masukkan harga jual',
               keyboardType: TextInputType.number,
@@ -1284,7 +1284,7 @@ class _AddMenuPageState extends State<AddMenuPage> {
       return;
     }
 
-    if (_hargaJualController.text.isEmpty) {
+    if (_hargaController.text.isEmpty) {
       Fluttertoast.showToast(
         msg: "Harga jual harus diisi!",
         backgroundColor: AppColors.danger,
@@ -1322,7 +1322,7 @@ class _AddMenuPageState extends State<AddMenuPage> {
         _namaMenuController.text,
         '',
         _selectedKategori!,
-        _hargaJualController.text,
+        _hargaController.text,
         _kodeMenuController.text,
         bahanList.join(','),
         jumlahList.join(','),

@@ -10,6 +10,21 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
 
+    <!-- Permission untuk Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- Permission untuk simpan gambar -->
+    
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
+    <!-- Untuk Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />    
+
     <application
         android:label="foodlyfridge"
         android:name="${applicationName}"

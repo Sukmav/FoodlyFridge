@@ -10,6 +10,8 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../model/kedai.dart';
 import '../helpers/kedai_service.dart';
+import '../theme/app_colors.dart'; 
+import '../screens/struk_preview_page.dart'; 
 
 class KedaiPage extends StatefulWidget {
   final String userId;
@@ -32,7 +34,7 @@ class _KedaiPageState extends State<KedaiPage> {
 
   File? _selectedImage;
   String? _selectedImagePath;
-  String? _savedImagePath; // Path gambar yang disimpan
+  String? _savedImagePath;
 
   @override
   void initState() {
@@ -40,7 +42,6 @@ class _KedaiPageState extends State<KedaiPage> {
     _loadExistingKedaiData();
   }
 
-  // Load existing kedai data if available
   Future<void> _loadExistingKedaiData() async {
     setState(() {
       _isLoading = true;
@@ -52,10 +53,9 @@ class _KedaiPageState extends State<KedaiPage> {
         setState(() {
           _namaKedaiController.text = kedai.nama_kedai;
           _alamatKedaiController.text = kedai.alamat_kedai;
-          _nomorTeleponController.text = kedai. nomor_telepon;
-          _catatanStrukController. text = kedai.catatan_struk;
-          // Load gambar jika ada
-          if (kedai.logo_kedai. isNotEmpty) {
+          _nomorTeleponController.text = kedai.nomor_telepon;
+          _catatanStrukController.text = kedai.catatan_struk;
+          if (kedai.logo_kedai.isNotEmpty) {
             _savedImagePath = kedai.logo_kedai;
           }
         });
@@ -85,7 +85,7 @@ class _KedaiPageState extends State<KedaiPage> {
   Future<void> _pilihGambar(bool dariKamera) async {
     final imageFile = dariKamera
         ? await ImageHelper.pickImageFromCamera()
-        : await ImageHelper. pickImageFromGallery();
+        : await ImageHelper.pickImageFromGallery();
 
     if (imageFile != null) {
       setState(() {
@@ -97,27 +97,21 @@ class _KedaiPageState extends State<KedaiPage> {
     }
   }
 
-  // Method untuk menyimpan gambar ke folder lokal
-  Future<String? > _saveImageLocally(File imageFile) async {
+  Future<String?> _saveImageLocally(File imageFile) async {
     try {
-      // Dapatkan directory untuk menyimpan gambar
       final Directory appDir = await getApplicationDocumentsDirectory();
       final String imageDir = path.join(appDir.path, 'kedai_images');
 
-      // Buat folder jika belum ada
       final Directory imageDirFolder = Directory(imageDir);
       if (!await imageDirFolder.exists()) {
-        await imageDirFolder. create(recursive: true);
+        await imageDirFolder.create(recursive: true);
       }
 
-      // Generate nama file unik dengan timestamp
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String fileName = 'logo_kedai_$timestamp${path.extension(imageFile.path)}';
       final String newPath = path.join(imageDir, fileName);
 
-      // Copy file ke lokasi baru
       final File newImage = await imageFile.copy(newPath);
-
       return newImage.path;
     } catch (e) {
       if (kDebugMode) {
@@ -127,8 +121,7 @@ class _KedaiPageState extends State<KedaiPage> {
     }
   }
 
-  // Method untuk convert gambar ke base64 untuk database
-  Future<String? > _convertImageToBase64(File imageFile) async {
+  Future<String?> _convertImageToBase64(File imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
       return base64Encode(bytes);
@@ -141,10 +134,11 @@ class _KedaiPageState extends State<KedaiPage> {
   }
 
   void _lihatStruk() {
-    // TODO: Implement lihat struk functionality
-    Fluttertoast.showToast(
-      msg: "Fitur Lihat Struk akan segera hadir",
-      backgroundColor: Colors. blue,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StrukPreviewPage(userId: widget.userId),
+      ),
     );
   }
 
@@ -152,7 +146,7 @@ class _KedaiPageState extends State<KedaiPage> {
     if (_namaKedaiController.text.isEmpty) {
       Fluttertoast.showToast(
         msg: "Nama Kedai harus diisi!",
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.danger,
       );
       return;
     }
@@ -173,13 +167,11 @@ class _KedaiPageState extends State<KedaiPage> {
 
       String logoKedai = '';
 
-      // Jika ada gambar yang dipilih, simpan gambar
       if (_selectedImage != null) {
         if (kDebugMode) {
           print('Processing selected image...');
         }
 
-        // Convert gambar ke base64 untuk database
         final imageBase64 = await _convertImageToBase64(_selectedImage!);
 
         if (imageBase64 != null && imageBase64.isNotEmpty) {
@@ -189,7 +181,6 @@ class _KedaiPageState extends State<KedaiPage> {
             print('Image converted to base64, length: ${logoKedai.length}');
           }
 
-          // Simpan gambar ke folder lokal untuk backup
           final imagePath = await _saveImageLocally(_selectedImage!);
           if (imagePath != null) {
             _savedImagePath = imagePath;
@@ -203,12 +194,10 @@ class _KedaiPageState extends State<KedaiPage> {
           }
         }
       } else if (_savedImagePath != null && _savedImagePath!.isNotEmpty) {
-        // Jika tidak ada gambar baru dipilih tapi ada gambar lama
         if (kDebugMode) {
           print('Using existing logo from previous save');
         }
 
-        // Jika _savedImagePath adalah path lokal, convert ke base64
         if (_savedImagePath!.startsWith('/') || _savedImagePath!.contains('\\')) {
           try {
             final existingFile = File(_savedImagePath!);
@@ -225,7 +214,6 @@ class _KedaiPageState extends State<KedaiPage> {
             }
           }
         } else {
-          // Sudah dalam format base64
           logoKedai = _savedImagePath!;
           if (kDebugMode) {
             print('Using existing base64 logo, length: ${logoKedai.length}');
@@ -237,9 +225,8 @@ class _KedaiPageState extends State<KedaiPage> {
         }
       }
 
-      // Buat objek KedaiModel
       final kedaiModel = KedaiModel(
-        id: '', // ID akan di-set oleh GoCloud
+        id: '',
         logo_kedai: logoKedai,
         nama_kedai: _namaKedaiController.text.trim(),
         alamat_kedai: _alamatKedaiController.text.trim(),
@@ -252,14 +239,12 @@ class _KedaiPageState extends State<KedaiPage> {
         print('Calling saveKedai...');
       }
 
-      // Simpan ke GoCloud
       final docId = await _kedaiService.saveKedai(kedaiModel, widget.userId);
 
       if (kDebugMode) {
         print('SaveKedai completed with document ID: $docId');
       }
 
-      // ✅ PERBAIKAN: Simpan SEMUA data kedai ke SharedPreferences dengan user_id sebagai key
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('nama_kedai_${widget.userId}', _namaKedaiController.text.trim());
       await prefs.setString('alamat_kedai_${widget.userId}', _alamatKedaiController.text.trim());
@@ -280,15 +265,14 @@ class _KedaiPageState extends State<KedaiPage> {
       if (mounted) {
         Fluttertoast.showToast(
           msg: "Data Kedai berhasil disimpan!",
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
           toastLength: Toast.LENGTH_SHORT,
         );
 
-        // Tunggu sebentar agar toast muncul, lalu navigasi kembali ke HomePage
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (mounted) {
-          Navigator.pop(context, true); // Return true untuk indicate success
+          Navigator.pop(context, true);
         }
       }
     } catch (e, stackTrace) {
@@ -300,7 +284,7 @@ class _KedaiPageState extends State<KedaiPage> {
       if (mounted) {
         Fluttertoast.showToast(
           msg: "Gagal menyimpan data kedai: ${e.toString()}",
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.danger,
           toastLength: Toast.LENGTH_LONG,
         );
       }
@@ -319,28 +303,33 @@ class _KedaiPageState extends State<KedaiPage> {
       height: 140,
       decoration: BoxDecoration(
         color: Colors.white,
-        shape: BoxShape. circle,
+        shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFF000000),
+          color: AppColors.border,
           width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ClipOval(
-        child:  _buildLogoContent(),
+        child: _buildLogoContent(),
       ),
     );
   }
 
   Widget _buildLogoContent() {
-    // Prioritas 1: Gambar yang baru dipilih
-    if (_selectedImage != null && ! kIsWeb) {
+    if (_selectedImage != null && !kIsWeb) {
       return Image.file(
         _selectedImage!,
         fit: BoxFit.cover,
       );
     }
 
-    // Prioritas 2: Gambar dari web
     if (_selectedImagePath != null && _selectedImagePath!.isNotEmpty && kIsWeb) {
       return Image.network(
         _selectedImagePath!,
@@ -351,16 +340,12 @@ class _KedaiPageState extends State<KedaiPage> {
       );
     }
 
-    // Prioritas 3: Gambar yang sudah tersimpan (base64 atau path)
-    if (_savedImagePath != null && _savedImagePath!. isNotEmpty) {
-      // Cek apakah base64 atau path
-      if (_savedImagePath!. startsWith('data:image') ||
-          (_savedImagePath!.length > 100 && ! _savedImagePath!.contains('/'))) {
-        // Ini adalah base64 string
+    if (_savedImagePath != null && _savedImagePath!.isNotEmpty) {
+      if (_savedImagePath!.startsWith('data:image') ||
+          (_savedImagePath!.length > 100 && !_savedImagePath!.contains('/'))) {
         try {
-          // Hapus prefix jika ada
-          String base64String = _savedImagePath! ;
-          if (base64String. contains(',')) {
+          String base64String = _savedImagePath!;
+          if (base64String.contains(',')) {
             base64String = base64String.split(',').last;
           }
 
@@ -382,7 +367,6 @@ class _KedaiPageState extends State<KedaiPage> {
           return _buildLogoPlaceholder();
         }
       } else {
-        // Ini adalah file path
         final file = File(_savedImagePath!);
         return Image.file(
           file,
@@ -397,7 +381,6 @@ class _KedaiPageState extends State<KedaiPage> {
       }
     }
 
-    // Default:  Placeholder
     return _buildLogoPlaceholder();
   }
 
@@ -406,42 +389,53 @@ class _KedaiPageState extends State<KedaiPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Icon(
+            Icons.storefront_rounded,
+            size: 50,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(height: 8),
           Text(
             'Logo Kedai',
-            style:  GoogleFonts.poppins(
-              fontSize: 16,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF000000),
+              color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height:  8),
         ],
       ),
     );
   }
 
-  Widget _buildImageButton(String label, VoidCallback onPressed) {
+  Widget _buildImageButton(String label, IconData icon, VoidCallback onPressed) {
     return SizedBox(
-      width: 155,
-      height: 45,
-      child: OutlinedButton(
+      width: 150,
+      child: ElevatedButton(
         onPressed: onPressed,
-        style:  OutlinedButton.styleFrom(
-          side: const BorderSide(
-            color: Color(0xFFA5D6A7),
-            width: 2,
-          ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.primary,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: AppColors.primary, width: 1.5),
           ),
+          elevation: 0,
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFFA5D6A7),
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -451,8 +445,9 @@ class _KedaiPageState extends State<KedaiPage> {
     required TextEditingController controller,
     required String label,
     required String hint,
+    IconData? prefixIcon,
     int maxLines = 1,
-    TextInputType?  keyboardType,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,36 +455,49 @@ class _KedaiPageState extends State<KedaiPage> {
         Text(
           label,
           style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
+            color: AppColors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.black,
-              width: 1,
-            ),
+            border: Border.all(color: AppColors.border, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
             keyboardType: keyboardType,
-            style: GoogleFonts.poppins(fontSize: 14),
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: AppColors.textPrimary,
+            ),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: GoogleFonts.poppins(
                 fontSize: 14,
-                color: Colors.grey. shade400,
+                color: AppColors.textDisabled,
               ),
-              border:  InputBorder.none,
+              border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 20,
+                // vertical: maxLines > 1 ? 16 : 14,
               ),
+              prefixIcon: prefixIcon != null
+                  ? Icon(prefixIcon, size: 20, color: AppColors.textSecondary)
+                  : null,
+              filled: true,
+              fillColor: Colors.transparent,
             ),
           ),
         ),
@@ -500,172 +508,355 @@ class _KedaiPageState extends State<KedaiPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon:  const Icon(Icons.arrow_back, color: Color(0xFF000000)),
-          onPressed: (_isLoading || _isSaving) ? null : () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back, color: AppColors.primary),
+          onPressed: (_isLoading || _isSaving)
+              ? null
+              : () => Navigator.pop(context),
         ),
         title: Text(
           'Kedaimu',
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF000000),
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: AppColors.border,
           ),
         ),
       ),
       body: _isLoading
-          ? const Center(
-        child:  CircularProgressIndicator(),
-      )
-          : Stack(
-        children: [
-          SingleChildScrollView(
-            child:  Padding(
-              padding: const EdgeInsets.all(24.0),
+          ? Center(
               child: Column(
-                crossAxisAlignment:  CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo and Form Section - Horizontal Layout
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Side - Logo and Buttons
-                      Column(
+                  CircularProgressIndicator(color: AppColors.primary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Memuat data kedai...',
+                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            )
+          : Stack(
+              children: [
+                SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header Section
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Lengkapi informasi kedai Anda untuk pengalaman yang lebih baik',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Logo & Identitas Kedai - Layout Baru
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Logo & Identitas Kedai',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                // Logo Section - Di Tengah
+                                Center(
+                                  child: Column(
+                                    children: [
+                                      _buildLogoKedai(),
+                                      const SizedBox(height: 20),
+                                      Text(
+                                        'Logo Kedai',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Ukuran optimal: 400x400px',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                // Upload Buttons - Horizontal
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: _buildImageButton(
+                                        'Kamera',
+                                        Icons.camera_alt,
+                                        () => _pilihGambar(true),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildImageButton(
+                                        'Galeri',
+                                        Icons.photo_library,
+                                        () => _pilihGambar(false),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 32),
+
+                                // Nama dan Alamat Section - Bawah Logo
+                                Column(
+                                  children: [
+                                    _buildTextField(
+                                      controller: _namaKedaiController,
+                                      label: 'Nama Kedai',
+                                      hint: 'Contoh: Kedai Makan Padang',
+                                      prefixIcon: Icons.storefront,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    _buildTextField(
+                                      controller: _alamatKedaiController,
+                                      label: 'Alamat Kedai',
+                                      hint: 'Jl. Contoh No. 123, Kota',
+                                      prefixIcon: Icons.location_on,
+                                      maxLines: 3,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Contact Information Section
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Informasi Kontak',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                _buildTextField(
+                                  controller: _nomorTeleponController,
+                                  label: 'Nomor Telepon',
+                                  hint: '081234xxxxx',
+                                  prefixIcon: Icons.phone,
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Catatan Struk Section
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Catatan Struk',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Pesan ini akan muncul di bagian bawah struk pembelian',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _catatanStrukController,
+                                  label: '',
+                                  hint: 'Contoh: Terima kasih sudah memesan, silakan ditunggu',
+                                  prefixIcon: Icons.note,
+                                  maxLines: 4,
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _lihatStruk,
+                                    icon: Icon(Icons.preview, color: Colors.white),
+                                    label: Text(
+                                      'Lihat Pratinjau Struk',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Save Button
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _isSaving ? null : _simpanKedai,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                child: Center(
+                                  child: _isSaving
+                                      ? SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.save_alt, color: Colors.white, size: 22),
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              'Simpan Data Kedai',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 40), // Extra bottom padding
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Loading Overlay
+                if (_isSaving)
+                  Container(
+                    color: Colors.black.withOpacity(0.3),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildLogoKedai(),
-                          const SizedBox(height: 12),
-                          _buildImageButton('Kamera', () => _pilihGambar(true)),
-                          const SizedBox(height: 8),
-                          _buildImageButton('Galeri', () => _pilihGambar(false)),
-                        ],
-                      ),
-                      const SizedBox(width: 24),
-
-                      // Right Side - Form Fields
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildTextField(
-                              controller: _namaKedaiController,
-                              label: 'Nama Kedai',
-                              hint:  'nama kedaimu',
-                            ),
-                            const SizedBox(height:  40),
-                            _buildTextField(
-                              controller: _alamatKedaiController,
-                              label: 'Alamat Kedai',
-                              hint: 'alamat lengkap kedaimu',
-                              maxLines: 3,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Nomor Telepon - Full Width
-                  _buildTextField(
-                    controller:  _nomorTeleponController,
-                    label: 'Nomor Telepon',
-                    hint: '081234xxxxx',
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 25),
-
-                  // Catatan Struk - Full Width
-                  _buildTextField(
-                    controller: _catatanStrukController,
-                    label: 'Catatan Struk',
-                    hint: 'Terima kasih sudah memesan, silakan ditunggu',
-                    maxLines:  5,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Lihat Struk Button and Info Text
-                  Row(
-                    children: [
-                      SizedBox(
-                        width:  155,
-                        height: 45,
-                        child: OutlinedButton(
-                          onPressed: _lihatStruk,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: Color(0xFFA5D6A7),
-                              width: 2,
-                            ),
-                            shape:  RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(AppColors.primary),
                           ),
-                          child: Text(
-                            'Lihat Struk',
+                          const SizedBox(height: 16),
+                          Text(
+                            'Menyimpan data...',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight:  FontWeight.w500,
-                              color: const Color(0xFFA5D6A7),
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Simpan Button - Full Width
-                  SizedBox(
-                    width:  double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _simpanKedai,
-                      style:  ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7DAF52),
-                        disabledBackgroundColor: Colors.grey[400],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isSaving
-                          ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child:  CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                          : Text(
-                        'Simpan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight:  FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-              ),
+              ],
             ),
-          ),
-          if (_isSaving)
-            Container(
-              color: Colors. black.withValues(alpha: 0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-        ],
-      ),
     );
   }
 }
-

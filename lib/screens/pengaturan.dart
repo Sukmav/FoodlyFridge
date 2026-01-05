@@ -142,31 +142,35 @@ class _PengaturanPageState extends State<PengaturanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      children: [
-        _buildMenuItem(
-          title: 'Profil',
-          onTap: _navigateToProfile,
-        ),
-        _buildMenuItem(
-          title: 'Kedaimu',
-          onTap: _navigateToKedai,
-        ),
-        _buildMenuItem(
-          title: 'Ubah Kata Sandi',
-          onTap: _navigateToChangePassword,
-        ),
-        _buildMenuItem(
-          title: 'Struk',
-          onTap: _navigateToStruk,
-        ),
-        _buildMenuItem(
-          title: 'Hapus Akun',
-          onTap: _showDeleteAccountConfirmation,
-          textColor: Colors.red,
-        ),
-      ],
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        children: [
+          SizedBox(height: 8), // Tambah spacer di atas
+          _buildMenuItem(
+            title: 'Profil',
+            onTap: _navigateToProfile,
+          ),
+          _buildMenuItem(
+            title: 'Kedaimu',
+            onTap: _navigateToKedai,
+          ),
+          _buildMenuItem(
+            title: 'Ubah Kata Sandi',
+            onTap: _navigateToChangePassword,
+          ),
+          _buildMenuItem(
+            title: 'Struk',
+            onTap: _navigateToStruk,
+          ),
+          _buildMenuItem(
+            title: 'Hapus Akun',
+            onTap: _showDeleteAccountConfirmation,
+            textColor: Colors.red,
+          ),
+          SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16), // Spacer untuk keyboard
+        ],
+      ),
     );
   }
 }

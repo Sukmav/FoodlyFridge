@@ -54,7 +54,24 @@ dependencies:
 
   # deive preview  
   device_preview: ^1.2.0
-  flutter_riverpod: ^2.5.1
+  flutter_riverpod: ^3.1.0
+
+  #bluetooth printer
+  #flutter_bluetooth_printer: ^2.20.0
+  #blue_thermal_printer: ^2.0.0
+  #blue_thermal_printer_plus: ^2.0.3
+  #esc_pos_bluetooth: ^0.4.1
+  #esc_pos_utils: ^1.1.0
+
+  #generate pdf
+  pdf: ^3.9.0
+  printing: ^5.11.0
+
+
+  #save as image
+  image_gallery_saver_plus: ^4.0.1
+  permission_handler: ^12.0.1
+
 
 dev_dependencies:
   flutter_test:

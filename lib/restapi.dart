@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 
 class DataService {
+
   Future insertMenu(String appid, String id_menu, String nama_menu, String foto_menu, String kategori, String harga_jual, String barcode, String bahan, String jumlah, String satuan, String biaya, String catatan) async {
     String uri = 'https://api.247go.app/v5/insert/';
 
@@ -274,30 +275,47 @@ class DataService {
     }
   }
 
-  Future insertStokKeluar(String appid, String invoice, String nama_pemesanan, String no_meja, String tanggal, String menu) async {
-    String uri = 'https://api.247go.app/v5/insert/';
+  // Method khusus untuk insert stok keluar
+  Future<String> insertStokKeluar({
+    required String appid,
+    required String invoice,
+    required String namaPemesanan,
+    required String noMeja,
+    required String tanggal,
+    required String menu, // JSON string
+    String catatan = '',
+    String totalHarga = '0',
+  }) async {
+    String uri = 'https://api.247go.app/v5/insert/'; 
 
     try {
+      print('🔄 Insert stok keluar: $invoice');
+      
       final response = await http.post(Uri.parse(uri), body: {
         'token': '68d7486b1f753691225cdf8d',
         'project': 'foodlydfridge',
         'collection': 'stok_keluar',
-        'appid': appid,
+        'appid': appid, // 2. PERHATIKAN INI - appid dari mana?
         'invoice': invoice,
-        'nama_pemesanan': nama_pemesanan,
-        'no_meja': no_meja,
+        'nama_pemesanan': namaPemesanan,
+        'no_meja': noMeja,
         'tanggal': tanggal,
-        'menu': menu
+        'menu': menu,
+        'catatan': catatan,
+        'total_harga': totalHarga,
       });
 
+      print('📊 Stok keluar response: ${response.statusCode}');
+
       if (response.statusCode == 200) {
+        print('✅ Stok keluar berhasil disimpan');
         return response.body;
       } else {
-        // Return an empty array
+        // RETURN seperti method insertKedai
         return '[]';
       }
     } catch (e) {
-      // Print error here
+      print('❌ Error insert stok keluar: $e');
       return '[]';
     }
   }
@@ -574,7 +592,7 @@ class DataService {
     String uri = 'https://api.247go.app/v5/update_id/';
 
     try {
-      final response = await http.put(Uri.parse(uri),body: {
+      final response = await http.post(Uri.parse(uri),body: {
         'update_field': update_field,
         'update_value': update_value,
         'token': token,
@@ -598,7 +616,7 @@ class DataService {
     String uri = 'https://api.247go.app/v5/update_where/';
 
     try {
-      final response = await http.put(Uri.parse(uri),body: {
+      final response = await http.post(Uri.parse(uri),body: {
         'where_field': where_field,
         'where_value': where_value,
         'update_field': update_field,

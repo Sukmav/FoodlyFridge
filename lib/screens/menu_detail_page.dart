@@ -5,6 +5,7 @@ import 'package:barcode_widget/barcode_widget.dart';
 import '../config.dart';
 import '../restapi.dart';
 import 'add_menu_form.dart';
+import '../model/menu_model.dart';
 
 class MenuDetailPage extends StatefulWidget {
   final Map<String, dynamic> menu;
@@ -13,7 +14,7 @@ class MenuDetailPage extends StatefulWidget {
 
   const MenuDetailPage({
     super.key,
-    required this.menu,
+    required this.menu,// ← Required
     this.onMenuUpdated,
     this.onMenuDeleted,
   });

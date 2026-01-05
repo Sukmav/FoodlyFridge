@@ -810,9 +810,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
-<<<<<<< HEAD
   //ini bagian utama tampilan halaman bahan baku
-=======
   Future<void> _addBahanBaku(
       String nama,
       String unit,
@@ -1390,7 +1388,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     }
   }
 
->>>>>>> 8d94e4770dd8e1a3d1f49fcc39979831259f5816
   @override
   Widget build(BuildContext context) {
     return Scaffold(
