@@ -88,19 +88,11 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Email Terkirim!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
                   'Silakan cek email Anda',
                   style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -548,7 +540,7 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(25),
                       border: Border.all(
                         color: _emailError != null
-                            ? Colors.red.shade200
+                            ? Colors.green.shade200
                             : Colors.green.shade200,
                         width: 2,
                       ),
@@ -609,7 +601,7 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(25),
                       border: Border.all(
                         color: _passwordError != null
-                            ? Colors.red.shade200
+                            ? Colors.green.shade200
                             : Colors.green.shade200,
                         width: 2,
                       ),
