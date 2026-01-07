@@ -1,13 +1,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Rules untuk koleksi kedai
-    match /kedai/{document=**} {
-      // User yang sudah login dapat membaca dan menulis data kedai mereka sendiri
-      allow read, write: if request.auth != null;
+
+    // User collection (Admin users)
+    match /user/{userId} {
+      // Users can read and write their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow creation of user document during registration
+      allow create: if request.auth != null;
     }
 
-    // Rules untuk koleksi lainnya
+    // Staff collection (Staff users)
+    match /staff/{staffId} {
+      // Admin (users in 'user' collection) can create, read, update, delete staff
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+
+      // Staff can only read their own data
+      allow read: if request.auth != null && request.auth.uid == staffId;
+    }
+
+    // Allow read/write for authenticated users for other collections
+    // Customize these rules based on your requirements
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

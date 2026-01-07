@@ -64,17 +64,25 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // First, try to authenticate as staff
-      final staffService = StaffService();
-      final staff = await staffService.authenticateStaff(
+      // Authenticate with Firebase - works for both admin and staff
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      if (staff != null) {
-        // Staff login successful
+      // Check if this is a staff account
+      final staffDoc = await FirebaseFirestore.instance
+          .collection('staff')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (staffDoc.exists) {
+        // This is a staff login
+        final staffData = staffDoc.data()!;
+
         Fluttertoast.showToast(
-          msg: "Login sebagai ${staff.jabatan} berhasil!",
+          msg: "Login sebagai ${staffData['jabatan']} berhasil!",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.green,
@@ -82,30 +90,22 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (mounted) {
-          // Navigate to HomePage with staff role
-          // Use admin's userId from staff data
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => HomePage(
-                username: staff.nama_staff,
-                email: staff.email,
-                userId: staff.user_id ?? staff.id, // Use admin's userId or fallback to staff id
-                role: staff.jabatan.toLowerCase(),
+                username: staffData['nama_staff'] ?? 'Staff',
+                email: staffData['email'] ?? userCredential.user!.email ?? '',
+                userId: staffData['user_id'] ?? userCredential.user!.uid,
+                role: (staffData['jabatan'] ?? 'staff').toString().toLowerCase(),
               ),
             ),
           );
-          return;
         }
+        return;
       }
 
-      // If not staff, try Firebase authentication (regular user/admin)
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
+      // This is an admin/regular user login
       final DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('user')
           .doc(userCredential.user!.uid)
@@ -528,7 +528,6 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 40),
             ],
           ),

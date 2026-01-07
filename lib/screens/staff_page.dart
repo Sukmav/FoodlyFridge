@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import '../restapi.dart';
 import '../config.dart';
 import '../model/staff.dart';
@@ -385,26 +382,11 @@ class _StaffPageState extends State<StaffPage> {
     );
   }
 
-  /// Safely decode base64 image; returns null if invalid or empty.
-  Uint8List? _tryDecodeBase64(String? base64Str) {
-    if (base64Str == null) return null;
-    final trimmed = base64Str.trim();
-    if (trimmed.isEmpty) return null;
-    try {
-      return base64Decode(trimmed);
-    } catch (e) {
-      // invalid base64
-      return null;
-    }
-  }
-
   Widget _buildStaffCard(StaffModel staff, {bool highlighted = false}) {
     // Colors to match example
     final Color cardBg = highlighted ? const Color(0xFFEFF6F2) : Colors.white;
     final Color nameColor = const Color(0xFF2E3A59); // deep blue-ish
     final borderColor = highlighted ? Colors.transparent : Colors.grey.withOpacity(0.12);
-
-    final Uint8List? imageBytes = _tryDecodeBase64(staff.foto);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -427,35 +409,16 @@ class _StaffPageState extends State<StaffPage> {
           height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
+            color: const Color(0xFF7A9B3B).withOpacity(0.1),
             border: Border.all(
-              color: highlighted ? Colors.transparent : const Color(0xFF2E4650).withOpacity(0.12),
+              color: const Color(0xFF7A9B3B),
               width: 2,
             ),
           ),
-          child: ClipOval(
-            child: imageBytes != null
-                ? Image.memory(
-              imageBytes,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.transparent,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.person,
-                    color: highlighted ? const Color(0xFF2E4650) : Colors.grey[500],
-                  ),
-                );
-              },
-            )
-                : Container(
-              color: Colors.transparent,
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.person,
-                color: highlighted ? const Color(0xFF2E4650) : Colors.grey[500],
-              ),
-            ),
+          child: const Icon(
+            Icons.person,
+            color: Color(0xFF7A9B3B),
+            size: 32,
           ),
         ),
         title: Text(
@@ -649,8 +612,6 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
   final TextEditingController _passwordController = TextEditingController();
 
   String? _selectedJabatan;
-  String? _fotoProfileBase64;
-  File? _selectedImage;
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
@@ -667,7 +628,6 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
       _namaController.text = widget.staff!.nama_staff;
       _emailController.text = widget.staff!.email;
       _selectedJabatan = widget.staff!.jabatan;
-      _fotoProfileBase64 = widget.staff!.foto;
       // password intentionally left empty (user fills to change)
     }
   }
@@ -680,108 +640,6 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
     super.dispose();
   }
 
-  Future<void> _pickImageFromCamera() async {
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-
-        // Convert to base64
-        final bytes = await _selectedImage!.readAsBytes();
-        _fotoProfileBase64 = base64Encode(bytes);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mengambil foto: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-
-        // Convert to base64
-        final bytes = await _selectedImage!.readAsBytes();
-        _fotoProfileBase64 = base64Encode(bytes);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memilih gambar: $e')),
-        );
-      }
-    }
-  }
-
-  void _showImageSourceDialog() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Pilih Sumber Foto',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF7A9B3B)),
-              title: Text(
-                'Kamera',
-                style: GoogleFonts.poppins(),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromCamera();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF7A9B3B)),
-              title: Text(
-                'Galeri',
-                style: GoogleFonts.poppins(),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromGallery();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // fungsi logic yang digunakan untuk menyipan data
   Future<void> _simpanStaff() async {
@@ -818,7 +676,7 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           jabatan: _selectedJabatan!,
-          fotoProfile: _fotoProfileBase64,
+          fotoProfile: null, // No photo
         );
       } else {
         // Try update by ID first; if ID empty, fallback to updateWhere
@@ -833,7 +691,7 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
             futures.add(_data_service_updateIdIfChanged('kata_sandi', _passwordController.text, id));
           }
           futures.add(_data_service_updateIdIfChanged('jabatan', _selectedJabatan ?? '', id));
-          futures.add(_data_service_updateIdIfChanged('foto', _fotoProfileBase64 ?? '', id));
+          // futures.add(_data_service_updateIdIfChanged('foto', _fotoProfileBase64 ?? '', id));
 
           final results = await Future.wait(futures);
 
@@ -918,7 +776,6 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
       'email': _emailController.text.trim(),
       'kata_sandi': _passwordController.text.isNotEmpty ? _passwordController.text : '',
       'jabatan': _selectedJabatan ?? '',
-      'foto': _fotoProfileBase64 ?? '',
     };
 
     bool allOk = true;
@@ -967,30 +824,6 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
     );
   }
 
-  // Small helper to render profile image preview (avoids inline IIFE)
-  Widget _buildProfileImagePreview() {
-    if (_selectedImage != null) {
-      return Image.file(_selectedImage!, fit: BoxFit.cover);
-    }
-    if (_fotoProfileBase64 != null && _fotoProfileBase64!.isNotEmpty) {
-      try {
-        final bytes = base64Decode(_fotoProfileBase64!);
-        return Image.memory(bytes, fit: BoxFit.cover);
-      } catch (_) {
-        // Fall through to placeholder
-      }
-    }
-    return Center(
-      child: Text(
-        'Foto Profil',
-        style: GoogleFonts.poppins(
-          color: const Color(0xFF7A9B3B),
-          fontSize: 12,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1149,163 +982,113 @@ class _TambahStaffPageState extends State<TambahStaffPage> {
               },
             ),
             const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Foto Profile Section
-                Column(
+
+            // Avatar Icon Display (non-interactive)
+            Center(
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF7A9B3B).withOpacity(0.1),
+                  border: Border.all(
+                    color: const Color(0xFF7A9B3B),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  size: 50,
+                  color: Color(0xFF7A9B3B),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Jabatan Section
+            Text(
+              'Jabatan',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Dropdown Jabatan
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedJabatan,
+                  isExpanded: true,
+                  hint: Text(
+                    'Pilih Jabatan',
+                    style: GoogleFonts.poppins(color: Colors.grey),
+                  ),
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Color(0xFF7A9B3B),
+                  ),
+                  style: GoogleFonts.poppins(
+                    color: Colors.black87,
+                    fontSize: 14,
+                  ),
+                  items: _jabatanOptions.map((String jabatan) {
+                    return DropdownMenuItem<String>(
+                      value: jabatan,
+                      child: Text(jabatan),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedJabatan = newValue;
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Display jabatan description
+            if (_selectedJabatan != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(122, 155, 59, 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color.fromRGBO(122, 155, 59, 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Profile Photo Container (uses helper)
-                    GestureDetector(
-                      onTap: _showImageSourceDialog,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF7A9B3B),
-                            width: 2,
-                          ),
-                        ),
-                        child: ClipOval(child: _buildProfileImagePreview()),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Kamera Button
-                    OutlinedButton(
-                      onPressed: _pickImageFromCamera,
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF7A9B3B)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      ),
-                      child: Text(
-                        'Kamera',
-                        style: GoogleFonts.poppins(
-                          color: const Color(0xFF7A9B3B),
-                          fontSize: 13,
-                        ),
+                    Text(
+                      'Deskripsi Jabatan ${_selectedJabatan!}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF7A9B3B),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Galeri Button
-                    OutlinedButton(
-                      onPressed: _pickImageFromGallery,
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF7A9B3B)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-                      ),
-                      child: Text(
-                        'Galeri',
-                        style: GoogleFonts.poppins(
-                          color: const Color(0xFF7A9B3B),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+                    if (_selectedJabatan == 'Kasir') ...[
+                      _buildDescriptionItem('1. Melakukan transaksi penjualan'),
+                      _buildDescriptionItem('2. Mencetak struk pembayaran'),
+                      _buildDescriptionItem('3. Melihat dan memilih menu'),
+                    ] else if (_selectedJabatan == 'Inventory') ...[
+                      _buildDescriptionItem('1. Mengelola stok bahan baku masuk'),
+                      _buildDescriptionItem('2. Memantau stok dan tanggal kadaluarsa'),
+                      _buildDescriptionItem('3. Mencatat dan mengelola sampah bahan baku'),
+                    ],
                   ],
                 ),
-                const SizedBox(width: 20),
-
-                // Jabatan Section
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Jabatan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Dropdown Jabatan
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedJabatan,
-                            isExpanded: true,
-                            hint: Text(
-                              'Pilih Jabatan',
-                              style: GoogleFonts.poppins(color: Colors.grey),
-                            ),
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down,
-                              color: Color(0xFF7A9B3B),
-                            ),
-                            style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontSize: 14,
-                            ),
-                            items: _jabatanOptions.map((String jabatan) {
-                              return DropdownMenuItem<String>(
-                                value: jabatan,
-                                child: Text(jabatan),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                _selectedJabatan = newValue;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Display jabatan description
-                      if (_selectedJabatan != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color.fromRGBO(122, 155, 59, 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: const Color.fromRGBO(122, 155, 59, 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Deskripsi Jabatan ${_selectedJabatan!}',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF7A9B3B),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              if (_selectedJabatan == 'Kasir') ...[
-                                _buildDescriptionItem('1. Melakukan transaksi penjualan'),
-                                _buildDescriptionItem('2. Mencetak struk pembayaran'),
-                                _buildDescriptionItem('3. Melihat dan memilih menu'),
-                              ] else if (_selectedJabatan == 'Inventory') ...[
-                                _buildDescriptionItem('1. Mengelola stok bahan baku masuk'),
-                                _buildDescriptionItem('2. Memantau stok dan tanggal kadaluarsa'),
-                                _buildDescriptionItem('3. Mencatat dan mengelola sampah bahan baku'),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
             const SizedBox(height: 40),
 
             // Tombol Simpan
