@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:foodlyfridge/screens/vendor_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 
 // Import constants
 import '../theme/app_colors.dart';
@@ -17,6 +19,7 @@ import 'staff_page.dart';
 import 'waste_food_page.dart';
 import 'stok_masuk_page.dart';
 import 'kasir_page.dart';
+import 'laporan_page.dart';
 import '../helpers/kedai_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -44,6 +47,15 @@ class _HomePageState extends State<HomePage> {
   bool _hasKedai = false;
   bool _isCheckingKedai = true;
   bool _dialogShown = false;
+
+  // Stok Masuk Notification
+  bool _showStokMasukNotification = false;
+  String _stokMasukBahan = '';
+  int _stokMasukQty = 0;
+  String _stokMasukVendor = '';
+  String _stokMasukUnit = '';
+  double _stokMasukHargaPerUnit = 0;
+  double _stokMasukTotalHarga = 0;
 
   final TextEditingController _namaKedaiPopupController =
       TextEditingController();
@@ -251,12 +263,20 @@ class _HomePageState extends State<HomePage> {
       _selectedIndex = index;
     });
     Navigator.pop(context);
+    // Check notification when returning to Beranda
+    if (index == -1) {
+      _checkStokMasukNotification();
+    }
   }
 
   void _onDashboardMenuTapped(int route) {
     setState(() {
       _selectedIndex = route;
     });
+    // Check notification when returning to Beranda
+    if (route == -1) {
+      _checkStokMasukNotification();
+    }
   }
 
   void _logout() async {
@@ -535,35 +555,124 @@ class _HomePageState extends State<HomePage> {
             offset: Offset(0, -20),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Kadaluarsa',
-                      value: '0',
-                      unit: 'Item',
-                      icon: Icons.warning_amber_rounded,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          title: 'Kadaluarsa',
+                          value: '0',
+                          unit: 'Item',
+                          icon: Icons.warning_amber_rounded,
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatCard(
+                          title: 'Hampir Habis',
+                          value: '0',
+                          unit: 'Item',
+                          icon: Icons.inventory_2_rounded,
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Stok Masuk Notification Banner
+                  if (_showStokMasukNotification) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3CD),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFFFD700),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7A9B3B),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.inventory_2,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Stok Masuk!',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                if (_stokMasukBahan.isNotEmpty)
+                                  Text(
+                                    '$_stokMasukBahan ($_stokMasukQty pcs) dari $_stokMasukVendor',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: _confirmStokMasuk,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7A9B3B),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Konfirmasi',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Hampir Habis',
-                      value: '0',
-                      unit: 'Item',
-                      icon: Icons.inventory_2_rounded,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -906,7 +1015,7 @@ class _HomePageState extends State<HomePage> {
       case 5:
         return WasteFoodPage(userId: widget.userId, userName: widget.username);
       case 6:
-        return _buildComingSoonContent('Laporan');
+        return LaporanPage(userId: widget.userId, userName: widget.username);
       case 7:
         return StaffPage(userId: widget.userId);
       case 8:
@@ -957,6 +1066,270 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _initializeHomePage();
+    _checkStokMasukNotification();
+    _checkNavigateToBeranda();
+  }
+
+  Future<void> _checkNavigateToBeranda() async {
+    final prefs = await SharedPreferences.getInstance();
+    final shouldNavigate = prefs.getBool('navigate_to_beranda') ?? false;
+
+    if (shouldNavigate) {
+      // Force to show Beranda view
+      setState(() {
+        _selectedIndex = -1;
+      });
+      // Clear the flag
+      await prefs.remove('navigate_to_beranda');
+    }
+  }
+
+  Future<void> _checkStokMasukNotification() async {
+    final prefs = await SharedPreferences.getInstance();
+    final showNotif = prefs.getBool('show_stok_masuk_notification') ?? false;
+
+    if (showNotif) {
+      setState(() {
+        _showStokMasukNotification = true;
+        _stokMasukBahan = prefs.getString('stok_masuk_bahan') ?? '';
+        _stokMasukQty = prefs.getInt('stok_masuk_qty') ?? 0;
+        _stokMasukVendor = prefs.getString('stok_masuk_vendor') ?? '';
+        _stokMasukUnit = prefs.getString('stok_masuk_unit') ?? '';
+        _stokMasukHargaPerUnit = prefs.getDouble('stok_masuk_harga_per_unit') ?? 0;
+        _stokMasukTotalHarga = prefs.getDouble('stok_masuk_total_harga') ?? 0;
+      });
+    }
+  }
+
+  Future<void> _confirmStokMasuk() async {
+    // Format currency
+    final formatCurrency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+    // Show confirmation dialog with order details
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: Text(
+                    'Stok Masuk',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5B6D5B),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Item rows with details
+                _buildItemRow(
+                  _stokMasukBahan,
+                  '$_stokMasukQty $_stokMasukUnit',
+                  formatCurrency.format(_stokMasukHargaPerUnit),
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(thickness: 1),
+                const SizedBox(height: 16),
+
+                // Total row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      formatCurrency.format(_stokMasukTotalHarga),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF7A9B3B),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Terima button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      Navigator.of(context).pop(); // Close dialog
+                      await _acceptStokMasuk();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF8B4513), width: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Terima',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF8B4513),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildItemRow(String itemName, String quantity, String price) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                itemName,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF7A9B3B),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Text(
+                quantity,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Text(
+                price,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfirmRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _acceptStokMasuk() async {
+    // Show success animation
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        // Auto close after 2 seconds
+        Future.delayed(const Duration(seconds: 2), () {
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).pop();
+          }
+        });
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 800),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Icon(
+                        Icons.check_circle_outline_outlined,
+                        color: const Color(0xFF7A9B3B),
+                        size: 100 * value,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Clear notification
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('show_stok_masuk_notification');
+    await prefs.remove('stok_masuk_bahan');
+    await prefs.remove('stok_masuk_qty');
+    await prefs.remove('stok_masuk_vendor');
+    await prefs.remove('stok_masuk_unit');
+    await prefs.remove('stok_masuk_harga_per_unit');
+    await prefs.remove('stok_masuk_total_harga');
+
+    setState(() {
+      _showStokMasukNotification = false;
+    });
+
+    Fluttertoast.showToast(
+      msg: "Stok masuk berhasil dikonfirmasi!",
+      backgroundColor: Colors.green,
+    );
   }
 
   Future<void> _initializeHomePage() async {
@@ -1235,6 +1608,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Check for notification when on Beranda view
+    if (_selectedIndex == -1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkStokMasukNotification();
+      });
+    }
+
     if (_isCheckingKedai) {
       return Scaffold(
         backgroundColor: AppColors.background,

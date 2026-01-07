@@ -51,6 +51,7 @@ dependencies:
   google_fonts: ^6.2.1
   shared_preferences: ^2.2.2
   barcode_widget: ^2.0.4
+  fl_chart: ^0.69.0
 
   # deive preview  
   device_preview: ^1.2.0

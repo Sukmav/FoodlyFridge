@@ -1392,11 +1392,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               onChanged: _filterBahanBaku,
@@ -1489,12 +1490,13 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       ],
                     ),
                     onTap: () => _showDetailBahanBaku(bahan),
-                  ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-        ],
+        ),
+      ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditDialog(),
