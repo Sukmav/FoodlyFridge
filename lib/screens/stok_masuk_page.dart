@@ -9,7 +9,9 @@ import '../model/bahan_baku_model.dart';
 import '../model/vendor.dart';
 
 class StokMasukPage extends StatefulWidget {
-  const StokMasukPage({super.key});
+  final VoidCallback? onNavigateToBeranda;
+
+  const StokMasukPage({super.key, this.onNavigateToBeranda});
 
   @override
   State<StokMasukPage> createState() => _StokMasukPageState();
@@ -621,12 +623,17 @@ class _StokMasukPageState extends State<StokMasukPage> {
                     width: 150,
                     child: ElevatedButton(
                       onPressed: () async {
-                        Navigator.of(context).pop(); // Close dialog
                         // Trigger notification in home page via shared preferences
                         await _triggerStokMasukNotification();
-                        // Navigate back to home page (Beranda) to show notification
+
+                        // Close dialog first
                         if (mounted) {
-                          Navigator.of(context).popUntil((route) => route.isFirst);
+                          Navigator.of(context).pop(); // Close dialog
+                        }
+
+                        // Navigate back to home page (Beranda) using callback
+                        if (mounted && widget.onNavigateToBeranda != null) {
+                          widget.onNavigateToBeranda!();
                         }
                       },
                       style: OutlinedButton.styleFrom(

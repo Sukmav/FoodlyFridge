@@ -1005,7 +1005,17 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return const BahanBakuPage();
       case 2:
-        return const StokMasukPage();
+        return StokMasukPage(
+          onNavigateToBeranda: () {
+            setState(() {
+              _selectedIndex = -1; // Switch to Beranda
+            });
+            // Check for notification after a short delay to ensure SharedPreferences is updated
+            Future.delayed(const Duration(milliseconds: 100), () {
+              _checkStokMasukNotification();
+            });
+          },
+        );
       case 3:
         return _buildComingSoonContent('Stok Keluar');
       case 4:
