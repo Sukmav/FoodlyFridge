@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:foodlyfridge/screens/vendor_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,11 +51,8 @@ class _HomePageState extends State<HomePage> {
 
   // Stok Masuk Notification
   bool _showStokMasukNotification = false;
-  String _stokMasukBahan = '';
-  int _stokMasukQty = 0;
+  List<Map<String, dynamic>> _stokMasukItems = [];
   String _stokMasukVendor = '';
-  String _stokMasukUnit = '';
-  double _stokMasukHargaPerUnit = 0;
   double _stokMasukTotalHarga = 0;
 
   final TextEditingController _namaKedaiPopupController =
@@ -637,9 +635,9 @@ class _HomePageState extends State<HomePage> {
                                     color: Colors.black87,
                                   ),
                                 ),
-                                if (_stokMasukBahan.isNotEmpty)
+                                if (_stokMasukItems.isNotEmpty)
                                   Text(
-                                    '$_stokMasukBahan ($_stokMasukQty pcs) dari $_stokMasukVendor',
+                                    '${_stokMasukItems.length} item dari $_stokMasukVendor',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[700],
@@ -1089,13 +1087,14 @@ class _HomePageState extends State<HomePage> {
     final showNotif = prefs.getBool('show_stok_masuk_notification') ?? false;
 
     if (showNotif) {
+      // Load items from JSON
+      final itemsJson = prefs.getString('stok_masuk_items') ?? '[]';
+      List<dynamic> itemsList = jsonDecode(itemsJson);
+
       setState(() {
         _showStokMasukNotification = true;
-        _stokMasukBahan = prefs.getString('stok_masuk_bahan') ?? '';
-        _stokMasukQty = prefs.getInt('stok_masuk_qty') ?? 0;
+        _stokMasukItems = itemsList.map((item) => Map<String, dynamic>.from(item)).toList();
         _stokMasukVendor = prefs.getString('stok_masuk_vendor') ?? '';
-        _stokMasukUnit = prefs.getString('stok_masuk_unit') ?? '';
-        _stokMasukHargaPerUnit = prefs.getDouble('stok_masuk_harga_per_unit') ?? 0;
         _stokMasukTotalHarga = prefs.getDouble('stok_masuk_total_harga') ?? 0;
       });
     }
@@ -1132,12 +1131,17 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Item rows with details
-                _buildItemRow(
-                  _stokMasukBahan,
-                  '$_stokMasukQty $_stokMasukUnit',
-                  formatCurrency.format(_stokMasukHargaPerUnit),
-                ),
+                // Display all items
+                ..._stokMasukItems.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildItemRow(
+                      item['nama'] ?? '',
+                      '${item['qty']} ${item['unit']}',
+                      formatCurrency.format(item['harga_per_unit'] ?? 0),
+                    ),
+                  );
+                }).toList(),
 
                 const SizedBox(height: 16),
                 const Divider(thickness: 1),
@@ -1315,15 +1319,13 @@ class _HomePageState extends State<HomePage> {
     // Clear notification
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('show_stok_masuk_notification');
-    await prefs.remove('stok_masuk_bahan');
-    await prefs.remove('stok_masuk_qty');
+    await prefs.remove('stok_masuk_items');
     await prefs.remove('stok_masuk_vendor');
-    await prefs.remove('stok_masuk_unit');
-    await prefs.remove('stok_masuk_harga_per_unit');
     await prefs.remove('stok_masuk_total_harga');
 
     setState(() {
       _showStokMasukNotification = false;
+      _stokMasukItems.clear();
     });
 
     Fluttertoast.showToast(

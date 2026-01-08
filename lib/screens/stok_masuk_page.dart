@@ -660,12 +660,35 @@ class _StokMasukPageState extends State<StokMasukPage> {
     // Save notification trigger to shared preferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_stok_masuk_notification', true);
-    await prefs.setString('stok_masuk_bahan', _selectedBahanBaku?.nama_bahan ?? '');
-    await prefs.setInt('stok_masuk_qty', _quantity);
+
+    // Save vendor
     await prefs.setString('stok_masuk_vendor', _selectedVendor?.nama_vendor ?? '');
-    await prefs.setString('stok_masuk_unit', _selectedBahanBaku?.unit ?? '');
-    await prefs.setDouble('stok_masuk_harga_per_unit', _hargaPerUnit);
-    await prefs.setDouble('stok_masuk_total_harga', _totalHarga);
+
+    // Save ALL selected items as JSON array
+    List<Map<String, dynamic>> itemsData = [];
+    double grandTotal = 0;
+
+    _selectedItems.forEach((bahanBakuId, qty) {
+      final bahan = _selectedBahanBakuMap[bahanBakuId];
+      if (bahan != null) {
+        double harga = double.tryParse(bahan.harga_per_unit) ?? 0;
+        double subtotal = qty * harga;
+        grandTotal += subtotal;
+
+        itemsData.add({
+          'nama': bahan.nama_bahan,
+          'qty': qty,
+          'unit': bahan.unit,
+          'harga_per_unit': harga,
+          'subtotal': subtotal,
+        });
+      }
+    });
+
+    // Save items as JSON string
+    await prefs.setString('stok_masuk_items', json.encode(itemsData));
+    await prefs.setDouble('stok_masuk_total_harga', grandTotal);
+
     // Flag to force home page to show Beranda
     await prefs.setBool('navigate_to_beranda', true);
   }
