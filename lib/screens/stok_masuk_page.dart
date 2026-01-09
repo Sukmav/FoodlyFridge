@@ -45,6 +45,17 @@ class _StokMasukPageState extends State<StokMasukPage> {
   Map<String, int> _selectedItems = {}; // key -> quantity (key = id if available else nama_bahan)
   Map<String, BahanBakuModel> _selectedBahanBakuMap = {}; // key -> BahanBakuModel
 
+  // Helper function to extract unit from gross_qty (format: "10 kg" -> "kg")
+  String _extractSatuanPembelian(String grossQty) {
+    if (grossQty.isEmpty) return 'unit';
+
+    final parts = grossQty.trim().split(' ');
+    if (parts.length >= 2) {
+      return parts[1]; // Return satuan (kg, gr, dus, liter, pcs, etc)
+    }
+    return 'unit'; // default if no unit found
+  }
+
   @override
   void dispose() {
     _catatanController.dispose();
@@ -143,7 +154,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                           ),
                           const Spacer(),
                           Text(
-                            'Rp ${_hargaPerGross.toStringAsFixed(0)}',
+                            'Rp ${_hargaPerGross.toStringAsFixed(0)}/${_extractSatuanPembelian(_selectedBahanBaku?.gross_qty ?? '')}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -682,10 +693,13 @@ class _StokMasukPageState extends State<StokMasukPage> {
         double subtotal = qty * harga;
         grandTotal += subtotal;
 
+        // Extract satuan pembelian dari gross_qty
+        String satuanPembelian = _extractSatuanPembelian(bahan.gross_qty);
+
         itemsData.add({
           'nama': bahan.nama_bahan,
           'qty': qty,
-          'unit': bahan.unit,
+          'unit': satuanPembelian,  // Gunakan satuan pembelian, bukan unit dasar
           'harga_per_gross': harga,
           'subtotal': subtotal,
         });
@@ -726,9 +740,9 @@ class _StokMasukPageState extends State<StokMasukPage> {
                 const SizedBox(height: 20),
                 _buildPopupRow('Nama', _selectedBahanBaku?.nama_bahan ?? '-'),
                 const SizedBox(height: 12),
-                _buildPopupRow('Jumlah', '$_quantity ${_selectedBahanBaku?.unit ?? ''}'),
+                _buildPopupRow('Jumlah', '$_quantity ${_extractSatuanPembelian(_selectedBahanBaku?.gross_qty ?? '')}'),
                 const SizedBox(height: 12),
-                _buildPopupRow('Harga', 'Rp ${_hargaPerGross.toStringAsFixed(0)}/${_selectedBahanBaku?.unit ?? ''}'),
+                _buildPopupRow('Harga', 'Rp ${_hargaPerGross.toStringAsFixed(0)}/${_extractSatuanPembelian(_selectedBahanBaku?.gross_qty ?? '')}'),
                 const SizedBox(height: 12),
                 _buildPopupRow('Dari', _selectedVendor?.nama_vendor ?? '-'),
                 const Divider(height: 24),
@@ -1229,7 +1243,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                                 ),
                               ),
                               Text(
-                                '$qty ${bahan.gross_qty} × Rp ${harga.toStringAsFixed(0)}',
+                                '$qty ${_extractSatuanPembelian(bahan.gross_qty)} × Rp ${harga.toStringAsFixed(0)}/${_extractSatuanPembelian(bahan.gross_qty)}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -1372,6 +1386,17 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
   List<BahanBakuModel> _filteredList = [];
   bool _isLoading = false;
   final TextEditingController _searchController = TextEditingController();
+
+  // Helper function to extract unit from gross_qty (format: "10 kg" -> "kg")
+  String _extractSatuanPembelian(String grossQty) {
+    if (grossQty.isEmpty) return 'unit';
+
+    final parts = grossQty.trim().split(' ');
+    if (parts.length >= 2) {
+      return parts[1]; // Return satuan (kg, gr, dus, liter, pcs, etc)
+    }
+    return 'unit'; // default if no unit found
+  }
 
   @override
   void initState() {
@@ -1608,7 +1633,7 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
                     children: [
                       const SizedBox(height: 4),
                       Text('Stok: ${bahan.stok_tersedia}'),
-                      Text('Harga: Rp ${bahan.harga_per_gross}/${bahan.gross_qty}'),
+                      Text('Harga: Rp ${bahan.harga_per_gross}/${_extractSatuanPembelian(bahan.gross_qty)}'),
                     ],
                   ),
                   trailing: Row(

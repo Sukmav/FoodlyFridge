@@ -1144,13 +1144,10 @@ class _HomePageState extends State<HomePage> {
 
                 // Display all items
                 ..._stokMasukItems.map((item) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildItemRow(
-                      item['nama'] ?? '',
-                      '${item['qty']} ${item['unit']}',
-                      formatCurrency.format(item['harga_per_unit'] ?? 0),
-                    ),
+                  return _buildItemRow(
+                    item['nama'] ?? '',
+                    '${item['qty']} ${item['unit']}',
+                    formatCurrency.format(item['harga_per_gross'] ?? 0),
                   );
                 }).toList(),
 
@@ -1217,49 +1214,47 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildItemRow(String itemName, String quantity, String price) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 2,
-              child: Text(
-                itemName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF7A9B3B),
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              itemName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF7A9B3B),
               ),
             ),
-            Expanded(
-              flex: 1,
-              child: Text(
-                quantity,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              quantity,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
               ),
             ),
-            Expanded(
-              flex: 1,
-              child: Text(
-                price,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              price,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
               ),
             ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
