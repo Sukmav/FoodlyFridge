@@ -23,12 +23,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   bool _isLoading = false;
   final TextEditingController _searchController = TextEditingController();
   List<String> _kategoriList = [];
+  List<String> _tempatPenyimpananList = [];
 
   @override
   void initState() {
     super.initState();
     _loadBahanBaku();
-    _loadKategori();
   }
 
   @override
@@ -38,8 +38,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Future<void> _loadKategori() async {
+    // Load unique kategori from existing bahan baku data
+    Set<String> uniqueKategori = {};
+    for (var bahan in _bahanBakuList) {
+      if (bahan.kategori.isNotEmpty) {
+        uniqueKategori.add(bahan.kategori);
+      }
+    }
     setState(() {
-      _kategoriList = [];
+      _kategoriList = uniqueKategori.toList()..sort();
     });
   }
 
@@ -47,6 +54,29 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     if (!_kategoriList.contains(kategori)) {
       setState(() {
         _kategoriList.add(kategori);
+        _kategoriList.sort();
+      });
+    }
+  }
+
+  Future<void> _loadTempatPenyimpanan() async {
+    // Load unique tempat penyimpanan from existing bahan baku data
+    Set<String> uniqueTempat = {};
+    for (var bahan in _bahanBakuList) {
+      if (bahan.tempat_penyimpanan.isNotEmpty) {
+        uniqueTempat.add(bahan.tempat_penyimpanan);
+      }
+    }
+    setState(() {
+      _tempatPenyimpananList = uniqueTempat.toList()..sort();
+    });
+  }
+
+  void _saveTempatPenyimpanan(String tempat) {
+    if (!_tempatPenyimpananList.contains(tempat)) {
+      setState(() {
+        _tempatPenyimpananList.add(tempat);
+        _tempatPenyimpananList.sort();
       });
     }
   }
@@ -104,6 +134,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
       print('Data berhasil dimuat: ${_bahanBakuList.length} items');
 
+      // Load kategori and tempat penyimpanan from existing data
+      await _loadKategori();
+      await _loadTempatPenyimpanan();
+
     } catch (e, stackTrace) {
       print('Error: $e');
       print('StackTrace: $stackTrace');
@@ -143,7 +177,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     final TextEditingController hargaGrossController = TextEditingController(text: bahanBaku?.harga_per_gross ?? '');
     final TextEditingController hargaUnitController = TextEditingController(text: bahanBaku?.harga_per_unit ?? '');
     final TextEditingController stokTersediaController = TextEditingController(text: bahanBaku?.stok_tersedia ?? '');
-    String stokMinimal = bahanBaku?.stok_minimal ?? '5';
+    final TextEditingController stokMinimalController = TextEditingController(text: bahanBaku?.stok_minimal ?? '');
     final TextEditingController estimasiUmurController = TextEditingController(text: bahanBaku?.estimasi_umur ?? '');
     DateTime? tanggalMasuk = bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_masuk)
@@ -160,20 +194,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     File? selectedImage;
     String? selectedImagePath = bahanBaku?.foto_bahan;
 
-    // Function untuk set stok minimal otomatis berdasarkan unit
-    String getStokMinimalByUnit(String unit) {
-      switch (unit) {
-        case 'kg':
-          return '5';
-        case 'gr':
-          return '1000';
-        case 'dus':
-          return '5';
-        default:
-          return '5';
-      }
-    }
-
     // Function untuk kalkulasi tanggal kadaluarsa
     DateTime? calculateExpiryDate(DateTime? startDate, String estimasi) {
       if (startDate == null || estimasi.isEmpty) return null;
@@ -185,8 +205,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       }
     }
 
-    // Set stok minimal default
-    stokMinimal = getStokMinimalByUnit(selectedUnit);
 
     //menuju halaman edit data bahan baku atau pun tambah data baru
     Navigator.push(
@@ -280,16 +298,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         if (newValue != null) {
                           setDialogState(() {
                             selectedUnit = newValue;
-                            stokMinimal = getStokMinimalByUnit(newValue);
                           });
                         }
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    _buildTextField(grossQtyController, 'Gross Qty', TextInputType.number),
+                    _buildTextField(grossQtyController, 'Satuan Pembelian', TextInputType.number),
                     const SizedBox(height: 16),
-                    _buildTextField(hargaGrossController, 'Harga Per Gross Qty', TextInputType.number),
+                    _buildTextField(hargaGrossController, 'Harga Per Satuan', TextInputType.number),
                     const SizedBox(height: 16),
                     _buildTextField(hargaUnitController, 'Harga Per Unit', TextInputType.number),
                     const SizedBox(height: 30),
@@ -301,8 +318,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     _buildTextField(stokTersediaController, 'Stok Tersedia', TextInputType.number),
                     const SizedBox(height: 16),
 
-                    // Stok Minimal (Read-only, auto-calculated)
-                    _buildReadOnlyField('Stok Minimal', '$stokMinimal $selectedUnit'),
+                    // Stok Minimal (Editable by user)
+                    _buildTextField(stokMinimalController, 'Stok Minimal', TextInputType.number),
                     const SizedBox(height: 30),
 
                     // Kadaluarsa dan Penyimpanan Section
@@ -387,7 +404,18 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    _buildTextField(tempatPenyimpananController, 'Tempat Penyimpanan'),
+                    // Tempat Penyimpanan - Dropdown with add functionality
+                    InkWell(
+                      onTap: () => _showTempatPenyimpananDialog(tempatPenyimpananController),
+                      child: IgnorePointer(
+                        child: _buildTextField(
+                          tempatPenyimpananController,
+                          'Tempat Penyimpanan',
+                          null,
+                          Icons.arrow_drop_down,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 30),
 
                     // Catatan Section
@@ -491,7 +519,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               hargaGrossController.text,
                               hargaUnitController.text,
                               stokTersediaController.text,
-                              stokMinimal,
+                              stokMinimalController.text,
                               estimasiUmurController.text,
                               tanggalMasukStr,
                               tanggalKadaluarsaStr,
@@ -509,7 +537,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               hargaGrossController.text,
                               hargaUnitController.text,
                               stokTersediaController.text,
-                              stokMinimal,
+                              stokMinimalController.text,
                               estimasiUmurController.text,
                               tanggalMasukStr,
                               tanggalKadaluarsaStr,
@@ -810,6 +838,128 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
+  //bagian dropdown untuk tempat penyimpanan
+  void _showTempatPenyimpananDialog(TextEditingController tempatPenyimpananController) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF8B5A3C),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Pilih Tempat Penyimpanan',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _tempatPenyimpananList.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == _tempatPenyimpananList.length) {
+                      return ListTile(
+                        leading: const Icon(Icons.add, color: Color(0xFF8B5A3C)),
+                        title: const Text('Tambah Tempat Penyimpanan Baru'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showTambahTempatPenyimpananDialog(tempatPenyimpananController);
+                        },
+                      );
+                    }
+                    return ListTile(
+                      title: Text(_tempatPenyimpananList[index]),
+                      onTap: () {
+                        tempatPenyimpananController.text = _tempatPenyimpananList[index];
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  //bagian dropdown tambah tempat penyimpanan baru
+  void _showTambahTempatPenyimpananDialog(TextEditingController tempatPenyimpananController) {
+    final TextEditingController newTempatController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Tambah Tempat Penyimpanan Baru',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: newTempatController,
+                decoration: InputDecoration(
+                  hintText: 'Nama Tempat Penyimpanan',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (newTempatController.text.isNotEmpty) {
+                      _saveTempatPenyimpanan(newTempatController.text);
+                      tempatPenyimpananController.text = newTempatController.text;
+                      Navigator.pop(context);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5A3C),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   //ini bagian utama tampilan halaman bahan baku
   Future<void> _addBahanBaku(
       String nama,
@@ -835,7 +985,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       print('=== MULAI INSERT ===');
 
       // Map parameters to DataService.insertBahanBaku signature:
-      // insertBahanBaku(String appid, String foto_bahan, String nama_bahan, String unit, String gross_qty, String harga_per_gross, String harga_per_unit, String stok_tersedia, String estimasi_umur, String tanggal_masuk, String tanggal_kadaluarsa, String kategori, String tempat_penyimpanan, String catatan)
+      // insertBahanBaku(String appid, String foto_bahan, String nama_bahan, String unit, String gross_qty, String harga_per_gross, String harga_per_unit, String stok_tersedia, String stok_minimal, String estimasi_umur, String tanggal_masuk, String tanggal_kadaluarsa, String kategori, String tempat_penyimpanan, String catatan)
       final result = await _dataService.insertBahanBaku(
         appid,
         foto_bahan,
@@ -845,6 +995,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         hargaGross,
         hargaUnit,
         stokTersedia,
+        stokMinimal,
         estimasi_penyimpanan,
         tanggalMasuk,
         tanggalKadaluarsa,
@@ -1226,7 +1377,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         'Informasi Pembelian',
                         Colors.orange[700]!,
                         [
-                          _buildDetailRow('Satuan Pembelian', '${bahan.gross_qty} ${bahan.unit}', Colors.green[700]!),
+                          _buildDetailRow('Satuan Pembelian', '${bahan.gross_qty}', Colors.green[700]!),
                           _buildDetailRow('Harga per Satuan', 'Rp ${bahan.harga_per_gross}', Colors.green[700]!),
                           _buildDetailRow('Jumlah Pernah Beli', '-', Colors.green[700]!),
                         ],
@@ -1472,7 +1623,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text('Stok: ${bahan.stok_tersedia} ${bahan.unit}'),
+                        Text('Stok: ${bahan.stok_tersedia}'),
                         Text('Kategori: ${bahan.kategori}'),
                       ],
                     ),

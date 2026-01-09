@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_page.dart';
 
 class HapusAkunPage extends StatefulWidget {
   const HapusAkunPage({Key? key}) : super(key: key);
@@ -27,9 +29,59 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
     super.dispose();
   }
 
+  // Helper method to show message (with fallback to SnackBar if Toast fails)
+  void _showMessage(String message, {bool isError = false}) {
+    try {
+      Fluttertoast.showToast(
+        msg: message,
+        backgroundColor: isError ? Colors.red : Colors.green,
+        toastLength: Toast.LENGTH_SHORT,
+      );
+    } catch (e) {
+      // Fallback to SnackBar if Fluttertoast fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: isError ? Colors.red : Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _handleDelete() async {
     if (_isProcessing) return; // guard double tap
     if (!_formKey.currentState!.validate()) return;
+
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Konfirmasi Hapus Akun',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus akun? Tindakan ini tidak dapat dibatalkan dan semua data Anda akan dihapus secara permanen.',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Batal', style: GoogleFonts.poppins()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Hapus', style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
 
     final pwd = _passwordController.text.trim();
 
@@ -38,89 +90,167 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || user.email == null) {
-        Fluttertoast.showToast(msg: 'Tidak ada user aktif.', backgroundColor: Colors.red);
+        _showMessage('Tidak ada user aktif.', isError: true);
         return;
       }
 
-      // 1) Reauthenticate
+      if (kDebugMode) print('🗑️ Starting Firebase account deletion for: ${user.email}');
+      if (kDebugMode) print('   Firebase UID: ${user.uid}');
+
+      // Get SharedPreferences for cleanup
+      final prefs = await SharedPreferences.getInstance();
+
+      // Step 1: Reauthenticate user
       final cred = EmailAuthProvider.credential(email: user.email!, password: pwd);
 
       try {
-        await user.reauthenticateWithCredential(cred);
+        if (kDebugMode) print('🔄 Step 1: Reauthenticating user...');
+        await user.reauthenticateWithCredential(cred).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            throw FirebaseAuthException(
+              code: 'timeout',
+              message: 'Koneksi timeout saat autentikasi.',
+            );
+          },
+        );
+        if (kDebugMode) print('   ✅ Reauthentication successful');
       } on FirebaseAuthException catch (e) {
-        if (kDebugMode) print('Reauth failed: ${e.code} ${e.message}');
+        if (kDebugMode) print('   ❌ Reauth failed: ${e.code}');
         String message = 'Gagal melakukan autentikasi ulang.';
-        if (e.code == 'wrong-password') {
+
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
           message = 'Kata sandi salah. Silakan coba lagi.';
         } else if (e.code == 'user-mismatch') {
           message = 'Akun tidak cocok.';
         } else if (e.code == 'user-not-found') {
           message = 'Akun tidak ditemukan.';
+        } else if (e.code == 'timeout') {
+          message = 'Koneksi timeout. Periksa koneksi internet Anda.';
+        } else if (e.code == 'network-request-failed') {
+          message = 'Tidak ada koneksi internet.';
         }
-        Fluttertoast.showToast(msg: message, backgroundColor: Colors.red);
+
+        _showMessage(message, isError: true);
         return;
-      }
-
-      // 2) Hapus data terkait di Firestore (atau DB lain) terlebih dahulu
-      //    Contoh: hapus dokumen 'users/{uid}' jika ada. Tambahkan koleksi lain bila perlu.
-      try {
-        final uid = user.uid;
-        final firestore = FirebaseFirestore.instance;
-
-        // Hapus dokumen user jika ada
-        final userDocRef = firestore.collection('users').doc(uid);
-        final doc = await userDocRef.get();
-        if (doc.exists) {
-          await userDocRef.delete();
-          if (kDebugMode) print('Deleted users/$uid document from Firestore.');
-        }
-
-        // TODO: jika ada data lain (kedai, transaksi, dsb.) hapus atau tandai juga di sini.
       } catch (e) {
-        // Jika penghapusan data Firestore gagal, kita terus mencoba menghapus akun,
-        // tapi beri tahu developer di debug log.
-        if (kDebugMode) print('Warning: failed to delete Firestore user data: $e');
-      }
-
-      // 3) Delete Firebase Auth user
-      try {
-        await user.delete();
-      } on FirebaseAuthException catch (e) {
-        if (kDebugMode) print('Delete user failed: ${e.code} ${e.message}');
-        String message = 'Gagal menghapus akun: ${e.message ?? e.code}';
-        if (e.code == 'requires-recent-login') {
-          message = 'Sesi kadaluarsa. Silakan login ulang lalu coba hapus akun kembali.';
-        }
-        Fluttertoast.showToast(msg: message, backgroundColor: Colors.red);
+        if (kDebugMode) print('   ❌ Unexpected error: $e');
+        _showMessage('Gagal autentikasi: ${e.toString()}', isError: true);
         return;
       }
 
-      // 4) Sign out to be safe
+      // Step 2: Delete Firestore data (non-blocking)
+      if (kDebugMode) print('🔄 Step 2: Deleting Firestore data...');
       try {
-        await FirebaseAuth.instance.signOut();
-      } catch (_) {}
+        await _deleteFirestoreData(user.uid, user.email!).timeout(
+          const Duration(seconds: 8),
+          onTimeout: () {
+            if (kDebugMode) print('   ⚠️ Firestore deletion timeout, continuing...');
+          },
+        );
+      } catch (e) {
+        if (kDebugMode) print('   ⚠️ Firestore deletion error: $e, continuing...');
+      }
 
-      // 5) Informasi ke user & navigasi ke halaman login (hapus semua route)
-      Fluttertoast.showToast(msg: 'Akun berhasil dihapus. Semua data di Firebase dihapus (jika tersedia).', backgroundColor: Colors.green);
+      // Step 3: Delete Firebase Auth user (CRITICAL)
+      try {
+        if (kDebugMode) print('🔄 Step 3: Deleting Firebase Auth account...');
+        await user.delete().timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            throw FirebaseAuthException(
+              code: 'timeout',
+              message: 'Timeout saat menghapus akun.',
+            );
+          },
+        );
+        if (kDebugMode) print('   ✅ Firebase Auth account deleted successfully!');
+      } on FirebaseAuthException catch (e) {
+        if (kDebugMode) print('   ❌ Delete auth failed: ${e.code}');
+        String message = 'Gagal menghapus akun: ${e.message ?? e.code}';
 
+        if (e.code == 'requires-recent-login') {
+          message = 'Sesi kadaluarsa. Silakan login ulang lalu coba lagi.';
+        } else if (e.code == 'timeout') {
+          message = 'Koneksi timeout. Periksa koneksi internet Anda.';
+        } else if (e.code == 'network-request-failed') {
+          message = 'Tidak ada koneksi internet.';
+        }
+
+        _showMessage(message, isError: true);
+        return;
+      }
+
+      // Step 4: Cleanup local data
+      if (kDebugMode) print('🔄 Step 4: Cleaning up local data...');
+      try {
+        await prefs.clear().timeout(const Duration(seconds: 2));
+        await FirebaseAuth.instance.signOut().timeout(const Duration(seconds: 2));
+        if (kDebugMode) print('   ✅ Local data cleared');
+      } catch (e) {
+        if (kDebugMode) print('   ⚠️ Cleanup error (non-critical): $e');
+      }
+
+      // Step 5: Success!
+      if (kDebugMode) print('🎉 Account deletion completed successfully!');
+      _showMessage('Akun berhasil dihapus.');
+
+      // Step 6: Navigate to Login
       if (mounted) {
-        // Ganti '/login' dengan route name atau widget login Anda jika berbeda.
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
       }
     } on FirebaseAuthException catch (e) {
-      if (kDebugMode) print('FirebaseAuthException on delete flow: ${e.code} ${e.message}');
+      if (kDebugMode) print('❌ FirebaseAuthException: ${e.code}');
       String message = 'Terjadi kesalahan: ${e.message ?? e.code}';
-      if (e.code == 'wrong-password') {
+
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         message = 'Kata sandi salah.';
       } else if (e.code == 'requires-recent-login') {
-        message = 'Sesi Anda perlu diperbarui. Silakan login ulang dan coba lagi.';
+        message = 'Sesi kadaluarsa. Silakan login ulang.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'Tidak ada koneksi internet.';
       }
-      Fluttertoast.showToast(msg: message, backgroundColor: Colors.red);
+
+      _showMessage(message, isError: true);
     } catch (e) {
-      if (kDebugMode) print('Error deleting account: $e');
-      Fluttertoast.showToast(msg: 'Terjadi kesalahan: $e', backgroundColor: Colors.red);
+      if (kDebugMode) print('❌ Unexpected error: $e');
+      _showMessage('Terjadi kesalahan: ${e.toString()}', isError: true);
     } finally {
       if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // Helper method for Firestore deletion with timeout
+  Future<void> _deleteFirestoreData(String uid, String email) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      if (kDebugMode) print('   🔄 Deleting Firestore data...');
+
+      // Delete user document
+      final userDocRef = firestore.collection('users').doc(uid);
+      await userDocRef.delete().timeout(const Duration(seconds: 3));
+      if (kDebugMode) print('   ✅ Deleted users/$uid from Firestore');
+
+      // Delete staff document if exists
+      final staffQuery = await firestore
+          .collection('staff')
+          .where('email', isEqualTo: email)
+          .get()
+          .timeout(const Duration(seconds: 3));
+
+      for (var doc in staffQuery.docs) {
+        await doc.reference.delete().timeout(const Duration(seconds: 2));
+        if (kDebugMode) print('   ✅ Deleted staff/${doc.id} from Firestore');
+      }
+    } catch (e) {
+      if (kDebugMode) print('   ⚠️ Firestore deletion error: $e');
+      // Don't throw, just log
     }
   }
 

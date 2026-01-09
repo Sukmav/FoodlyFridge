@@ -21,6 +21,7 @@ import 'waste_food_page.dart';
 import 'stok_masuk_page.dart';
 import 'kasir_page.dart';
 import 'laporan_page.dart';
+import 'riwayat.dart';
 import '../helpers/kedai_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -1027,7 +1028,7 @@ class _HomePageState extends State<HomePage> {
       case 7:
         return StaffPage(userId: widget.userId);
       case 8:
-        return _buildComingSoonContent('Riwayat');
+        return RiwayatPage(userId: widget.userId, userName: widget.username);
       case 9:
         return KasirPage();
       case 10:

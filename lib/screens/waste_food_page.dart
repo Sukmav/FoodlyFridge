@@ -220,7 +220,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   void initState() {
     super.initState();
     _loadBahanBaku();
-    _totalKerugianController.text = 'otomatis';
+    _totalKerugianController.text = 'Rp 0';
   }
 
   @override
@@ -232,24 +232,111 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   }
 
   Future<void> _loadBahanBaku() async {
+    print('═══════════════════════════════════════════════════════');
+    print('🚀 START: Loading Bahan Baku Data');
+    print('═══════════════════════════════════════════════════════');
+
+    setState(() => _isLoading = true);
+
     try {
-      final bahanBakuList = await _bahanBakuService.getBahanBakuByUserId(widget.userId);
-      setState(() {
-        _bahanBakuList = bahanBakuList;
-      });
-    } catch (e) {
-      print('Error loading bahan baku: $e');
+      print('📍 Step 1: Calling _bahanBakuService.getAllBahanBaku()');
+
+      // Use getAllBahanBaku() instead of getBahanBakuByUserId()
+      // because bahan baku data doesn't have user_id field
+      final bahanBakuList = await _bahanBakuService.getAllBahanBaku();
+
+      print('📍 Step 2: Data received from service');
+      print('   Response type: ${bahanBakuList.runtimeType}');
+      print('   List length: ${bahanBakuList.length}');
+
+      // Debug: print ALL items to see what we got
+      if (bahanBakuList.isNotEmpty) {
+        print('📦 Step 3: Bahan baku items loaded successfully:');
+        print('   Total items: ${bahanBakuList.length}');
+        print('   ─────────────────────────────────────────────────');
+        for (var i = 0; i < bahanBakuList.length; i++) {
+          var bahan = bahanBakuList[i];
+          print('   [$i] ${bahan.nama_bahan}');
+          print('       ID: ${bahan.id}');
+          print('       Unit: ${bahan.unit}');
+          print('       Harga: Rp ${bahan.harga_per_unit}');
+          print('       Stok: ${bahan.stok_tersedia}');
+          print('   ─────────────────────────────────────────────────');
+        }
+      } else {
+        print('⚠️⚠️⚠️ CRITICAL: Bahan baku list is EMPTY!');
+        print('   This means:');
+        print('   1. No data in database, OR');
+        print('   2. API returned empty response, OR');
+        print('   3. Parsing error occurred');
+      }
+
+      if (mounted) {
+        print('📍 Step 4: Updating state...');
+        setState(() {
+          _bahanBakuList = bahanBakuList;
+          _isLoading = false;
+        });
+
+        print('✅ State updated successfully!');
+        print('   _bahanBakuList.length = ${_bahanBakuList.length}');
+        print('   _isLoading = $_isLoading');
+      }
+
+      // Show appropriate message to user
+      if (bahanBakuList.isEmpty) {
+        print('⚠️ Showing empty state message to user');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Belum ada data bahan baku. Tambahkan bahan baku terlebih dahulu di menu Bahan Baku.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        print('✅ SUCCESS: Dropdown will show ${bahanBakuList.length} items');
+        print('   Items available:');
+        for (var bahan in bahanBakuList) {
+          print('   • ${bahan.nama_bahan}');
+        }
+      }
+    } catch (e, stackTrace) {
+      print('❌❌❌ ERROR occurred during loading!');
+      print('   Error: $e');
+      print('   Stack trace:');
+      print(stackTrace.toString());
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat data bahan baku: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      print('═══════════════════════════════════════════════════════');
+      print('🏁 END: Loading Bahan Baku Data');
+      print('   Final result: ${_bahanBakuList.length} items in dropdown');
+      print('═══════════════════════════════════════════════════════\n');
     }
   }
 
   void _onBahanBakuSelected(BahanBakuModel? bahanBaku) {
     setState(() {
       _selectedBahanBaku = bahanBaku;
-      // Kode bahan dihilangkan sesuai permintaan — hanya set selected bahan dan hitung total
+      // Reset jumlah terbuang saat ganti bahan baku
       if (bahanBaku != null) {
+        _jumlahTerbuangController.clear();
         _calculateTotalKerugian();
       } else {
-        _totalKerugianController.text = 'otomatis';
+        _jumlahTerbuangController.clear();
+        _totalKerugianController.text = 'Rp 0';
       }
     });
   }
@@ -257,16 +344,22 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   void _calculateTotalKerugian() {
     if (_selectedBahanBaku != null && _jumlahTerbuangController.text.isNotEmpty) {
       try {
-        final jumlahTerbuang = double.parse(_jumlahTerbuangController.text);
+        final jumlahTerbuang = double.parse(_jumlahTerbuangController.text.replaceAll(',', '').replaceAll('.', ''));
         final hargaSatuan = double.parse(_selectedBahanBaku!.harga_per_unit);
         final totalKerugian = jumlahTerbuang * hargaSatuan;
 
-        _totalKerugianController.text = 'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
+        setState(() {
+          _totalKerugianController.text = 'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
+        });
       } catch (e) {
-        _totalKerugianController.text = 'otomatis';
+        setState(() {
+          _totalKerugianController.text = 'Rp 0';
+        });
       }
     } else {
-      _totalKerugianController.text = 'otomatis';
+      setState(() {
+        _totalKerugianController.text = 'Rp 0';
+      });
     }
   }
 
@@ -370,6 +463,11 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Calculate total kerugian as numeric value
+      final jumlahTerbuang = double.parse(_jumlahTerbuangController.text);
+      final hargaSatuan = double.parse(_selectedBahanBaku!.harga_per_unit);
+      final totalKerugian = jumlahTerbuang * hargaSatuan;
+
       final response = await http.post(
         Uri.parse('$fileUri/insert/'),
         body: {
@@ -382,8 +480,10 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
           'jenis_waste': _selectedJenisWaste!,
           'jumlah_terbuang': '${_jumlahTerbuangController.text} ${_selectedBahanBaku!.unit}',
           'tanggal': DateFormat('yyyy-MM-dd').format(_selectedDate),
-          'catatan': _catatanController.text,
+          'catatan': _catatanController.text.isEmpty ? '-' : _catatanController.text,
           'foto': _fotoBase64 ?? '',
+          'total_kerugian': totalKerugian.toStringAsFixed(0),
+          'kode_bahan': _selectedBahanBaku!.id,
         },
       );
 
@@ -398,8 +498,8 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
           Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Gagal menyimpan data'),
+            SnackBar(
+              content: Text('Gagal menyimpan data: ${response.statusCode}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -467,32 +567,71 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFD4A373)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<BahanBakuModel>(
-                  value: _selectedBahanBaku,
-                  isExpanded: true,
-                  hint: Text(
-                    'Pilih Bahan Baku',
-                    style: GoogleFonts.poppins(color: const Color(0xFFD4A373)),
+            _isLoading
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[100],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Loading...',
+                          style: GoogleFonts.poppins(color: Colors.grey),
+                        ),
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ),
+                  )
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFD4A373)),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<BahanBakuModel>(
+                        value: _selectedBahanBaku,
+                        isExpanded: true,
+                        hint: Text(
+                          _bahanBakuList.isEmpty
+                              ? 'Tidak ada data bahan baku'
+                              : 'Pilih Bahan Baku',
+                          style: GoogleFonts.poppins(
+                            color: _bahanBakuList.isEmpty ? Colors.red : const Color(0xFFD4A373),
+                          ),
+                        ),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: _bahanBakuList.isEmpty ? Colors.grey : const Color(0xFFD4A373),
+                        ),
+                        style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14),
+                        items: _bahanBakuList.isEmpty
+                            ? null
+                            : _bahanBakuList.map((BahanBakuModel bahanBaku) {
+                                return DropdownMenuItem<BahanBakuModel>(
+                                  value: bahanBaku,
+                                  child: Text(
+                                    bahanBaku.nama_bahan,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                        onChanged: _bahanBakuList.isEmpty ? null : _onBahanBakuSelected,
+                      ),
+                    ),
                   ),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFFD4A373)),
-                  style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14),
-                  items: _bahanBakuList.map((BahanBakuModel bahanBaku) {
-                    return DropdownMenuItem<BahanBakuModel>(
-                      value: bahanBaku,
-                      child: Text(bahanBaku.nama_bahan),
-                    );
-                  }).toList(),
-                  onChanged: _onBahanBakuSelected,
-                ),
-              ),
-            ),
             const SizedBox(height: 16),
 
             // Jenis Waste - Dropdown
@@ -538,7 +677,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
 
             // Jumlah Terbuang
             Text(
-              'Jumlah Terbuang',
+              'Jumlah Terbuang${_selectedBahanBaku != null ? ' (${_selectedBahanBaku!.unit})' : ''}',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -547,10 +686,18 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _jumlahTerbuangController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              enabled: _selectedBahanBaku != null,
               decoration: InputDecoration(
-                hintText: 'Masukkan jumlah',
+                hintText: _selectedBahanBaku != null
+                    ? 'Masukkan jumlah (${_selectedBahanBaku!.unit})'
+                    : 'Pilih bahan baku terlebih dahulu',
                 hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                suffixText: _selectedBahanBaku?.unit,
+                suffixStyle: GoogleFonts.poppins(
+                  color: const Color(0xFFD4A373),
+                  fontWeight: FontWeight.w600,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: Color(0xFFD4A373)),
@@ -559,10 +706,16 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: Color(0xFFD4A373)),
                 ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: Color(0xFFD4A373), width: 2),
                 ),
+                filled: _selectedBahanBaku == null,
+                fillColor: _selectedBahanBaku == null ? Colors.grey[100] : null,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
               style: GoogleFonts.poppins(),
@@ -570,6 +723,12 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Jumlah terbuang harus diisi';
+                }
+                if (double.tryParse(value) == null) {
+                  return 'Masukkan angka yang valid';
+                }
+                if (double.parse(value) <= 0) {
+                  return 'Jumlah harus lebih dari 0';
                 }
                 return null;
               },

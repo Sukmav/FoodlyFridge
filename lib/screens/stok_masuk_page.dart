@@ -37,7 +37,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
   // New variables for multi-step flow
   StokMasukStep _currentStep = StokMasukStep.selectVendor;
   int _quantity = 1;
-  double _hargaPerUnit = 0;
+  double _hargaPerGross = 0;
   double _totalHarga = 0;
 
   // Track selected items with quantities
@@ -54,7 +54,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
   // Calculate totals
   void _calculateTotal() {
     setState(() {
-      _totalHarga = _quantity * _hargaPerUnit;
+      _totalHarga = _quantity * _hargaPerGross;
     });
   }
 
@@ -62,7 +62,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
   void _onBahanBakuSelected(BahanBakuModel bahan) {
     setState(() {
       _selectedBahanBaku = bahan;
-      _hargaPerUnit = double.tryParse(bahan.harga_per_unit) ?? 0;
+      _hargaPerGross = double.tryParse(bahan.harga_per_gross) ?? 0;
       // Load existing quantity if item was previously selected, otherwise default to 1
       final key = (bahan.id != null && bahan.id.isNotEmpty) ? bahan.id : bahan.nama_bahan;
       _quantity = _selectedItems[key] ?? 1;
@@ -143,7 +143,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                           ),
                           const Spacer(),
                           Text(
-                            'Rp ${_hargaPerUnit.toStringAsFixed(0)}',
+                            'Rp ${_hargaPerGross.toStringAsFixed(0)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -166,7 +166,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                             if (_quantity > 1) {
                               setModalState(() {
                                 _quantity--;
-                                _totalHarga = _quantity * _hargaPerUnit;
+                                _totalHarga = _quantity * _hargaPerGross;
                               });
                             }
                           },
@@ -219,7 +219,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                           onPressed: () {
                             setModalState(() {
                               _quantity++;
-                              _totalHarga = _quantity * _hargaPerUnit;
+                              _totalHarga = _quantity * _hargaPerGross;
                             });
                           },
                           icon: Container(
@@ -411,7 +411,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
     _selectedItems.forEach((bahanBakuId, qty) {
       final bahan = _selectedBahanBakuMap[bahanBakuId];
       if (bahan != null) {
-        double harga = double.tryParse(bahan.harga_per_unit) ?? 0;
+        double harga = double.tryParse(bahan.harga_per_gross) ?? 0;
         grandTotal += (qty * harga);
       }
     });
@@ -678,7 +678,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
     _selectedItems.forEach((bahanBakuId, qty) {
       final bahan = _selectedBahanBakuMap[bahanBakuId];
       if (bahan != null) {
-        double harga = double.tryParse(bahan.harga_per_unit) ?? 0;
+        double harga = double.tryParse(bahan.harga_per_gross) ?? 0;
         double subtotal = qty * harga;
         grandTotal += subtotal;
 
@@ -686,7 +686,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
           'nama': bahan.nama_bahan,
           'qty': qty,
           'unit': bahan.unit,
-          'harga_per_unit': harga,
+          'harga_per_gross': harga,
           'subtotal': subtotal,
         });
       }
@@ -728,7 +728,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                 const SizedBox(height: 12),
                 _buildPopupRow('Jumlah', '$_quantity ${_selectedBahanBaku?.unit ?? ''}'),
                 const SizedBox(height: 12),
-                _buildPopupRow('Harga', 'Rp ${_hargaPerUnit.toStringAsFixed(0)}/${_selectedBahanBaku?.unit ?? ''}'),
+                _buildPopupRow('Harga', 'Rp ${_hargaPerGross.toStringAsFixed(0)}/${_selectedBahanBaku?.unit ?? ''}'),
                 const SizedBox(height: 12),
                 _buildPopupRow('Dari', _selectedVendor?.nama_vendor ?? '-'),
                 const Divider(height: 24),
@@ -902,7 +902,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
         tanggalMasukStr,
         _quantity.toString(),
         totalQty.toStringAsFixed(2),
-        _hargaPerUnit.toStringAsFixed(0),
+        _hargaPerGross.toStringAsFixed(0),
         _totalHarga.toStringAsFixed(0),
         _selectedVendor!.id,
       );
@@ -1160,7 +1160,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
       final bahan = _selectedBahanBakuMap[bahanBakuId];
       if (bahan != null) {
         totalQuantity += qty;
-        double harga = double.tryParse(bahan.harga_per_unit) ?? 0;
+        double harga = double.tryParse(bahan.harga_per_gross) ?? 0;
         grandTotal += (qty * harga);
       }
     });
@@ -1209,7 +1209,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                   final qty = entry.value;
                   if (bahan == null) return const SizedBox.shrink();
 
-                  double harga = double.tryParse(bahan.harga_per_unit) ?? 0;
+                  double harga = double.tryParse(bahan.harga_per_gross) ?? 0;
                   double subtotal = qty * harga;
 
                   return Padding(
@@ -1229,7 +1229,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                                 ),
                               ),
                               Text(
-                                '$qty ${bahan.unit} × Rp ${harga.toStringAsFixed(0)}',
+                                '$qty ${bahan.gross_qty} × Rp ${harga.toStringAsFixed(0)}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -1607,8 +1607,8 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
-                      Text('Stok: ${bahan.stok_tersedia} ${bahan.unit}'),
-                      Text('Harga: Rp ${bahan.harga_per_unit}/${bahan.unit}'),
+                      Text('Stok: ${bahan.stok_tersedia}'),
+                      Text('Harga: Rp ${bahan.harga_per_gross}/${bahan.gross_qty}'),
                     ],
                   ),
                   trailing: Row(
