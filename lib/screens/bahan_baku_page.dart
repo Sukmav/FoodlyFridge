@@ -174,11 +174,39 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
     final TextEditingController namaController = TextEditingController(text: bahanBaku?.nama_bahan ?? '');
     String selectedUnit = bahanBaku?.unit ?? 'kg';
+
+    // Helper function to parse value with unit
+    Map<String, String> parseValueWithUnit(String? value) {
+      if (value == null || value.isEmpty) return {'value': '', 'unit': 'kg'};
+
+      // Try to split by space to separate number and unit
+      final parts = value.trim().split(' ');
+      if (parts.length >= 2) {
+        return {
+          'value': parts[0],
+          'unit': parts[1],
+        };
+      }
+      // If no unit found, return value only with default unit
+      return {'value': value, 'unit': 'kg'};
+    }
+
+    // Parse existing values
+    final grossQtyParsed = parseValueWithUnit(bahanBaku?.gross_qty);
+    final stokTersediaParsed = parseValueWithUnit(bahanBaku?.stok_tersedia);
+    final stokMinimalParsed = parseValueWithUnit(bahanBaku?.stok_minimal);
+
+    // Satuan untuk masing-masing field (bisa berbeda)
+    String selectedSatuanPembelian = grossQtyParsed['unit']!;
+    String selectedSatuanStokTersedia = stokTersediaParsed['unit']!;
+    String selectedSatuanStokMinimal = stokMinimalParsed['unit']!;
+
     final TextEditingController hargaGrossController = TextEditingController(text: bahanBaku?.harga_per_gross ?? '');
     final TextEditingController hargaUnitController = TextEditingController(text: bahanBaku?.harga_per_unit ?? '');
-    final TextEditingController stokTersediaController = TextEditingController(text: bahanBaku?.stok_tersedia ?? '');
-    final TextEditingController stokMinimalController = TextEditingController(text: bahanBaku?.stok_minimal ?? '');
+    final TextEditingController stokTersediaController = TextEditingController(text: stokTersediaParsed['value']);
+    final TextEditingController stokMinimalController = TextEditingController(text: stokMinimalParsed['value']);
     final TextEditingController estimasiUmurController = TextEditingController(text: bahanBaku?.estimasi_umur ?? '');
+    final TextEditingController grossQtyController = TextEditingController(text: grossQtyParsed['value']);
     DateTime? tanggalMasuk = bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_masuk)
         : null;
@@ -187,7 +215,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         : null;
     final TextEditingController kategoriController = TextEditingController(text: bahanBaku?.kategori ?? '');
     final TextEditingController tempatPenyimpananController = TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
-    final TextEditingController grossQtyController = TextEditingController(text: bahanBaku?.gross_qty ?? '');
     final TextEditingController catatanController = TextEditingController(text: bahanBaku?.catatan ?? '');
 
     // Variable untuk menyimpan gambar yang dipilih
@@ -304,7 +331,19 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    _buildTextField(grossQtyController, 'Satuan Pembelian', TextInputType.number),
+                    _buildTextFieldWithUnit(
+                      controller: grossQtyController,
+                      label: 'Satuan Pembelian',
+                      selectedUnit: selectedSatuanPembelian,
+                      onUnitChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setDialogState(() {
+                            selectedSatuanPembelian = newValue;
+                          });
+                        }
+                      },
+                      setState: setDialogState,
+                    ),
                     const SizedBox(height: 16),
                     _buildTextField(hargaGrossController, 'Harga Per Satuan', TextInputType.number),
                     const SizedBox(height: 16),
@@ -315,11 +354,35 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     _buildSectionTitle('Stok'),
                     const SizedBox(height: 16),
 
-                    _buildTextField(stokTersediaController, 'Stok Tersedia', TextInputType.number),
+                    _buildTextFieldWithUnit(
+                      controller: stokTersediaController,
+                      label: 'Stok Tersedia',
+                      selectedUnit: selectedSatuanStokTersedia,
+                      onUnitChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setDialogState(() {
+                            selectedSatuanStokTersedia = newValue;
+                          });
+                        }
+                      },
+                      setState: setDialogState,
+                    ),
                     const SizedBox(height: 16),
 
-                    // Stok Minimal (Editable by user)
-                    _buildTextField(stokMinimalController, 'Stok Minimal', TextInputType.number),
+                    // Stok Minimal (Editable by user with unit)
+                    _buildTextFieldWithUnit(
+                      controller: stokMinimalController,
+                      label: 'Stok Minimal',
+                      selectedUnit: selectedSatuanStokMinimal,
+                      onUnitChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setDialogState(() {
+                            selectedSatuanStokMinimal = newValue;
+                          });
+                        }
+                      },
+                      setState: setDialogState,
+                    ),
                     const SizedBox(height: 30),
 
                     // Kadaluarsa dan Penyimpanan Section
@@ -511,6 +574,11 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               ? '${tanggalKadaluarsa!.year}-${tanggalKadaluarsa!.month.toString().padLeft(2, '0')}-${tanggalKadaluarsa!.day.toString().padLeft(2, '0')}'
                               : '';
 
+                          // Gabungkan nilai dengan satuan
+                          String grossQtyWithUnit = '${grossQtyController.text} $selectedSatuanPembelian';
+                          String stokTersediaWithUnit = '${stokTersediaController.text} $selectedSatuanStokTersedia';
+                          String stokMinimalWithUnit = '${stokMinimalController.text} $selectedSatuanStokMinimal';
+
                           if (isEdit) {
                             await _updateBahanBaku(
                               bahanBaku!.id,
@@ -518,14 +586,14 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               selectedUnit,
                               hargaGrossController.text,
                               hargaUnitController.text,
-                              stokTersediaController.text,
-                              stokMinimalController.text,
+                              stokTersediaWithUnit,
+                              stokMinimalWithUnit,
                               estimasiUmurController.text,
                               tanggalMasukStr,
                               tanggalKadaluarsaStr,
                               kategoriController.text,
                               tempatPenyimpananController.text,
-                              grossQtyController.text,
+                              grossQtyWithUnit,
                               catatanController.text,
                               imageUrl,
                               bahanBaku.nama_bahan,
@@ -536,14 +604,14 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               selectedUnit,
                               hargaGrossController.text,
                               hargaUnitController.text,
-                              stokTersediaController.text,
-                              stokMinimalController.text,
+                              stokTersediaWithUnit,
+                              stokMinimalWithUnit,
                               estimasiUmurController.text,
                               tanggalMasukStr,
                               tanggalKadaluarsaStr,
                               kategoriController.text,
                               tempatPenyimpananController.text,
-                              grossQtyController.text,
+                              grossQtyWithUnit,
                               catatanController.text,
                               imageUrl,
                             );
@@ -712,6 +780,89 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
             );
           }).toList(),
           onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextFieldWithUnit({
+    required TextEditingController controller,
+    required String label,
+    required String selectedUnit,
+    required Function(String?) onUnitChanged,
+    required StateSetter setState,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Jumlah',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.orange[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.orange[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 1,
+              child: DropdownButtonFormField<String>(
+                value: selectedUnit,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.orange[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.orange[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                ),
+                items: ['kg', 'gr', 'dus', 'liter', 'pcs'].map((String item) {
+                  return DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item),
+                  );
+                }).toList(),
+                onChanged: onUnitChanged,
+              ),
+            ),
+          ],
         ),
       ],
     );
