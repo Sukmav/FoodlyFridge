@@ -601,8 +601,75 @@ class _VendorPageState extends State<VendorPage> {
     }
 
     try {
-      // Update vendor using updateWhere based on vendor name
-      await _dataService.updateWhere(
+      // Show loading
+      Fluttertoast.showToast(
+        msg: "Memproses update...",
+        backgroundColor: Colors.blue,
+      );
+
+      // Update all fields using the original vendor name as identifier
+      // Update nama_pic
+      bool success1 = await _dataService.updateWhere(
+        'nama_vendor',
+        vendor.nama_vendor,
+        'nama_pic',
+        _namaPicController.text,
+        token,
+        project,
+        'vendor',
+        appid,
+      );
+
+      // Update nomor_tlp
+      bool success2 = await _dataService.updateWhere(
+        'nama_vendor',
+        vendor.nama_vendor,
+        'nomor_tlp',
+        _nomorTlpController.text,
+        token,
+        project,
+        'vendor',
+        appid,
+      );
+
+      // Update alamat
+      bool success3 = await _dataService.updateWhere(
+        'nama_vendor',
+        vendor.nama_vendor,
+        'alamat',
+        _alamatController.text,
+        token,
+        project,
+        'vendor',
+        appid,
+      );
+
+      // Update bahan_baku
+      bool success4 = await _dataService.updateWhere(
+        'nama_vendor',
+        vendor.nama_vendor,
+        'bahan_baku',
+        _bahanBakuController.text,
+        token,
+        project,
+        'vendor',
+        appid,
+      );
+
+      // Update catatan
+      bool success5 = await _dataService.updateWhere(
+        'nama_vendor',
+        vendor.nama_vendor,
+        'catatan',
+        _catatanController.text,
+        token,
+        project,
+        'vendor',
+        appid,
+      );
+
+      // Update nama_vendor last (after all other fields)
+      bool success6 = await _dataService.updateWhere(
         'nama_vendor',
         vendor.nama_vendor,
         'nama_vendor',
@@ -613,73 +680,28 @@ class _VendorPageState extends State<VendorPage> {
         appid,
       );
 
-      await _dataService.updateWhere(
-        'nama_vendor',
-        _namaVendorController.text,
-        'nama_pic',
-        _namaPicController.text,
-        token,
-        project,
-        'vendor',
-        appid,
-      );
+      if (success1 && success2 && success3 && success4 && success5 && success6) {
+        Fluttertoast.showToast(
+          msg: "Vendor berhasil diupdate",
+          backgroundColor: Colors.green,
+        );
 
-      await _dataService.updateWhere(
-        'nama_vendor',
-        _namaVendorController.text,
-        'nomor_tlp',
-        _nomorTlpController.text,
-        token,
-        project,
-        'vendor',
-        appid,
-      );
+        // Clear form
+        _namaVendorController.clear();
+        _namaPicController.clear();
+        _nomorTlpController.clear();
+        _alamatController.clear();
+        _bahanBakuController.clear();
+        _catatanController.clear();
 
-      await _dataService.updateWhere(
-        'nama_vendor',
-        _namaVendorController.text,
-        'alamat',
-        _alamatController.text,
-        token,
-        project,
-        'vendor',
-        appid,
-      );
-
-      await _dataService.updateWhere(
-        'nama_vendor',
-        _namaVendorController.text,
-        'bahan_baku',
-        _bahanBakuController.text,
-        token,
-        project,
-        'vendor',
-        appid,
-      );
-
-      await _dataService.updateWhere(
-        'nama_vendor',
-        _namaVendorController.text,
-        'catatan',
-        _catatanController.text,
-        token,
-        project,
-        'vendor',
-        appid,
-      );
-
-      Fluttertoast.showToast(
-        msg: "Vendor berhasil diupdate",
-        backgroundColor: Colors.green,
-      );
-
-      // Clear form
-      _namaVendorController.clear();
-      _namaPicController.clear();
-      _nomorTlpController.clear();
-      _alamatController.clear();
-      _bahanBakuController.clear();
-      _catatanController.clear();
+        // Reload vendors
+        await _loadVendors();
+      } else {
+        Fluttertoast.showToast(
+          msg: "Gagal update vendor. Silakan coba lagi.",
+          backgroundColor: Colors.red,
+        );
+      }
     } catch (e) {
       Fluttertoast.showToast(
         msg: "Error: $e",
@@ -728,7 +750,13 @@ class _VendorPageState extends State<VendorPage> {
 
   Future<void> _deleteVendor(VendorModel vendor) async {
     try {
-      await _dataService.removeWhere(
+      // Show loading
+      Fluttertoast.showToast(
+        msg: "Menghapus vendor...",
+        backgroundColor: Colors.blue,
+      );
+
+      final result = await _dataService.removeWhere(
         token,
         project,
         'vendor',
@@ -737,12 +765,20 @@ class _VendorPageState extends State<VendorPage> {
         vendor.nama_vendor,
       );
 
-      Fluttertoast.showToast(
-        msg: "Vendor berhasil dihapus",
-        backgroundColor: Colors.green,
-      );
+      if (result == true) {
+        Fluttertoast.showToast(
+          msg: "Vendor berhasil dihapus",
+          backgroundColor: Colors.green,
+        );
 
-      await _loadVendors();
+        // Reload vendors
+        await _loadVendors();
+      } else {
+        Fluttertoast.showToast(
+          msg: "Gagal menghapus vendor. Silakan coba lagi.",
+          backgroundColor: Colors.red,
+        );
+      }
     } catch (e) {
       Fluttertoast.showToast(
         msg: "Error: $e",
@@ -1016,16 +1052,16 @@ class _VendorPageState extends State<VendorPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(''),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        toolbarHeight: 5,
       ),
       body: Column(
         children: [
           // Search Bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _searchController,
               onChanged: _filterVendors,
