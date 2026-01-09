@@ -239,11 +239,11 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
     setState(() => _isLoading = true);
 
     try {
-      print('📍 Step 1: Calling _bahanBakuService.getAllBahanBaku()');
+      print('📍 Step 1: Calling _bahanBakuService.getBahanBakuByUserId()');
+      print('   User ID: ${widget.userId}');
 
-      // Use getAllBahanBaku() instead of getBahanBakuByUserId()
-      // because bahan baku data doesn't have user_id field
-      final bahanBakuList = await _bahanBakuService.getAllBahanBaku();
+      // Use getBahanBakuByUserId() to get bahan baku for current user
+      final bahanBakuList = await _bahanBakuService.getBahanBakuByUserId(widget.userId);
 
       print('📍 Step 2: Data received from service');
       print('   Response type: ${bahanBakuList.runtimeType}');

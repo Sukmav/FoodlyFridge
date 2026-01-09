@@ -1,4 +1,3 @@
-// screens/kasir_page.dart - VERSI DENGAN APPCOLORS
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -26,24 +25,24 @@ class _KasirPageState extends State<KasirPage> {
   final TextEditingController _catatanController = TextEditingController();
   String _userId = ''; // Variabel untuk menyimpan userId
   String _staffName = '';
-  
-  
+
+
   List<MenuModel> _menuList = [];
   List<BahanBakuModel> _bahanBakuList = [];
   bool _isLoading = false;
   bool _isProcessing = false;
-  
+
   // Data pesanan
   final List<CartItem> _cartItems = [];
-  
+
   // Untuk operasi harga
   double _totalHarga = 0.0;
   String _searchQuery = '';
-  
+
   // Kategori filter
   String _selectedCategory = 'Semua';
   List<String> _categories = ['Semua'];
-  
+
   // Untuk invoice counter
   Map<String, int> _invoiceCounter = {};
   String _lastInvoiceDate = '';
@@ -55,14 +54,14 @@ class _KasirPageState extends State<KasirPage> {
     _loadData();
     _initInvoiceCounter();
   }
-  
+
   Future<void> _loadUserData() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _userId = prefs.getString('user_id') ?? 'default_owner_id';
       _staffName = prefs.getString('staff_nama') ?? 'Staff';
     });
-    
+
     print('User ID loaded: $_userId');
     print('Staff Name: $_staffName');
   }
@@ -77,9 +76,9 @@ class _KasirPageState extends State<KasirPage> {
   String _generateInvoice() {
     final now = DateTime.now();
     final today = '${now.day.toString().padLeft(2, '0')}'
-                  '${now.month.toString().padLeft(2, '0')}'
-                  '${now.year}';
-    
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.year}';
+
     if (_lastInvoiceDate != today) {
       _invoiceCounter.clear();
       _lastInvoiceDate = today;
@@ -87,50 +86,50 @@ class _KasirPageState extends State<KasirPage> {
     } else {
       _invoiceCounter[today] = (_invoiceCounter[today] ?? 0) + 1;
     }
-    
+
     final counter = _invoiceCounter[today]!;
     return 'INV$today-${counter.toString().padLeft(2, '0')}';
   }
 
   Future<void> _loadData() async {
     if (_isLoading) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final menuResponse = await _dataService.selectAll(token, project, 'menu', appid);
       List<MenuModel> loadedMenus = [];
       List<String> loadedCategories = ['Semua'];
-      
+
       if (menuResponse.isNotEmpty && menuResponse != '[]' && menuResponse != 'null') {
         try {
           final decoded = json.decode(menuResponse);
           List<dynamic> menuDataList = [];
-          
+
           if (decoded is Map && decoded.containsKey('data')) {
             menuDataList = decoded['data'] as List<dynamic>;
           } else if (decoded is List) {
             menuDataList = decoded;
           }
-          
+
           loadedMenus = menuDataList.map<MenuModel>((item) {
             try {
               Map<String, dynamic> transformedItem = Map<String, dynamic>.from(item);
-              
+
               if (item.containsKey('id') && !item.containsKey('_id')) {
                 transformedItem['_id'] = item['id'];
               }
-              
+
               if (item.containsKey('bahan') && !item.containsKey('bahan_baku')) {
                 final bahanStr = item['bahan']?.toString() ?? '';
                 final jumlahStr = item['jumlah']?.toString() ?? '';
                 final satuanStr = item['satuan']?.toString() ?? '';
-                
+
                 if (bahanStr.isNotEmpty) {
                   final bahanList = bahanStr.split(',');
                   final jumlahList = jumlahStr.split(',');
                   final satuanList = satuanStr.split(',');
-                  
+
                   List<Map<String, dynamic>> bahanBakuArray = [];
                   for (int i = 0; i < bahanList.length; i++) {
                     if (bahanList[i].trim().isNotEmpty) {
@@ -142,20 +141,20 @@ class _KasirPageState extends State<KasirPage> {
                       });
                     }
                   }
-                  
+
                   transformedItem['bahan_baku'] = bahanBakuArray;
                 }
               }
-              
+
               if (item.containsKey('harga_jual') && !item.containsKey('harga')) {
                 transformedItem['harga'] = item['harga_jual'];
               }
-              
+
               return MenuModel.fromJson(transformedItem);
             } catch (e) {
               return MenuModel(
-                id: item['id']?.toString() ?? 
-                    item['_id']?.toString() ?? 
+                id: item['id']?.toString() ??
+                    item['_id']?.toString() ??
                     'fallback_${DateTime.now().millisecondsSinceEpoch}',
                 kode_menu: item['kode_menu']?.toString() ?? 'ERR',
                 nama_menu: item['nama_menu']?.toString() ?? 'Unknown Item',
@@ -168,42 +167,42 @@ class _KasirPageState extends State<KasirPage> {
               );
             }
           }).toList();
-          
+
           final categories = loadedMenus
               .map((m) => m.kategori ?? '')
               .where((cat) => cat.isNotEmpty && cat != 'null')
               .toSet()
               .toList();
-          
+
           loadedCategories = ['Semua'] + categories;
-          
+
         } catch (e) {
           _showToast("Format data menu tidak valid", isSuccess: false);
         }
       } else {
         _showToast("Tidak ada data menu tersedia", isSuccess: false);
       }
-      
+
       final bahanResponse = await _dataService.selectAll(token, project, 'bahan_baku', appid);
       List<BahanBakuModel> loadedBahanBaku = [];
-      
+
       if (bahanResponse.isNotEmpty && bahanResponse != '[]' && bahanResponse != 'null') {
         try {
           final decoded = json.decode(bahanResponse);
           List<dynamic> bahanDataList = [];
-          
+
           if (decoded is Map && decoded.containsKey('data')) {
             bahanDataList = decoded['data'] as List<dynamic>;
           } else if (decoded is List) {
             bahanDataList = decoded;
           }
-          
+
           loadedBahanBaku = bahanDataList
               .map((j) => BahanBakuModel.fromJson(j))
               .toList();
         } catch (e) {}
       }
-      
+
       if (mounted) {
         setState(() {
           _menuList = loadedMenus;
@@ -211,7 +210,7 @@ class _KasirPageState extends State<KasirPage> {
           _categories = loadedCategories;
         });
       }
-      
+
     } catch (e) {
       _showToast("Gagal memuat data: $e", isSuccess: false);
     } finally {
@@ -219,11 +218,11 @@ class _KasirPageState extends State<KasirPage> {
         setState(() => _isLoading = false);
       }
     }
-  }  
+  }
 
   double _parseHarga(String hargaStr) {
     if (hargaStr.isEmpty) return 0.0;
-    
+
     try {
       String cleaned = hargaStr.replaceAll(RegExp(r'[^0-9.,]'), '');
       cleaned = cleaned.replaceAll(',', '.');
@@ -235,19 +234,19 @@ class _KasirPageState extends State<KasirPage> {
 
   List<MenuModel> _getFilteredMenus() {
     var filtered = _menuList;
-    
+
     if (_selectedCategory != 'Semua') {
       filtered = filtered.where((menu) => menu.kategori == _selectedCategory).toList();
     }
-    
+
     if (_searchQuery.isNotEmpty) {
       final searchLower = _searchQuery.toLowerCase();
-      filtered = filtered.where((menu) => 
-        menu.nama_menu.toLowerCase().contains(searchLower) ||
-        menu.kode_menu.toLowerCase().contains(searchLower)
+      filtered = filtered.where((menu) =>
+      menu.nama_menu.toLowerCase().contains(searchLower) ||
+          menu.kode_menu.toLowerCase().contains(searchLower)
       ).toList();
     }
-    
+
     return filtered;
   }
 
@@ -258,7 +257,7 @@ class _KasirPageState extends State<KasirPage> {
     }
 
     final existingIndex = _cartItems.indexWhere((item) => item.menu.id == menu.id);
-    
+
     if (existingIndex != -1) {
       setState(() {
         _cartItems[existingIndex] = CartItem(
@@ -274,7 +273,7 @@ class _KasirPageState extends State<KasirPage> {
         ));
       });
     }
-    
+
     _calculateTotal();
     _showToast("✓ ${menu.nama_menu} ditambahkan", isSuccess: true);
   }
@@ -282,27 +281,27 @@ class _KasirPageState extends State<KasirPage> {
   bool _cekStokBahanBaku(MenuModel menu, int tambahanQuantity) {
     try {
       final bahanDetails = menu.bahan_baku;
-      
+
       if (bahanDetails.isEmpty) {
         return true;
       }
-      
+
       for (var bahan in bahanDetails) {
         final nama_bahan = bahan.nama_bahan;
         if (nama_bahan.isEmpty) continue;
-        
+
         final jumlahPerMenu = double.tryParse(bahan.jumlah) ?? 0.0;
         final totalKebutuhan = jumlahPerMenu * tambahanQuantity;
-        
+
         final bahanBaku = _bahanBakuList.firstWhere(
-          (b) => b.nama_bahan.toLowerCase() == nama_bahan.toLowerCase(),
+              (b) => b.nama_bahan.toLowerCase() == nama_bahan.toLowerCase(),
           orElse: () => BahanBakuModel.fromJson({}),
         );
-        
+
         if (bahanBaku.id.isEmpty) continue;
-        
+
         final stokTersedia = double.tryParse(bahanBaku.stok_tersedia ?? '0') ?? 0.0;
-        
+
         double totalDiKeranjang = 0.0;
         for (var item in _cartItems) {
           for (var bahanItem in item.menu.bahan_baku) {
@@ -312,15 +311,15 @@ class _KasirPageState extends State<KasirPage> {
             }
           }
         }
-        
+
         totalDiKeranjang += totalKebutuhan;
-        
+
         if (stokTersedia < totalDiKeranjang) {
           _showToast("Stok $nama_bahan tidak mencukupi (tersedia: $stokTersedia ${bahan.unit})", isSuccess: false);
           return false;
         }
       }
-      
+
       return true;
     } catch (e) {
       return false;
@@ -339,21 +338,21 @@ class _KasirPageState extends State<KasirPage> {
       _removeFromCart(index);
       return;
     }
-    
+
     final item = _cartItems[index];
     final deltaQuantity = newQuantity - item.quantity;
-    
+
     if (deltaQuantity > 0 && !_cekStokBahanBaku(item.menu, deltaQuantity)) {
       return;
     }
-    
+
     setState(() {
       _cartItems[index] = CartItem(
         menu: item.menu,
         quantity: newQuantity,
       );
     });
-    
+
     _calculateTotal();
   }
 
@@ -363,7 +362,7 @@ class _KasirPageState extends State<KasirPage> {
       final harga = _parseHarga(item.menu.harga);
       total += harga * item.quantity;
     }
-    
+
     setState(() {
       _totalHarga = total;
     });
@@ -386,7 +385,7 @@ class _KasirPageState extends State<KasirPage> {
 
     try {
       final invoice = _generateInvoice();
-      
+
       for (var cartItem in _cartItems) {
         await _kurangiStokBahanBaku(cartItem.menu, cartItem.quantity);
       }
@@ -407,11 +406,11 @@ class _KasirPageState extends State<KasirPage> {
         catatan: _catatanController.text.isNotEmpty ? _catatanController.text : '-',
         totalHarga: _totalHarga.toString(),
       );
-      
+
       // TAMPILKAN DIALOG DULU
       _showTransaksiBerhasilDialog(invoice);
       _showToast("✅ Transaksi berhasil! Invoice: $invoice", isSuccess: true);
-      
+
       // RESET FORM SETELAHNYA (tapi perlu delay sedikit)
       Future.delayed(Duration(milliseconds: 500), () {
         if (mounted) {
@@ -429,20 +428,20 @@ class _KasirPageState extends State<KasirPage> {
       }
     }
   }
-  
+
   String _formatTanggal(DateTime dateTime) {
     final day = dateTime.day.toString().padLeft(2, '0');
     final month = dateTime.month.toString().padLeft(2, '0');
     final year = dateTime.year.toString();
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');
-    
+
     return '$day/$month/$year $hour:$minute';
   }
 
   String _formatMenuMultiLine() {
     if (_cartItems.isEmpty) return '-';
-    
+
     return _cartItems
         .map((item) => '${item.menu.nama_menu} x${item.quantity}')
         .join('<br>');
@@ -453,25 +452,25 @@ class _KasirPageState extends State<KasirPage> {
       for (var bahan in menu.bahan_baku) {
         final namaBahan = bahan.nama_bahan;
         if (namaBahan.isEmpty) continue;
-        
+
         final bahanIndex = _bahanBakuList.indexWhere(
-          (b) => b.nama_bahan.toLowerCase() == namaBahan.toLowerCase(),
+              (b) => b.nama_bahan.toLowerCase() == namaBahan.toLowerCase(),
         );
-        
+
         if (bahanIndex == -1) continue;
-        
+
         final bahanBaku = _bahanBakuList[bahanIndex];
         final jumlahPerMenu = double.tryParse(bahan.jumlah) ?? 0.0;
         final totalPengurangan = jumlahPerMenu * quantity;
         final stokLama = double.tryParse(bahanBaku.stok_tersedia) ?? 0.0;
         final stokBaru = stokLama - totalPengurangan;
-        
+
         if (stokBaru < 0) {
           throw Exception('Stok $namaBahan tidak mencukupi');
         }
-        
+
         bool updateSuccess = false;
-        
+
         if (bahanBaku.id.isNotEmpty && bahanBaku.id != '') {
           final result = await _dataService.updateId(
             'stok_tersedia',
@@ -482,12 +481,12 @@ class _KasirPageState extends State<KasirPage> {
             appid,
             bahanBaku.id,
           );
-          
+
           if (result == true) {
             updateSuccess = true;
           }
         }
-        
+
         if (!updateSuccess) {
           try {
             await _dataService.updateWhere(
@@ -503,11 +502,11 @@ class _KasirPageState extends State<KasirPage> {
             updateSuccess = true;
           } catch (e) {}
         }
-        
+
         if (!updateSuccess) {
           throw Exception('Gagal update stok di database untuk $namaBahan');
         }
-        
+
         if (mounted) {
           setState(() {
             _bahanBakuList[bahanIndex] = BahanBakuModel(
@@ -530,7 +529,7 @@ class _KasirPageState extends State<KasirPage> {
           });
         }
       }
-      
+
     } catch (e) {
       throw Exception('Gagal mengurangi stok: $e');
     }
@@ -539,20 +538,20 @@ class _KasirPageState extends State<KasirPage> {
   Future<void> _refreshBahanBakuData() async {
     try {
       final bahanResponse = await _dataService.selectAll(token, project, 'bahan_baku', appid);
-      
+
       if (bahanResponse.isNotEmpty && bahanResponse != '[]' && bahanResponse != 'null') {
         final decoded = json.decode(bahanResponse);
         List<dynamic> bahanDataList = [];
-        
+
         if (decoded is Map && decoded.containsKey('data')) {
           bahanDataList = decoded['data'] as List<dynamic>;
         } else if (decoded is List) {
           bahanDataList = decoded;
         }
-        
+
         final refreshedList = bahanDataList.map<BahanBakuModel>((item) {
           Map<String, dynamic> itemMap = {};
-          
+
           if (item is Map) {
             item.forEach((key, value) {
               if (key is String) {
@@ -562,7 +561,7 @@ class _KasirPageState extends State<KasirPage> {
               }
             });
           }
-          
+
           return BahanBakuModel(
             id: itemMap['_id']?.toString() ?? '',
             foto_bahan: itemMap['foto_bahan']?.toString() ?? '',
@@ -581,7 +580,7 @@ class _KasirPageState extends State<KasirPage> {
             catatan: itemMap['catatan']?.toString() ?? '',
           );
         }).toList();
-        
+
         if (mounted) {
           setState(() {
             _bahanBakuList = refreshedList;
@@ -592,6 +591,21 @@ class _KasirPageState extends State<KasirPage> {
   }
 
   void _showTransaksiBerhasilDialog(String invoice) {
+    // **SIMPAN DATA CART SEBELUM DIALOG DITUTUP**
+    final List<Map<String, dynamic>> savedCartItems = _cartItems.map((item) {
+      return {
+        'nama_menu': item.menu.nama_menu ?? 'Item',
+        'quantity': item.quantity,
+        'subtotal': _parseHarga(item.menu.harga) * item.quantity,
+      };
+    }).toList();
+
+    final String savedNamaPemesan = _namaPemesanController.text;
+    final String savedNoMeja = _noMejaController.text.isNotEmpty ? _noMejaController.text : '-';
+    final String savedCatatan = _catatanController.text.isNotEmpty ? _catatanController.text : '-';
+    final double savedTotalHarga = _totalHarga;
+    final String savedUserId = _userId;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -612,17 +626,27 @@ class _KasirPageState extends State<KasirPage> {
           children: [
             Text('Invoice: $invoice', style: AppTextStyles.bodyMedium),
             SizedBox(height: 10),
-            Text('Total: Rp ${_formatNumber(_totalHarga)}', 
+            Text('Total: Rp ${_formatNumber(savedTotalHarga)}',
                 style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+            SizedBox(height: 10),
+            Text('Jumlah Item: ${savedCartItems.length}', style: AppTextStyles.bodySmall),
+            SizedBox(height: 5),
+            Text('Pelanggan: $savedNamaPemesan', style: AppTextStyles.bodySmall),
             SizedBox(height: 10),
             Text('Terima kasih atas pembeliannya!', style: AppTextStyles.bodySmall),
           ],
         ),
         actions: [
+          // **PERBAIKI: Hapus _resetForm() dari sini**
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Tutup dialog
-              _resetForm(); // Reset form setelah OK
+              Navigator.pop(context); // Tutup dialog saja
+              // **TUNDA reset form setelah dialog ditutup**
+              Future.delayed(Duration(milliseconds: 100), () {
+                if (mounted) {
+                  _resetForm();
+                }
+              });
             },
             child: Text('OK', style: TextStyle(color: AppColors.primary)),
             style: TextButton.styleFrom(
@@ -632,39 +656,46 @@ class _KasirPageState extends State<KasirPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context); // Tutup dialog
-              
-              // Buat data transaksi
+
+              // **GUNAKAN DATA YANG DISIMPAN, BUKAN DATA LANGSUNG DARI CONTROLLER**
               final transaksiData = {
                 'no_transaksi': invoice,
-                'nama_pemesan': _namaPemesanController.text,
-                'no_meja': _noMejaController.text.isNotEmpty ? _noMejaController.text : '-',
-                'items': _cartItems.map((item) => {
-                  'nama_menu': item.menu.nama_menu ?? 'Item',
-                  'quantity': item.quantity,
-                  'subtotal': _parseHarga(item.menu.harga) * item.quantity,
-                }).toList(),
-                'total_harga': _totalHarga,
-                'catatan': _catatanController.text.isNotEmpty ? _catatanController.text : '-',
+                'nama_pemesan': savedNamaPemesan,
+                'no_meja': savedNoMeja,
+                'items': savedCartItems, // Gunakan savedCartItems
+                'total_harga': savedTotalHarga,
+                'catatan': savedCatatan,
+                'tanggal': DateTime.now().toString(),
               };
-              
-              print('Navigating to StrukPage with data:');
-              print('- Invoice: $invoice');
-              print('- User ID: $_userId');
-              print('- Items count: ${_cartItems.length}');
-              print('- Total: $_totalHarga');
-              
-              // Navigasi ke StrukPage
+
+              // **DEBUG: CETAK DATA UNTUK VERIFIKASI**
+              print('=== DEBUG: DATA TRANSAKSI UNTUK STRUK ===');
+              print('Invoice: $invoice');
+              print('Nama Pemesan: $savedNamaPemesan');
+              print('Jumlah Items: ${savedCartItems.length}');
+              for (var i = 0; i < savedCartItems.length; i++) {
+                print('  Item $i: ${savedCartItems[i]['nama_menu']} x${savedCartItems[i]['quantity']} = Rp ${savedCartItems[i]['subtotal']}');
+              }
+              print('Total: Rp $savedTotalHarga');
+              print('User ID: $savedUserId');
+              print('=========================================');
+
+              // **NAVIGASI TANPA THEN CALLBACK**
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => StrukPage(
                     transaksi: transaksiData,
-                    userId: _userId, // ✅ GUNAKAN _userId dari state (BUKAN widget.userId)
+                    userId: savedUserId,
                   ),
                 ),
-              ).then((_) {
-                // Reset form setelah kembali dari StrukPage
-                _resetForm();
+              );
+
+              // **RESET FORM SETELAH NAVIGASI (tanpa delay)**
+              Future.delayed(Duration(milliseconds: 300), () {
+                if (mounted) {
+                  _resetForm();
+                }
               });
             },
             child: Text('Cetak Struk'),
@@ -681,7 +712,7 @@ class _KasirPageState extends State<KasirPage> {
       ),
     );
   }
-  
+
   void _resetForm() {
     setState(() {
       _cartItems.clear();
@@ -696,7 +727,7 @@ class _KasirPageState extends State<KasirPage> {
     final harga = _parseHarga(menu.harga);
     final stokMenu = int.tryParse(menu.stok) ?? 0;
     final bool isOutOfStock = stokMenu <= 0;
-    
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(
@@ -717,16 +748,16 @@ class _KasirPageState extends State<KasirPage> {
                   borderRadius: BorderRadius.circular(16),
                   child: menu.foto_menu != null && menu.foto_menu!.isNotEmpty
                       ? Image.network(
-                          menu.foto_menu!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildDefaultBackground(menu);
-                          },
-                        )
+                    menu.foto_menu!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildDefaultBackground(menu);
+                    },
+                  )
                       : _buildDefaultBackground(menu),
                 ),
               ),
-              
+
               // Gradient overlay untuk teks lebih readable
               Positioned.fill(
                 child: Container(
@@ -743,7 +774,7 @@ class _KasirPageState extends State<KasirPage> {
                   ),
                 ),
               ),
-              
+
               // Konten utama
               Padding(
                 padding: EdgeInsets.all(12),
@@ -773,7 +804,7 @@ class _KasirPageState extends State<KasirPage> {
                             ),
                           ),
                         ),
-                        
+
                         // Kategori dengan warna sesuai jenis (MENGUNAKAN APPCOLORS)
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -792,9 +823,9 @@ class _KasirPageState extends State<KasirPage> {
                         ),
                       ],
                     ),
-                    
+
                     Spacer(),
-                    
+
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -817,9 +848,9 @@ class _KasirPageState extends State<KasirPage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        
+
                         SizedBox(height: 6),
-                        
+
                         // Harga dan stok
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -847,7 +878,7 @@ class _KasirPageState extends State<KasirPage> {
                                 ),
                               ),
                             ),
-                            
+
                             // Stok indicator (MENGUNAKAN APPCOLORS)
                             if (stokMenu > 0)
                               Container(
@@ -870,7 +901,7 @@ class _KasirPageState extends State<KasirPage> {
                                     ),
                                   ],
                                 ),
-                              )                            
+                              )
                           ],
                         ),
                       ],
@@ -878,7 +909,7 @@ class _KasirPageState extends State<KasirPage> {
                   ],
                 ),
               ),
-              
+
               // Floating Add Button (MENGUNAKAN APPCOLORS)
               if (!isOutOfStock)
                 Positioned(
@@ -917,7 +948,7 @@ class _KasirPageState extends State<KasirPage> {
 
   Widget _buildDefaultBackground(MenuModel menu) {
     final categoryColor = _getCategoryColor(menu.kategori ?? '');
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -953,12 +984,12 @@ class _KasirPageState extends State<KasirPage> {
       default:
         return AppColors.primary; // MENGGUNAKAN PRIMARY COLOR
     }
-  }  
+  }
 
   Widget _buildCartItem(CartItem item, int index) {
     final harga = _parseHarga(item.menu.harga);
     final subtotal = harga * item.quantity;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -999,9 +1030,9 @@ class _KasirPageState extends State<KasirPage> {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(width: 12),
-                
+
                 // Menu info
                 Expanded(
                   child: Column(
@@ -1055,7 +1086,7 @@ class _KasirPageState extends State<KasirPage> {
                     ],
                   ),
                 ),
-                
+
                 // Harga per item dan subtotal
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1077,9 +1108,9 @@ class _KasirPageState extends State<KasirPage> {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 12),
-            
+
             // Baris bawah: Tombol kontrol quantity dan delete
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1122,7 +1153,7 @@ class _KasirPageState extends State<KasirPage> {
                     ],
                   ),
                 ),
-                
+
                 // Delete button (MENGUNAKAN APPCOLORS)
                 Container(
                   decoration: BoxDecoration(
@@ -1168,7 +1199,7 @@ class _KasirPageState extends State<KasirPage> {
             style: AppTextStyles.headlineMedium, // MENGGUNAKAN TEXT STYLES
           ),
           SizedBox(height: 16),
-          
+
           TextField(
             controller: _namaPemesanController,
             decoration: InputDecoration(
@@ -1189,9 +1220,9 @@ class _KasirPageState extends State<KasirPage> {
               ),
             ),
           ),
-          
+
           SizedBox(height: 12),
-          
+
           TextField(
             controller: _noMejaController,
             decoration: InputDecoration(
@@ -1213,9 +1244,9 @@ class _KasirPageState extends State<KasirPage> {
             ),
             keyboardType: TextInputType.number,
           ),
-          
+
           SizedBox(height: 12),
-          
+
           TextField(
             controller: _catatanController,
             decoration: InputDecoration(
@@ -1251,7 +1282,7 @@ class _KasirPageState extends State<KasirPage> {
         itemBuilder: (context, index) {
           final category = _categories[index];
           final isSelected = _selectedCategory == category;
-          
+
           return Padding(
             padding: EdgeInsets.only(right: 8, left: index == 0 ? 0 : 0),
             child: ChoiceChip(
@@ -1296,38 +1327,38 @@ class _KasirPageState extends State<KasirPage> {
   String _formatNumber(double number) {
     return number.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
+          (m) => '${m[1]}.',
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final filteredMenus = _getFilteredMenus();
-    
+
     return Scaffold(
       backgroundColor: AppColors.background, // MENGGUNAKAN BACKGROUND COLOR
       body: _isLoading
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(AppColors.primary),
-                  ),
-                  SizedBox(height: 16),
-                  Text('Memuat data...', style: AppTextStyles.bodyMedium),
-                ],
-              ),
-            )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 1000) {
-                  return _buildDesktopLayout(filteredMenus);
-                } else {
-                  return _buildMobileLayout(filteredMenus);
-                }
-              },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation(AppColors.primary),
             ),
+            SizedBox(height: 16),
+            Text('Memuat data...', style: AppTextStyles.bodyMedium),
+          ],
+        ),
+      )
+          : LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth > 1000) {
+            return _buildDesktopLayout(filteredMenus);
+          } else {
+            return _buildMobileLayout(filteredMenus);
+          }
+        },
+      ),
     );
   }
 
@@ -1376,9 +1407,9 @@ class _KasirPageState extends State<KasirPage> {
                           contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                         ),
                       ),
-                      
+
                       SizedBox(height: 12),
-                      
+
                       // Categories
                       Container(
                         height: 40,
@@ -1387,9 +1418,9 @@ class _KasirPageState extends State<KasirPage> {
                     ],
                   ),
                 ),
-                
+
                 SizedBox(height: 8),
-                
+
                 // Menu Grid
                 Expanded(
                   child: Padding(
@@ -1412,13 +1443,13 @@ class _KasirPageState extends State<KasirPage> {
             ),
           ),
         ),
-        
+
         // Divider
         Container(
           width: 1,
           color: AppColors.border,
         ),
-        
+
         // Right Panel - Cart & Form
         Expanded(
           flex: 2,
@@ -1429,9 +1460,9 @@ class _KasirPageState extends State<KasirPage> {
                 children: [
                   // Form Input
                   _buildFormInput(),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // Cart Section
                   Container(
                     padding: EdgeInsets.all(16),
@@ -1471,40 +1502,40 @@ class _KasirPageState extends State<KasirPage> {
                             ),
                           ],
                         ),
-                        
+
                         SizedBox(height: 16),
-                        
+
                         // Cart Items
                         _cartItems.isEmpty
                             ? Center(
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.shopping_cart_outlined,
-                                      size: 80,
-                                      color: AppColors.textDisabled,
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'Keranjang Kosong',
-                                      style: AppTextStyles.bodyLarge.copyWith(
-                                        color: AppColors.textDisabled,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Column(
-                                children: _cartItems.asMap().entries.map((entry) {
-                                  final index = entry.key;
-                                  final item = entry.value;
-                                  return _buildCartItem(item, index);
-                                }).toList(),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 80,
+                                color: AppColors.textDisabled,
                               ),
-                        
+                              SizedBox(height: 16),
+                              Text(
+                                'Keranjang Kosong',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  color: AppColors.textDisabled,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                            : Column(
+                          children: _cartItems.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final item = entry.value;
+                            return _buildCartItem(item, index);
+                          }).toList(),
+                        ),
+
                         SizedBox(height: 20),
-                        
+
                         // Total Summary
                         Container(
                           padding: EdgeInsets.all(16),
@@ -1539,9 +1570,9 @@ class _KasirPageState extends State<KasirPage> {
                             ],
                           ),
                         ),
-                        
+
                         SizedBox(height: 20),
-                        
+
                         // Action Buttons (MENGUNAKAN APPCOLORS)
                         Row(
                           children: [
@@ -1588,21 +1619,21 @@ class _KasirPageState extends State<KasirPage> {
                                 ),
                                 child: _isProcessing
                                     ? SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
                                     : Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.payment, size: 20),
-                                          SizedBox(width: 8),
-                                          Text('Proses Pembayaran', style: AppTextStyles.buttonMedium),
-                                        ],
-                                      ),
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.payment, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Proses Pembayaran', style: AppTextStyles.buttonMedium),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -1713,7 +1744,7 @@ class _KasirPageState extends State<KasirPage> {
                     ],
                   ),
                 ),
-                
+
                 // Menu Grid
                 Expanded(
                   child: Padding(
@@ -1734,7 +1765,7 @@ class _KasirPageState extends State<KasirPage> {
                 ),
               ],
             ),
-            
+
             // Tab Pesanan
             SingleChildScrollView(
               padding: EdgeInsets.all(16),
@@ -1743,120 +1774,120 @@ class _KasirPageState extends State<KasirPage> {
                   // Cart Items
                   _cartItems.isEmpty
                       ? Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.shopping_cart_outlined,
-                                size: 100,
-                                color: AppColors.textDisabled,
-                              ),
-                              SizedBox(height: 20),
-                              Text(
-                                'Keranjang Kosong',
-                                style: AppTextStyles.bodyLarge.copyWith(
-                                  color: AppColors.textDisabled,
-                                ),
-                              ),
-                              Text(
-                                'Pilih menu dari tab Menu',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textDisabled,
-                                ),
-                              ),
-                            ],
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 100,
+                          color: AppColors.textDisabled,
+                        ),
+                        SizedBox(height: 20),
+                        Text(
+                          'Keranjang Kosong',
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            color: AppColors.textDisabled,
                           ),
-                        )
+                        ),
+                        Text(
+                          'Pilih menu dari tab Menu',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textDisabled,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                       : Column(
+                    children: [
+                      ..._cartItems.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final item = entry.value;
+                        return _buildCartItem(item, index);
+                      }),
+                      SizedBox(height: 20),
+
+                      // Form Input
+                      _buildFormInput(),
+
+                      SizedBox(height: 20),
+
+                      Container(
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
                           children: [
-                            ..._cartItems.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final item = entry.value;
-                              return _buildCartItem(item, index);
-                            }),
-                            SizedBox(height: 20),
-
-                            // Form Input
-                            _buildFormInput(),
-                            
-                            SizedBox(height: 20),
-
-                            Container(
-                              padding: EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text('Total Item:', style: AppTextStyles.bodyMedium),
-                                      Text('${_cartItems.length}', style: AppTextStyles.bodyMedium),
-                                    ],
-                                  ),
-                                  SizedBox(height: 8),
-                                  Divider(color: AppColors.border),
-                                  SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text('Total Harga:', style: AppTextStyles.headlineMedium),
-                                      Text(
-                                        'Rp ${_formatNumber(_totalHarga)}',
-                                        style: AppTextStyles.displaySmall.copyWith(
-                                          color: AppColors.success,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: 20),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: _cartItems.isEmpty ? null : () {
-                                      setState(() {
-                                        _cartItems.clear();
-                                        _totalHarga = 0.0;
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.surface,
-                                      foregroundColor: AppColors.danger,
-                                      padding: EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        side: BorderSide(color: AppColors.danger),
-                                      ),
-                                    ),
-                                    child: Text('Bersihkan', style: AppTextStyles.buttonMedium),
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: _prosesPembayaran,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.success,
-                                      foregroundColor: Colors.white,
-                                      padding: EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    child: _isProcessing
-                                        ? CircularProgressIndicator(color: Colors.white)
-                                        : Text('Proses Pembayaran', style: AppTextStyles.buttonMedium),
+                                Text('Total Item:', style: AppTextStyles.bodyMedium),
+                                Text('${_cartItems.length}', style: AppTextStyles.bodyMedium),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Divider(color: AppColors.border),
+                            SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total Harga:', style: AppTextStyles.headlineMedium),
+                                Text(
+                                  'Rp ${_formatNumber(_totalHarga)}',
+                                  style: AppTextStyles.displaySmall.copyWith(
+                                    color: AppColors.success,
                                   ),
                                 ),
                               ],
                             ),
                           ],
                         ),
+                      ),
+                      SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _cartItems.isEmpty ? null : () {
+                                setState(() {
+                                  _cartItems.clear();
+                                  _totalHarga = 0.0;
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.surface,
+                                foregroundColor: AppColors.danger,
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(color: AppColors.danger),
+                                ),
+                              ),
+                              child: Text('Bersihkan', style: AppTextStyles.buttonMedium),
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _prosesPembayaran,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: _isProcessing
+                                  ? CircularProgressIndicator(color: Colors.white)
+                                  : Text('Proses Pembayaran', style: AppTextStyles.buttonMedium),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

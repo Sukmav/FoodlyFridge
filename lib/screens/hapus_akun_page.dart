@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../config.dart';
 import 'login_page.dart';
 
 class HapusAkunPage extends StatefulWidget {
@@ -55,7 +58,56 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
     if (_isProcessing) return; // guard double tap
     if (!_formKey.currentState!.validate()) return;
 
-    // Show confirmation dialog
+    final pwd = _passwordController.text.trim();
+
+    // Quick validation: Check if user exists
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.email == null) {
+      _showMessage('Tidak ada user aktif.', isError: true);
+      return;
+    }
+
+    // Quick reauthentication check (to verify password is correct)
+    setState(() => _isProcessing = true);
+
+    try {
+      if (kDebugMode) print('🔍 Quick password verification for: ${user.email}');
+
+      final cred = EmailAuthProvider.credential(email: user.email!, password: pwd);
+      await user.reauthenticateWithCredential(cred).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw FirebaseAuthException(
+            code: 'timeout',
+            message: 'Koneksi timeout.',
+          );
+        },
+      );
+
+      if (kDebugMode) print('✅ Password verified');
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) print('❌ Verification failed: ${e.code}');
+      String message = 'Gagal verifikasi password.';
+
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Kata sandi salah. Silakan coba lagi.';
+      } else if (e.code == 'user-not-found') {
+        message = 'Akun tidak ditemukan.';
+      } else if (e.code == 'timeout' || e.code == 'network-request-failed') {
+        message = 'Koneksi internet bermasalah. Silakan coba lagi.';
+      }
+
+      _showMessage(message, isError: true);
+      setState(() => _isProcessing = false);
+      return;
+    } catch (e) {
+      if (kDebugMode) print('❌ Unexpected error: $e');
+      _showMessage('Terjadi kesalahan. Silakan coba lagi.', isError: true);
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    // Show final confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -64,7 +116,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus akun? Tindakan ini tidak dapat dibatalkan dan semua data Anda akan dihapus secara permanen.',
+          'Akun Anda akan dihapus secara permanen. Anda akan langsung diarahkan ke halaman login.\n\nLanjutkan?',
           style: GoogleFonts.poppins(fontSize: 14),
         ),
         actions: [
@@ -75,153 +127,75 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Hapus', style: GoogleFonts.poppins(color: Colors.white)),
+            child: Text('Ya, Hapus', style: GoogleFonts.poppins(color: Colors.white)),
           ),
         ],
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      setState(() => _isProcessing = false);
+      return;
+    }
 
-    final pwd = _passwordController.text.trim();
+    // Immediately navigate to login page
+    if (kDebugMode) print('🚀 Navigating to login page...');
 
-    setState(() => _isProcessing = true);
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    }
 
+    // Delete account in background (fire and forget)
+    _deleteAccountInBackground(user, pwd);
+  }
+
+  // Background deletion method
+  void _deleteAccountInBackground(User user, String password) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null || user.email == null) {
-        _showMessage('Tidak ada user aktif.', isError: true);
-        return;
-      }
+      if (kDebugMode) print('🗑️ Background deletion started for: ${user.email}');
 
-      if (kDebugMode) print('🗑️ Starting Firebase account deletion for: ${user.email}');
-      if (kDebugMode) print('   Firebase UID: ${user.uid}');
-
-      // Get SharedPreferences for cleanup
       final prefs = await SharedPreferences.getInstance();
+      final cred = EmailAuthProvider.credential(email: user.email!, password: password);
 
-      // Step 1: Reauthenticate user
-      final cred = EmailAuthProvider.credential(email: user.email!, password: pwd);
-
+      // Reauthenticate
       try {
-        if (kDebugMode) print('🔄 Step 1: Reauthenticating user...');
-        await user.reauthenticateWithCredential(cred).timeout(
-          const Duration(seconds: 20),
-          onTimeout: () {
-            throw FirebaseAuthException(
-              code: 'timeout',
-              message: 'Koneksi timeout saat autentikasi.',
-            );
-          },
-        );
-        if (kDebugMode) print('   ✅ Reauthentication successful');
-      } on FirebaseAuthException catch (e) {
-        if (kDebugMode) print('   ❌ Reauth failed: ${e.code}');
-        String message = 'Gagal melakukan autentikasi ulang.';
-
-        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          message = 'Kata sandi salah. Silakan coba lagi.';
-        } else if (e.code == 'user-mismatch') {
-          message = 'Akun tidak cocok.';
-        } else if (e.code == 'user-not-found') {
-          message = 'Akun tidak ditemukan.';
-        } else if (e.code == 'timeout') {
-          message = 'Koneksi timeout. Periksa koneksi internet Anda.';
-        } else if (e.code == 'network-request-failed') {
-          message = 'Tidak ada koneksi internet.';
-        }
-
-        _showMessage(message, isError: true);
-        return;
+        await user.reauthenticateWithCredential(cred).timeout(const Duration(seconds: 10));
+        if (kDebugMode) print('✅ Background reauth successful');
       } catch (e) {
-        if (kDebugMode) print('   ❌ Unexpected error: $e');
-        _showMessage('Gagal autentikasi: ${e.toString()}', isError: true);
-        return;
+        if (kDebugMode) print('⚠️ Background reauth failed: $e');
+        // Continue anyway since we already verified password
       }
 
-      // Step 2: Delete Firestore data (non-blocking)
-      if (kDebugMode) print('🔄 Step 2: Deleting Firestore data...');
+      // Delete Firestore data (non-blocking)
       try {
-        await _deleteFirestoreData(user.uid, user.email!).timeout(
-          const Duration(seconds: 8),
-          onTimeout: () {
-            if (kDebugMode) print('   ⚠️ Firestore deletion timeout, continuing...');
-          },
-        );
+        await _deleteFirestoreData(user.uid, user.email!).timeout(const Duration(seconds: 10));
       } catch (e) {
-        if (kDebugMode) print('   ⚠️ Firestore deletion error: $e, continuing...');
+        if (kDebugMode) print('⚠️ Firestore deletion error: $e');
       }
 
-      // Step 3: Delete Firebase Auth user (CRITICAL)
+      // Delete Firebase Auth account
       try {
-        if (kDebugMode) print('🔄 Step 3: Deleting Firebase Auth account...');
-        await user.delete().timeout(
-          const Duration(seconds: 20),
-          onTimeout: () {
-            throw FirebaseAuthException(
-              code: 'timeout',
-              message: 'Timeout saat menghapus akun.',
-            );
-          },
-        );
-        if (kDebugMode) print('   ✅ Firebase Auth account deleted successfully!');
-      } on FirebaseAuthException catch (e) {
-        if (kDebugMode) print('   ❌ Delete auth failed: ${e.code}');
-        String message = 'Gagal menghapus akun: ${e.message ?? e.code}';
-
-        if (e.code == 'requires-recent-login') {
-          message = 'Sesi kadaluarsa. Silakan login ulang lalu coba lagi.';
-        } else if (e.code == 'timeout') {
-          message = 'Koneksi timeout. Periksa koneksi internet Anda.';
-        } else if (e.code == 'network-request-failed') {
-          message = 'Tidak ada koneksi internet.';
-        }
-
-        _showMessage(message, isError: true);
-        return;
-      }
-
-      // Step 4: Cleanup local data
-      if (kDebugMode) print('🔄 Step 4: Cleaning up local data...');
-      try {
-        await prefs.clear().timeout(const Duration(seconds: 2));
-        await FirebaseAuth.instance.signOut().timeout(const Duration(seconds: 2));
-        if (kDebugMode) print('   ✅ Local data cleared');
+        await user.delete().timeout(const Duration(seconds: 10));
+        if (kDebugMode) print('✅ Firebase Auth account deleted');
       } catch (e) {
-        if (kDebugMode) print('   ⚠️ Cleanup error (non-critical): $e');
+        if (kDebugMode) print('⚠️ Auth deletion error: $e');
       }
 
-      // Step 5: Success!
-      if (kDebugMode) print('🎉 Account deletion completed successfully!');
-      _showMessage('Akun berhasil dihapus.');
-
-      // Step 6: Navigate to Login
-      if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (kDebugMode) print('❌ FirebaseAuthException: ${e.code}');
-      String message = 'Terjadi kesalahan: ${e.message ?? e.code}';
-
-      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        message = 'Kata sandi salah.';
-      } else if (e.code == 'requires-recent-login') {
-        message = 'Sesi kadaluarsa. Silakan login ulang.';
-      } else if (e.code == 'network-request-failed') {
-        message = 'Tidak ada koneksi internet.';
+      // Cleanup local data
+      try {
+        await prefs.clear();
+        await FirebaseAuth.instance.signOut();
+        if (kDebugMode) print('✅ Local data cleared');
+      } catch (e) {
+        if (kDebugMode) print('⚠️ Cleanup error: $e');
       }
 
-      _showMessage(message, isError: true);
+      if (kDebugMode) print('🎉 Background deletion completed');
     } catch (e) {
-      if (kDebugMode) print('❌ Unexpected error: $e');
-      _showMessage('Terjadi kesalahan: ${e.toString()}', isError: true);
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      if (kDebugMode) print('❌ Background deletion error: $e');
     }
   }
 
@@ -232,21 +206,68 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
 
       if (kDebugMode) print('   🔄 Deleting Firestore data...');
 
-      // Delete user document
-      final userDocRef = firestore.collection('users').doc(uid);
-      await userDocRef.delete().timeout(const Duration(seconds: 3));
-      if (kDebugMode) print('   ✅ Deleted users/$uid from Firestore');
+      // Check if this is a staff account
+      final staffDoc = await firestore.collection('staff').doc(uid).get().timeout(const Duration(seconds: 3));
 
-      // Delete staff document if exists
-      final staffQuery = await firestore
-          .collection('staff')
-          .where('email', isEqualTo: email)
-          .get()
-          .timeout(const Duration(seconds: 3));
+      if (staffDoc.exists) {
+        // This is a staff account - delete from GoCloud too
+        if (kDebugMode) print('   🔄 Detected staff account, deleting from GoCloud...');
+        try {
+          // Get staff data to find the GoCloud _id
+          final staffQuery = await firestore
+              .collection('staff')
+              .where('email', isEqualTo: email)
+              .get()
+              .timeout(const Duration(seconds: 3));
 
-      for (var doc in staffQuery.docs) {
-        await doc.reference.delete().timeout(const Duration(seconds: 2));
-        if (kDebugMode) print('   ✅ Deleted staff/${doc.id} from Firestore');
+          if (staffQuery.docs.isNotEmpty) {
+            // Delete from GoCloud using email to find the record
+            final uri = 'https://api.247go.app/v5/select/';
+            final selectResponse = await http.post(
+              Uri.parse(uri),
+              body: {
+                'token': token,
+                'project': project,
+                'collection': 'staff',
+                'appid': appid,
+                'email': email,
+              },
+            ).timeout(const Duration(seconds: 3));
+
+            if (selectResponse.statusCode == 200) {
+              final responseData = json.decode(selectResponse.body);
+              if (responseData is List && responseData.isNotEmpty) {
+                final staffId = responseData.first['_id'];
+
+                // Delete from GoCloud
+                final deleteUri = 'https://api.247go.app/v5/delete/';
+                await http.post(
+                  Uri.parse(deleteUri),
+                  body: {
+                    'token': token,
+                    'project': project,
+                    'collection': 'staff',
+                    'appid': appid,
+                    '_id': staffId,
+                  },
+                ).timeout(const Duration(seconds: 3));
+
+                if (kDebugMode) print('   ✅ Deleted staff from GoCloud');
+              }
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) print('   ⚠️ GoCloud staff deletion error: $e (continuing...)');
+        }
+
+        // Delete staff document from Firestore
+        await staffDoc.reference.delete().timeout(const Duration(seconds: 2));
+        if (kDebugMode) print('   ✅ Deleted staff/$uid from Firestore');
+      } else {
+        // This is a regular user account - delete user document from Firestore
+        final userDocRef = firestore.collection('user').doc(uid);
+        await userDocRef.delete().timeout(const Duration(seconds: 3));
+        if (kDebugMode) print('   ✅ Deleted user/$uid from Firestore');
       }
     } catch (e) {
       if (kDebugMode) print('   ⚠️ Firestore deletion error: $e');
