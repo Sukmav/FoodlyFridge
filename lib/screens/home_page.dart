@@ -22,17 +22,18 @@ import 'stok_masuk_page.dart';
 import 'kasir_page.dart';
 import 'laporan_page.dart';
 import 'riwayat.dart';
+import 'profile_page.dart';
 import '../helpers/kedai_service.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
   final String email;
   final String userId;
-  final String? role; // 'admin', 'kasir', 'inventory'
+  final String?  role;
 
   const HomePage({
     super.key,
-    required this.username,
+    required this. username,
     required this.email,
     required this.userId,
     this.role,
@@ -50,83 +51,43 @@ class _HomePageState extends State<HomePage> {
   bool _isCheckingKedai = true;
   bool _dialogShown = false;
 
+  // Variable untuk menyimpan username dan logo kedai
+  String _currentUserName = '';
+  String _logoKedai = ''; // TAMBAHKAN variable untuk logo kedai
+
   // Stok Masuk Notification
   bool _showStokMasukNotification = false;
   List<Map<String, dynamic>> _stokMasukItems = [];
   String _stokMasukVendor = '';
   double _stokMasukTotalHarga = 0;
 
-  final TextEditingController _namaKedaiPopupController =
-      TextEditingController();
+  final TextEditingController _namaKedaiPopupController = TextEditingController();
   final KedaiService _kedaiService = KedaiService();
 
-  // Get filtered menu items based on role
-  List<Map<String, dynamic>> get _filteredMenuItems {
-    final role = widget.role?.toLowerCase() ?? 'admin';
-
-    if (role == 'kasir') {
-      // Kasir can only access: Menu, Kasir
-      return _menuItems.where((item) {
-        final route = item['route'];
-        return route == -1 || route == 0 || route == 9; // Beranda, Menu, Kasir
-      }).toList();
-    } else if (role == 'inventory') {
-      // Inventory can access: Bahan Baku, Stok Masuk, Sampah Bahan Baku
-      return _menuItems.where((item) {
-        final route = item['route'];
-        return route == -1 ||
-            route == 1 ||
-            route == 2 ||
-            route == 5; // Beranda, Bahan Baku, Stok Masuk, Sampah Bahan Baku
-      }).toList();
-    }
-
-    // admin has full access
-    return _menuItems;
-  }
-
-  List<Map<String, dynamic>> get _filteredDashboardMenuItems {
-    final role = widget.role?.toLowerCase() ?? 'admin';
-
-    if (role == 'kasir') {
-      // Kasir dashboard: Menu, Kasir
-      return _dashboardMenuItems.where((item) {
-        final route = item['route'];
-        return route == 0 || route == 9; // Menu, Kasir
-      }).toList();
-    } else if (role == 'inventory') {
-      // Inventory dashboard: Stok Masuk, Bahan Baku, Sampah Bahan Baku
-      return _dashboardMenuItems.where((item) {
-        final route = item['route'];
-        return route == 1 || route == 2 || route == 5; // Bahan Baku, Stok Masuk, Sampah Bahan Baku
-      }).toList();
-    }
-
-    // admin has full access
-    return _dashboardMenuItems;
-  }
+  // ...  (semua final List<Map<String, dynamic>> tetap sama)
+  // Copy dari kode asli untuk _menuItems dan _dashboardMenuItems
 
   final List<Map<String, dynamic>> _menuItems = [
     {'icon': Icons.dashboard_outlined, 'label': 'Beranda', 'route': -1},
     {'icon': Icons.restaurant_menu_outlined, 'label': 'Menu', 'route': 0},
     {'icon': Icons.upload_outlined, 'label': 'Stok Keluar', 'route': 3},
-    {'icon': Icons.download_outlined, 'label': 'Stok Masuk', 'route': 2},
-    {'icon': Icons.shopping_basket_outlined, 'label': 'Bahan Baku', 'route': 1},
+    {'icon': Icons. download_outlined, 'label': 'Stok Masuk', 'route': 2},
+    {'icon': Icons. shopping_basket_outlined, 'label': 'Bahan Baku', 'route': 1},
     {'icon': Icons.delete_outline, 'label': 'Sampah Bahan Baku', 'route': 5},
-    {'icon': Icons.people_outline, 'label': 'Staff', 'route': 7},
-    {'icon': Icons.business_outlined, 'label': 'Vendor', 'route': 4},
-    {'icon': Icons.history_outlined, 'label': 'Riwayat', 'route': 8},
-    {'icon': Icons.point_of_sale_outlined, 'label': 'Kasir', 'route': 9},
-    {'icon': Icons.video_library_outlined, 'label': 'Tutorial', 'route': 11},
-    {'icon': Icons.analytics_outlined, 'label': 'Laporan', 'route': 6},
-    {'icon': Icons.settings_outlined, 'label': 'Pengaturan', 'route': 10},
+    {'icon': Icons. people_outline, 'label': 'Staff', 'route': 7},
+    {'icon': Icons. business_outlined, 'label': 'Vendor', 'route': 4},
+    {'icon': Icons. history_outlined, 'label': 'Riwayat', 'route': 8},
+    {'icon': Icons. point_of_sale_outlined, 'label': 'Kasir', 'route': 9},
+    {'icon': Icons. video_library_outlined, 'label': 'Tutorial', 'route': 11},
+    {'icon': Icons. analytics_outlined, 'label': 'Laporan', 'route': 6},
+    {'icon': Icons.settings_outlined, 'label': 'Pengaturan', 'route':  10},
   ];
 
   final List<Map<String, dynamic>> _dashboardMenuItems = [
     {
       'icon': Icons.download_for_offline_outlined,
       'label': 'Stok Masuk',
-      'route': 2,
+      'route':  2,
       'color': AppColors.stockIn,
       'gradient': LinearGradient(
         colors: [Color(0xFF667eea), Color(0xFF764ba2)],
@@ -136,7 +97,7 @@ class _HomePageState extends State<HomePage> {
     },
     {
       'icon': Icons.upload_outlined,
-      'label': 'Stok Keluar',
+      'label':  'Stok Keluar',
       'route': 3,
       'color': AppColors.stockOut,
       'gradient': LinearGradient(
@@ -159,8 +120,8 @@ class _HomePageState extends State<HomePage> {
     {
       'icon': Icons.delete_forever_outlined,
       'label': 'Sampah Bahan Baku',
-      'route': 5,
-      'color': AppColors.danger,
+      'route':  5,
+      'color':  AppColors.danger,
       'gradient': LinearGradient(
         colors: [Color(0xFFf83600), Color(0xFFf9d423)],
         begin: Alignment.topLeft,
@@ -169,7 +130,7 @@ class _HomePageState extends State<HomePage> {
     },
     {
       'icon': Icons.restaurant_menu,
-      'label': 'Menu',
+      'label':  'Menu',
       'route': 0,
       'color': AppColors.menu,
       'gradient': LinearGradient(
@@ -194,7 +155,7 @@ class _HomePageState extends State<HomePage> {
       'label': 'Staff',
       'route': 7,
       'color': AppColors.staff,
-      'gradient': LinearGradient(
+      'gradient':  LinearGradient(
         colors: [Color(0xFFa8edea), Color(0xFFfed6e3)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -203,8 +164,8 @@ class _HomePageState extends State<HomePage> {
     {
       'icon': Icons.business,
       'label': 'Vendor',
-      'route': 4,
-      'color': AppColors.vendor,
+      'route':  4,
+      'color':  AppColors.vendor,
       'gradient': LinearGradient(
         colors: [Color(0xFFcd9cf2), Color(0xFFf6f3ff)],
         begin: Alignment.topLeft,
@@ -212,7 +173,7 @@ class _HomePageState extends State<HomePage> {
       ),
     },
     {
-      'icon': Icons.history,
+      'icon': Icons. history,
       'label': 'Riwayat',
       'route': 8,
       'color': AppColors.history,
@@ -223,7 +184,7 @@ class _HomePageState extends State<HomePage> {
       ),
     },
     {
-      'icon': Icons.point_of_sale,
+      'icon': Icons. point_of_sale,
       'label': 'Kasir',
       'route': 9,
       'color': AppColors.cashier,
@@ -245,8 +206,8 @@ class _HomePageState extends State<HomePage> {
       ),
     },
     {
-      'icon': Icons.video_library,
-      'label': 'Tutorial',
+      'icon': Icons. video_library,
+      'label':  'Tutorial',
       'route': 11,
       'color': AppColors.tutorial,
       'gradient': LinearGradient(
@@ -257,12 +218,48 @@ class _HomePageState extends State<HomePage> {
     },
   ];
 
+  // Get filtered menu items based on role
+  List<Map<String, dynamic>> get _filteredMenuItems {
+    final role = widget.role?. toLowerCase() ?? 'admin';
+
+    if (role == 'kasir') {
+      return _menuItems. where((item) {
+        final route = item['route'];
+        return route == -1 || route == 0 || route == 9;
+      }).toList();
+    } else if (role == 'inventory') {
+      return _menuItems.where((item) {
+        final route = item['route'];
+        return route == -1 || route == 1 || route == 2 || route == 5;
+      }).toList();
+    }
+
+    return _menuItems;
+  }
+
+  List<Map<String, dynamic>> get _filteredDashboardMenuItems {
+    final role = widget.role?. toLowerCase() ?? 'admin';
+
+    if (role == 'kasir') {
+      return _dashboardMenuItems.where((item) {
+        final route = item['route'];
+        return route == 0 || route == 9;
+      }).toList();
+    } else if (role == 'inventory') {
+      return _dashboardMenuItems.where((item) {
+        final route = item['route'];
+        return route == 1 || route == 2 || route == 5;
+      }).toList();
+    }
+
+    return _dashboardMenuItems;
+  }
+
   void _onMenuTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
     Navigator.pop(context);
-    // Check notification when returning to Beranda
     if (index == -1) {
       _checkStokMasukNotification();
     }
@@ -272,12 +269,233 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = route;
     });
-    // Check notification when returning to Beranda
     if (route == -1) {
       _checkStokMasukNotification();
     }
   }
 
+  // UBAH: Method untuk navigasi ke Kedai Page (bukan Profile)
+  Future<void> _navigateToKedai() async {
+    if (kDebugMode) {
+      print('========== NAVIGATING TO KEDAI PAGE ==========');
+      print('User ID: ${widget.userId}');
+    }
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KedaiPage(userId: widget.userId),
+      ),
+    );
+
+    if (kDebugMode) {
+      print('========== RETURNED FROM KEDAI PAGE ==========');
+      print('Result: $result');
+    }
+
+    // Reload data kedai setelah kembali
+    if (result == true) {
+      if (kDebugMode) {
+        print('✅ Kedai data updated, reloading...');
+      }
+
+      await _loadStoreName();
+      await _loadLogoKedai(); // Reload logo kedai
+
+      if (kDebugMode) {
+        print('✅ Store name and logo reloaded');
+      }
+    }
+  }
+
+  // TAMBAHKAN: Method untuk load logo kedai
+  Future<void> _loadLogoKedai() async {
+    try {
+      if (kDebugMode) {
+        print('========== LOADING LOGO KEDAI ==========');
+        print('User ID: ${widget.userId}');
+      }
+
+      // 1. Coba dari SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final savedLogo = prefs.getString('logo_kedai_${widget.userId}');
+
+      if (savedLogo != null && savedLogo.isNotEmpty) {
+        if (kDebugMode) {
+          print('✅ Logo loaded from SharedPreferences, length: ${savedLogo.length}');
+        }
+
+        if (mounted) {
+          setState(() {
+            _logoKedai = savedLogo;
+          });
+        }
+        return;
+      }
+
+      // 2. Coba dari database via KedaiService
+      final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+      if (kedai != null && kedai.logo_kedai. isNotEmpty) {
+        if (kDebugMode) {
+          print('✅ Logo loaded from database, length: ${kedai.logo_kedai.length}');
+        }
+
+        if (mounted) {
+          setState(() {
+            _logoKedai = kedai.logo_kedai;
+          });
+        }
+
+        // Simpan ke SharedPreferences untuk cache
+        await prefs.setString('logo_kedai_${widget.userId}', kedai.logo_kedai);
+        return;
+      }
+
+      // 3. Tidak ada logo
+      if (kDebugMode) {
+        print('⚠️ No logo found for this kedai');
+      }
+
+      if (mounted) {
+        setState(() {
+          _logoKedai = '';
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error loading logo kedai: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _logoKedai = '';
+        });
+      }
+    }
+  }
+
+  // Method untuk load username dari SharedPreferences/Firebase (TETAP SAMA)
+  Future<void> _loadUserName() async {
+    try {
+      if (kDebugMode) {
+        print('========== LOADING USERNAME ==========');
+        print('User ID: ${widget. userId}');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final savedName = prefs.getString('user_name_${widget.userId}');
+
+      if (savedName != null && savedName.isNotEmpty) {
+        if (kDebugMode) {
+          print('✅ Username loaded from SharedPreferences:  $savedName');
+        }
+
+        if (mounted) {
+          setState(() {
+            _currentUserName = savedName;
+          });
+        }
+        return;
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+        if (kDebugMode) {
+          print('✅ Username loaded from Firebase: ${user.displayName}');
+        }
+
+        if (mounted) {
+          setState(() {
+            _currentUserName = user.displayName! ;
+          });
+        }
+
+        await prefs.setString('user_name_${widget.userId}', user.displayName!);
+        return;
+      }
+
+      if (kDebugMode) {
+        print('✅ Using initial username: ${widget.username}');
+      }
+
+      if (mounted) {
+        setState(() {
+          _currentUserName = widget.username;
+        });
+      }
+
+      await prefs.setString('user_name_${widget.userId}', widget.username);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error loading username: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _currentUserName = widget.username;
+        });
+      }
+    }
+  }
+
+  // TAMBAHKAN: Widget helper untuk display logo kedai
+  Widget _buildLogoKedai({required double size}) {
+    if (_logoKedai.isNotEmpty) {
+      try {
+        // Handle base64
+        String base64String = _logoKedai;
+        if (base64String. contains(',')) {
+          base64String = base64String.split(',').last;
+        }
+
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            if (kDebugMode) {
+              print('Error decoding logo: $error');
+            }
+            return _buildLogoPlaceholder(size);
+          },
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error displaying logo: $e');
+        }
+        return _buildLogoPlaceholder(size);
+      }
+    }
+
+    return _buildLogoPlaceholder(size);
+  }
+
+  Widget _buildLogoPlaceholder(double size) {
+    return Container(
+      width:  size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.3),
+            Colors.white.withOpacity(0.1)
+          ],
+          begin:  Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons. storefront_rounded,
+        size: size * 0.5,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  // Method _logout() tetap sama
   void _logout() async {
     showDialog(
       context: context,
@@ -285,12 +503,12 @@ class _HomePageState extends State<HomePage> {
         return Dialog(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius:  BorderRadius.circular(24),
           ),
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize. min,
               children: [
                 Container(
                   width: 80,
@@ -301,12 +519,12 @@ class _HomePageState extends State<HomePage> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    shape: BoxShape.circle,
+                    shape: BoxShape. circle,
                   ),
                   child: Icon(
                     Icons.logout_rounded,
                     size: 40,
-                    color: Colors.white,
+                    color: Colors. white,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -321,8 +539,8 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   'Apakah Anda yakin ingin keluar dari Foodify?',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles. bodyMedium.copyWith(
+                    color: AppColors. textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -361,7 +579,7 @@ class _HomePageState extends State<HomePage> {
                             );
                           }
                         },
-                        style: ElevatedButton.styleFrom(
+                        style: ElevatedButton. styleFrom(
                           backgroundColor: AppColors.danger,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -387,10 +605,34 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-
   Widget _buildHomeContent() {
-    return SingleChildScrollView(  
-      child: Column(
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final prefs = await SharedPreferences. getInstance();
+        final shouldNavigate = prefs.getBool('navigate_to_beranda_after_profile') ?? false;
+
+        if (shouldNavigate) {
+          await prefs.remove('navigate_to_beranda_after_profile');
+
+          if (mounted && _selectedIndex != -1) {
+            setState(() {
+              _selectedIndex = -1;
+            });
+          }
+
+          if (kDebugMode) {
+            print('✅ Auto navigated to Beranda after profile update');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error checking navigate flag: $e');
+        }
+      }
+    });
+
+    return SingleChildScrollView(
+      child:  Column(
         children: [
           // Header Section dengan glassmorphism
           Container(
@@ -409,33 +651,34 @@ class _HomePageState extends State<HomePage> {
               boxShadow: [
                 BoxShadow(
                   color: Color(0xFF764ba2).withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: Offset(0, 10),
+                  blurRadius:  20,
+                  offset:  Offset(0, 10),
                 ),
               ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment. start,
               children: [
-                // Top bar dengan user info
-                SizedBox(height: 8), // <-- Tambah spacer kecil
-                
+                SizedBox(height: 8),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:  CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Selamat Datang,',
                           style: AppTextStyles.labelLarge.copyWith(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white. withOpacity(0.9),
                             fontSize: 14,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          widget.username,
+                          _currentUserName. isNotEmpty
+                              ? _currentUserName
+                              : widget.username,
                           style: AppTextStyles.displaySmall.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -444,41 +687,34 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/logo.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Icon(
-                                Icons.person_rounded,
-                                size: 28,
-                                color: Colors.white,
-                              ),
-                            );
-                          },
+                    // UBAH: GestureDetector mengarah ke Kedaimu dan gunakan logo kedai
+                    GestureDetector(
+                      onTap: _navigateToKedai, // UBAH dari _navigateToProfile
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.4), width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius:  10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: _buildLogoKedai(size:  48), // UBAH:  Gunakan logo kedai
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                
+                const SizedBox(height:  20),
+
                 // Store info card
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -489,8 +725,8 @@ class _HomePageState extends State<HomePage> {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
+                        blurRadius:  10,
+                        offset:  Offset(0, 4),
                       ),
                     ],
                   ),
@@ -501,7 +737,10 @@ class _HomePageState extends State<HomePage> {
                         height: 48,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)],
+                            colors: [
+                              Colors.white.withOpacity(0.3),
+                              Colors. white.withOpacity(0.1)
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -510,7 +749,7 @@ class _HomePageState extends State<HomePage> {
                         child: Icon(
                           Icons.storefront_rounded,
                           size: 24,
-                          color: Colors.white,
+                          color: Colors. white,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -521,14 +760,14 @@ class _HomePageState extends State<HomePage> {
                             Text(
                               'Kedai Anda',
                               style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white. withOpacity(0.8),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _storeName,
-                              style: AppTextStyles.headlineSmall.copyWith(
-                                color: Colors.white,
+                              style: AppTextStyles.headlineSmall. copyWith(
+                                color:  Colors.white,
                                 fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
@@ -552,7 +791,7 @@ class _HomePageState extends State<HomePage> {
           // Stats Cards Section
           Transform.translate(
             offset: Offset(0, -20),
-            child: Padding(
+            child:  Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
@@ -566,7 +805,7 @@ class _HomePageState extends State<HomePage> {
                           icon: Icons.warning_amber_rounded,
                           gradient: LinearGradient(
                             colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-                            begin: Alignment.topLeft,
+                            begin:  Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                         ),
@@ -588,7 +827,7 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
 
-                  // Stok Masuk Notification Banner
+                  // Stok Masuk Notification Banner (TETAP SAMA)
                   if (_showStokMasukNotification) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -604,8 +843,8 @@ class _HomePageState extends State<HomePage> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.orange.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            blurRadius:  10,
+                            offset:  const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -629,18 +868,18 @@ class _HomePageState extends State<HomePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Stok Masuk!',
+                                  'Stok Masuk! ',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight:  FontWeight.bold,
                                     color: Colors.black87,
                                   ),
                                 ),
                                 if (_stokMasukItems.isNotEmpty)
                                   Text(
                                     '${_stokMasukItems.length} item dari $_stokMasukVendor',
-                                    style: TextStyle(
-                                      fontSize: 12,
+                                    style:  TextStyle(
+                                      fontSize:  12,
                                       color: Colors.grey[700],
                                     ),
                                   ),
@@ -649,8 +888,8 @@ class _HomePageState extends State<HomePage> {
                           ),
                           ElevatedButton(
                             onPressed: _confirmStokMasuk,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7A9B3B),
+                            style: ElevatedButton. styleFrom(
+                              backgroundColor:  const Color(0xFF7A9B3B),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 10,
@@ -661,7 +900,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             child: const Text(
                               'Konfirmasi',
-                              style: TextStyle(
+                              style:  TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -677,36 +916,40 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Dashboard Menu Section
+          // Dashboard Menu Section (TETAP SAMA)
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Section Header
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment:  MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Dashboard Menu',
                       style: AppTextStyles.headlineMedium.copyWith(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight. w700,
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xFF667eea).withOpacity(0.1), Color(0xFF764ba2).withOpacity(0.1)],
+                          colors: [
+                            Color(0xFF667eea).withOpacity(0.1),
+                            Color(0xFF764ba2).withOpacity(0.1)
+                          ],
                           begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                          end:  Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Color(0xFF667eea).withOpacity(0.2)),
+                        border: Border. all(
+                            color: Color(0xFF667eea).withOpacity(0.2)),
                       ),
                       child: Row(
-                        children: [
+                        children:  [
                           Icon(
                             Icons.widgets_rounded,
                             size: 16,
@@ -734,7 +977,6 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Grid Menu
                 GridView.builder(
                   shrinkWrap: true,
                   physics: NeverScrollableScrollPhysics(),
@@ -752,7 +994,8 @@ class _HomePageState extends State<HomePage> {
                       label: item['label'] as String,
                       gradient: item['gradient'] as LinearGradient,
                       color: item['color'] as Color,
-                      onTap: () => _onDashboardMenuTapped(item['route'] as int),
+                      onTap: () =>
+                          _onDashboardMenuTapped(item['route'] as int),
                     );
                   },
                 ),
@@ -760,12 +1003,14 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Bottom spacing
           const SizedBox(height: 32),
         ],
       ),
     );
   }
+
+  // Widget _buildStatCard, _buildDashboardMenuItem, _buildComingSoonContent
+  // (TETAP SAMA seperti kode asli, copy dari kode asli Anda)
 
   Widget _buildStatCard({
     required String title,
@@ -778,12 +1023,12 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius:  BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: gradient.colors.last.withOpacity(0.3),
+            color:  gradient.colors.last. withOpacity(0.3),
             blurRadius: 15,
-            offset: Offset(0, 6),
+            offset:  Offset(0, 6),
           ),
         ],
       ),
@@ -795,27 +1040,28 @@ class _HomePageState extends State<HomePage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors. white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
+                child:  Icon(
                   icon,
                   size: 20,
-                  color: Colors.white,
+                  color: Colors. white,
                 ),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                const EdgeInsets. symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius. circular(12),
                 ),
                 child: Text(
                   unit,
                   style: AppTextStyles.labelSmall.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight. w600,
                   ),
                 ),
               ),
@@ -825,10 +1071,10 @@ class _HomePageState extends State<HomePage> {
           Text(
             title,
             style: AppTextStyles.labelMedium.copyWith(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white. withOpacity(0.9),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height:  4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -841,7 +1087,7 @@ class _HomePageState extends State<HomePage> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width:  4),
             ],
           ),
         ],
@@ -867,13 +1113,13 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color:  Colors.black.withOpacity(0.05),
                 blurRadius: 12,
                 offset: Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: AppColors.border.withOpacity(0.2),
+              color: AppColors.border. withOpacity(0.2),
               width: 1,
             ),
           ),
@@ -882,9 +1128,9 @@ class _HomePageState extends State<HomePage> {
             children: [
               Container(
                 width: 56,
-                height: 56,
+                height:  56,
                 decoration: BoxDecoration(
-                  gradient: gradient,
+                  gradient:  gradient,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -904,9 +1150,9 @@ class _HomePageState extends State<HomePage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  label.replaceAll('\n', ' '),
+                  label. replaceAll('\n', ' '),
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.labelMedium.copyWith(
+                  style: AppTextStyles. labelMedium.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 11,
@@ -952,7 +1198,7 @@ class _HomePageState extends State<HomePage> {
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height:  32),
           Text(
             title,
             style: AppTextStyles.headlineMedium.copyWith(
@@ -999,6 +1245,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // _getSelectedContent, _getPageTitle (TETAP SAMA)
   Widget _getSelectedContent() {
     switch (_selectedIndex) {
       case 0:
@@ -1009,9 +1256,8 @@ class _HomePageState extends State<HomePage> {
         return StokMasukPage(
           onNavigateToBeranda: () {
             setState(() {
-              _selectedIndex = -1; // Switch to Beranda
+              _selectedIndex = -1;
             });
-            // Check for notification after a short delay to ensure SharedPreferences is updated
             Future.delayed(const Duration(milliseconds: 100), () {
               _checkStokMasukNotification();
             });
@@ -1022,17 +1268,38 @@ class _HomePageState extends State<HomePage> {
       case 4:
         return const VendorPage();
       case 5:
-        return WasteFoodPage(userId: widget.userId, userName: widget.username);
+        return WasteFoodPage(
+            userId: widget.userId,
+            userName: _currentUserName. isNotEmpty
+                ? _currentUserName
+                : widget.username);
       case 6:
-        return LaporanPage(userId: widget.userId, userName: widget.username);
+        return LaporanPage(
+            userId: widget.userId,
+            userName: _currentUserName.isNotEmpty
+                ? _currentUserName
+                : widget.username);
       case 7:
         return StaffPage(userId: widget.userId);
       case 8:
-        return RiwayatPage(userId: widget.userId, userName: widget.username);
+        return RiwayatPage(
+            userId: widget.userId,
+            userName: _currentUserName. isNotEmpty
+                ? _currentUserName
+                : widget.username);
       case 9:
         return KasirPage();
       case 10:
-        return PengaturanPage(userId: widget.userId);
+        return PengaturanPage(
+          userId: widget.userId,
+          onProfileUpdated: () async {
+            if (kDebugMode) {
+              print('========== PROFILE UPDATED CALLBACK ==========');
+            }
+            await _loadUserName();
+            setState(() {});
+          },
+        );
       case 11:
         return _buildComingSoonContent('Tutorial');
       default:
@@ -1077,18 +1344,17 @@ class _HomePageState extends State<HomePage> {
     _initializeHomePage();
     _checkStokMasukNotification();
     _checkNavigateToBeranda();
+    _loadUserName();
+    _loadLogoKedai(); // TAMBAHKAN:  Load logo kedai saat init
   }
-
   Future<void> _checkNavigateToBeranda() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences. getInstance();
     final shouldNavigate = prefs.getBool('navigate_to_beranda') ?? false;
 
     if (shouldNavigate) {
-      // Force to show Beranda view
       setState(() {
         _selectedIndex = -1;
       });
-      // Clear the flag
       await prefs.remove('navigate_to_beranda');
     }
   }
@@ -1098,24 +1364,24 @@ class _HomePageState extends State<HomePage> {
     final showNotif = prefs.getBool('show_stok_masuk_notification') ?? false;
 
     if (showNotif) {
-      // Load items from JSON
       final itemsJson = prefs.getString('stok_masuk_items') ?? '[]';
       List<dynamic> itemsList = jsonDecode(itemsJson);
 
       setState(() {
         _showStokMasukNotification = true;
-        _stokMasukItems = itemsList.map((item) => Map<String, dynamic>.from(item)).toList();
+        _stokMasukItems =
+            itemsList.map((item) => Map<String, dynamic>.from(item)).toList();
         _stokMasukVendor = prefs.getString('stok_masuk_vendor') ?? '';
-        _stokMasukTotalHarga = prefs.getDouble('stok_masuk_total_harga') ?? 0;
+        _stokMasukTotalHarga =
+            prefs.getDouble('stok_masuk_total_harga') ?? 0;
       });
     }
   }
 
   Future<void> _confirmStokMasuk() async {
-    // Format currency
-    final formatCurrency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final formatCurrency = NumberFormat.currency(
+        locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    // Show confirmation dialog with order details
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -1124,7 +1390,7 @@ class _HomePageState extends State<HomePage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Padding(
+          child:  Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1142,23 +1408,20 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Display all items
-                ..._stokMasukItems.map((item) {
-                  return _buildItemRow(
-                    item['nama'] ?? '',
+                for (var item in _stokMasukItems)
+                  _buildItemRow(
+                    item['nama'] ??  '',
                     '${item['qty']} ${item['unit']}',
                     formatCurrency.format(item['harga_per_gross'] ?? 0),
-                  );
-                }).toList(),
+                  ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height:  16),
                 const Divider(thickness: 1),
                 const SizedBox(height: 16),
 
-                // Total row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+                  children:  [
                     const Text(
                       'Total',
                       style: TextStyle(
@@ -1171,21 +1434,20 @@ class _HomePageState extends State<HomePage> {
                       formatCurrency.format(_stokMasukTotalHarga),
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight:  FontWeight.bold,
                         color: Color(0xFF7A9B3B),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height:  24),
 
-                // Terima button
                 SizedBox(
-                  width: double.infinity,
+                  width:  double.infinity,
                   child: OutlinedButton(
                     onPressed: () async {
-                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(context).pop();
                       await _acceptStokMasuk();
                     },
                     style: OutlinedButton.styleFrom(
@@ -1223,7 +1485,7 @@ class _HomePageState extends State<HomePage> {
             flex: 3,
             child: Text(
               itemName,
-              style: const TextStyle(
+              style:  const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF7A9B3B),
@@ -1245,7 +1507,7 @@ class _HomePageState extends State<HomePage> {
             flex: 2,
             child: Text(
               price,
-              textAlign: TextAlign.right,
+              textAlign: TextAlign. right,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1258,36 +1520,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildConfirmRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<void> _acceptStokMasuk() async {
-    // Show success animation
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        // Auto close after 2 seconds
         Future.delayed(const Duration(seconds: 2), () {
           if (Navigator.canPop(context)) {
             Navigator.of(context).pop();
@@ -1302,7 +1539,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
+                  tween:  Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 800),
                   builder: (context, value, child) {
                     return Transform.scale(
@@ -1322,8 +1559,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
 
-    // Clear notification
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences. getInstance();
     await prefs.remove('show_stok_masuk_notification');
     await prefs.remove('stok_masuk_items');
     await prefs.remove('stok_masuk_vendor');
@@ -1331,11 +1567,11 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       _showStokMasukNotification = false;
-      _stokMasukItems.clear();
+      _stokMasukItems. clear();
     });
 
     Fluttertoast.showToast(
-      msg: "Stok masuk berhasil dikonfirmasi!",
+      msg: "Stok masuk berhasil dikonfirmasi! ",
       backgroundColor: Colors.green,
     );
   }
@@ -1353,6 +1589,8 @@ class _HomePageState extends State<HomePage> {
     await Future.delayed(const Duration(milliseconds: 200));
 
     await _loadStoreName();
+    await _loadUserName();
+    await _loadLogoKedai(); // TAMBAHKAN:  Load logo kedai
 
     await Future.delayed(const Duration(milliseconds: 100));
 
@@ -1363,19 +1601,19 @@ class _HomePageState extends State<HomePage> {
 
       await Future.delayed(const Duration(milliseconds: 100));
 
-      final role = widget.role?.toLowerCase() ?? 'admin';
-      if (mounted && !_dialogShown && role == 'admin') {
+      final role = widget.role?. toLowerCase() ?? 'admin';
+      if (mounted && ! _dialogShown && role == 'admin') {
         _checkAndShowKedaiDialog();
       }
     }
   }
 
   Future<void> _loadStoreName() async {
-    final bool shouldLog = kDebugMode && !kIsWeb;
+    final bool shouldLog = kDebugMode && ! kIsWeb;
 
     if (shouldLog) {
-      print('========== HOME PAGE: LOADING STORE NAME ==========');
-      print('User ID: ${widget.userId}');
+      print('========== HOME PAGE:  LOADING STORE NAME ==========');
+      print('User ID: ${widget. userId}');
     }
 
     try {
@@ -1390,15 +1628,16 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             _storeName = kedai.nama_kedai;
             _hasKedai = true;
+            _logoKedai = kedai.logo_kedai; // TAMBAHKAN: Set logo dari kedai
           });
         }
 
         final SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('nama_kedai_${widget.userId}', kedai.nama_kedai);
-        await prefs.setString('alamat_kedai_${widget.userId}', kedai.alamat_kedai);
-        await prefs.setString('nomor_telepon_${widget.userId}', kedai.nomor_telepon);
+        await prefs.setString('nama_kedai_${widget.userId}', kedai. nama_kedai);
+        await prefs.setString('alamat_kedai_${widget. userId}', kedai.alamat_kedai);
+        await prefs.setString('nomor_telepon_${widget.userId}', kedai. nomor_telepon);
         await prefs.setString('catatan_struk_${widget.userId}', kedai.catatan_struk);
-        await prefs.setString('logo_kedai_${widget.userId}', kedai.logo_kedai);
+        await prefs.setString('logo_kedai_${widget.userId}', kedai. logo_kedai);
         await prefs.setBool('has_kedai_${widget.userId}', true);
         await prefs.setString('kedai_id_${widget.userId}', kedai.id);
 
@@ -1407,23 +1646,25 @@ class _HomePageState extends State<HomePage> {
         }
       } else {
         if (shouldLog) {
-          print('No kedai from service, checking SharedPreferences...');
+          print('No kedai from service, checking SharedPreferences.. .');
         }
 
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+        final String? savedLogo = prefs.getString('logo_kedai_${widget.userId}');
         final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
 
         if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
           if (mounted) {
             setState(() {
               _storeName = savedStoreName;
+              _logoKedai = savedLogo ??  ''; // TAMBAHKAN: Load logo dari cache
               _hasKedai = true;
             });
           }
 
           if (shouldLog) {
-            print('Loaded from SharedPreferences cache: $savedStoreName');
+            print('Loaded from SharedPreferences cache:  $savedStoreName');
           }
         } else {
           if (mounted) {
@@ -1440,12 +1681,14 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+      final String? savedLogo = prefs.getString('logo_kedai_${widget.userId}');
       final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
 
-      if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
+      if (savedStoreName != null && savedStoreName. isNotEmpty && hasKedai == true) {
         if (mounted) {
           setState(() {
             _storeName = savedStoreName;
+            _logoKedai = savedLogo ?? '';
             _hasKedai = true;
           });
         }
@@ -1466,7 +1709,7 @@ class _HomePageState extends State<HomePage> {
       print('Dialog Shown: $_dialogShown');
     }
 
-    if (!_hasKedai && !_dialogShown && mounted) {
+    if (! _hasKedai && !_dialogShown && mounted) {
       if (kDebugMode) {
         print('User does NOT have kedai - showing setup dialog');
       }
@@ -1492,7 +1735,7 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder:  (BuildContext context) {
         return WillPopScope(
           onWillPop: () async => false,
           child: Dialog(
@@ -1500,7 +1743,7 @@ class _HomePageState extends State<HomePage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(28),
             ),
-            child: Padding(
+            child:  Padding(
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1511,7 +1754,7 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                        begin: Alignment.topLeft,
+                        begin:  Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       shape: BoxShape.circle,
@@ -1519,14 +1762,14 @@ class _HomePageState extends State<HomePage> {
                         BoxShadow(
                           color: Color(0xFF764ba2).withOpacity(0.3),
                           blurRadius: 15,
-                          offset: Offset(0, 8),
+                          offset:  Offset(0, 8),
                         ),
                       ],
                     ),
                     child: Icon(
                       Icons.storefront_rounded,
                       size: 48,
-                      color: Colors.white,
+                      color: Colors. white,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -1541,8 +1784,8 @@ class _HomePageState extends State<HomePage> {
                   Text(
                     'Mari atur kedai Anda terlebih dahulu untuk memulai menggunakan Foodify',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
+                    style: AppTextStyles. bodyMedium.copyWith(
+                      color: AppColors. textSecondary,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -1560,7 +1803,7 @@ class _HomePageState extends State<HomePage> {
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => KedaiPage(userId: widget.userId),
+                            builder:  (context) => KedaiPage(userId: widget.userId),
                           ),
                         );
 
@@ -1569,6 +1812,7 @@ class _HomePageState extends State<HomePage> {
                             print('Kedai setup completed successfully - reloading data');
                           }
                           await _loadStoreName();
+                          await _loadLogoKedai(); // TAMBAHKAN:  Reload logo
                           if (mounted) {
                             setState(() {
                               _hasKedai = true;
@@ -1576,8 +1820,8 @@ class _HomePageState extends State<HomePage> {
                           }
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                      style: ElevatedButton. styleFrom(
+                        backgroundColor:  AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -1585,7 +1829,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Text(
                         'Mulai Atur Kedai',
-                        style: AppTextStyles.buttonLarge.copyWith(
+                        style:  AppTextStyles.buttonLarge.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1594,13 +1838,13 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 16),
                   TextButton(
-                    onPressed: () {
+                    onPressed:  () {
                       Navigator.of(context).pop();
                     },
                     child: Text(
                       'Nanti Saja',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
+                      style: AppTextStyles.bodyMedium. copyWith(
+                        color:  AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1616,7 +1860,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Check for notification when on Beranda view
     if (_selectedIndex == -1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _checkStokMasukNotification();
@@ -1639,7 +1882,7 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: Color(0xFF667eea).withOpacity(0.1),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height:  32),
               Text(
                 'Memuat aplikasi...',
                 style: AppTextStyles.bodyLarge.copyWith(
@@ -1649,9 +1892,9 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
               Text(
                 'Foodify',
-                style: AppTextStyles.headlineMedium.copyWith(
+                style: AppTextStyles. headlineMedium.copyWith(
                   color: Color(0xFF667eea),
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight. w800,
                   letterSpacing: 1.5,
                 ),
               ),
@@ -1662,149 +1905,149 @@ class _HomePageState extends State<HomePage> {
     }
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar:  true,
       backgroundColor: AppColors.background,
       appBar: _selectedIndex == -1
           ? AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
-              flexibleSpace: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF667eea),
-                      Color(0xFF764ba2),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-
-              leading: Builder(
-                builder: (context) => Container(
-                  margin: EdgeInsets.only(left: 8),
-                  child: IconButton(
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                    icon: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.menu_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              title: Text(
-                'Beranda',
-                style: AppTextStyles.headlineMedium.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              centerTitle: true,
-              actions: [
-                Container(
-                  margin: EdgeInsets.only(right: 8),
-                  child: IconButton(
-                    onPressed: () {
-                      // Notification action
-                    },
-                    icon: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF667eea),
+                Color(0xFF764ba2),
               ],
-            )
-          : AppBar(
-              backgroundColor: AppColors.surface,
-              elevation: 2,
-              leading: IconButton(
-                icon: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back_rounded,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = -1;
-                  });
-                },
-              ),
-              title: Text(
-                _getPageTitle(),
-                style: AppTextStyles.titleLarge.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              centerTitle: true,
-              actions: [
-                Builder(
-                  builder: (context) => IconButton(
-                    icon: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.menu_rounded,
-                        color: AppColors.primary,
-                        size: 22,
-                      ),
-                    ),
-                    onPressed: () {
-                      Scaffold.of(context).openDrawer();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+          ),
+        ),
+        leading: Builder(
+          builder: (context) => Container(
+            margin: EdgeInsets.only(left: 8),
+            child: IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon:  Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white. withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.menu_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+        ),
+        title:  Text(
+          'Beranda',
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed:  () {
+                // Notification action
+              },
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons. notifications_outlined,
+                  color: Colors. white,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        ],
+      )
+          : AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 2,
+        leading: IconButton(
+          icon: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary. withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
+          ),
+          onPressed: () {
+            setState(() {
+              _selectedIndex = -1;
+            });
+          },
+        ),
+        title: Text(
+          _getPageTitle(),
+          style: AppTextStyles.titleLarge.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight:  FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius. circular(12),
+                ),
+                child: Icon(
+                  Icons.menu_rounded,
+                  color:  AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       drawer: _buildSideDrawer(),
-      body: _selectedIndex == -1 
-          ? SafeArea(  // <-- TAMBAHKAN SafeArea HANYA UNTUK BERANDA
-              bottom: false,
-              child: _buildHomeContent(),
-            )
-          : _getSelectedContent(), // <-- Halaman lain tanpa SafeArea  
+      body: _selectedIndex == -1
+          ? SafeArea(
+        bottom: false,
+        child: _buildHomeContent(),
+      )
+          : _getSelectedContent(),
     );
   }
 
+  // UBAH: Widget _buildSideDrawer dengan logo kedai
   Widget _buildSideDrawer() {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.85,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors. surface,
       child: Column(
         children: [
           // Drawer Header with gradient
@@ -1821,52 +2064,36 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // User Avatar
+                // UBAH: Avatar mengarah ke Kedaimu dan gunakan logo kedai
                 Center(
-                  child: Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/logo.jpg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.person_rounded,
-                              size: 44,
-                              color: Colors.white,
-                            ),
-                          );
-                        },
+                  child: GestureDetector(
+                    onTap: _navigateToKedai, // UBAH dari _navigateToProfile
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius:  15,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: _buildLogoKedai(size: 90), // UBAH:  Gunakan logo kedai
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Gunakan _currentUserName
                 Text(
-                  widget.username,
-                  style: AppTextStyles.headlineMedium.copyWith(
-                    color: Colors.white,
+                  _currentUserName. isNotEmpty ? _currentUserName : widget.username,
+                  style: AppTextStyles.headlineMedium. copyWith(
+                    color:  Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
@@ -1877,7 +2104,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   widget.email,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white. withOpacity(0.9),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -1890,11 +2117,11 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(color: Colors.white. withOpacity(0.3)),
                     ),
                     child: Text(
                       widget.role != null && widget.role!.isNotEmpty
-                          ? widget.role!.toUpperCase()
+                          ? widget.role!. toUpperCase()
                           : 'ADMIN',
                       style: AppTextStyles.labelSmall.copyWith(
                         color: Colors.white,
@@ -1916,90 +2143,104 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 children: [
                   const SizedBox(height: 8),
-                  ...List.generate(_filteredMenuItems.length, (index) {
+                  ... List.generate(_filteredMenuItems.length, (index) {
                     final item = _filteredMenuItems[index];
                     final isSelected = _selectedIndex == item['route'];
-                    
-                    // State untuk track hover
+
                     bool isHovered = false;
-                    
+
                     return StatefulBuilder(
-                      builder: (context, setState) {
+                      builder:  (context, setState) {
                         return MouseRegion(
                           cursor: SystemMouseCursors.click,
-                          onEnter: (_) => setState(() => isHovered = true),
-                          onExit: (_) => setState(() => isHovered = false),
+                          onEnter:  (_) => setState(() => isHovered = true),
+                          onExit:  (_) => setState(() => isHovered = false),
                           child: GestureDetector(
                             onTap: () => _onMenuTapped(item['route'] as int),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                              child: Container( // <-- PAKAI Container, BUKAN AnimatedContainer
+                            child:  Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 6),
+                              child: Container(
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary.withOpacity(0.1)
-                                      : (isHovered ? AppColors.primary.withOpacity(0.05) : Colors.transparent),
+                                      ? AppColors.primary. withOpacity(0.1)
+                                      : (isHovered
+                                      ? AppColors.primary.withOpacity(0.05)
+                                      : Colors.transparent),
                                   borderRadius: BorderRadius.circular(16),
-                                  // PAKAI BORDER dengan width KONSTAN (1) agar tidak bergerak
                                   border: Border.all(
                                     color: isSelected
-                                        ? AppColors.primary.withOpacity(0.3)
-                                        : (isHovered ? AppColors.primary.withOpacity(0.1) : Colors.transparent),
-                                    width: 1, // <-- WIDTH SELALU 1, TIDAK BERUBAH
+                                        ?  AppColors.primary. withOpacity(0.3)
+                                        : (isHovered
+                                        ?  AppColors.primary.withOpacity(0.1)
+                                        : Colors. transparent),
+                                    width: 1,
                                   ),
                                 ),
                                 child: ListTile(
                                   leading: Container(
                                     width: 44,
                                     height: 44,
-                                    decoration: BoxDecoration(
+                                    decoration:  BoxDecoration(
                                       gradient: isSelected
                                           ? LinearGradient(
-                                              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            )
+                                        colors: [
+                                          Color(0xFF667eea),
+                                          Color(0xFF764ba2)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end:  Alignment.bottomRight,
+                                      )
                                           : (isHovered
-                                              ? LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF667eea).withOpacity(0.2),
-                                                    Color(0xFF764ba2).withOpacity(0.1)
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                )
-                                              : LinearGradient(
-                                                  colors: [
-                                                    AppColors.textSecondary.withOpacity(0.1),
-                                                    AppColors.textSecondary.withOpacity(0.05)
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                )),
-                                      borderRadius: BorderRadius.circular(12),
+                                          ?  LinearGradient(
+                                        colors: [
+                                          Color(0xFF667eea)
+                                              .withOpacity(0.2),
+                                          Color(0xFF764ba2)
+                                              .withOpacity(0.1)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                          : LinearGradient(
+                                        colors: [
+                                          AppColors.textSecondary
+                                              .withOpacity(0.1),
+                                          AppColors.textSecondary
+                                              .withOpacity(0.05)
+                                        ],
+                                        begin:  Alignment.topLeft,
+                                        end: Alignment. bottomRight,
+                                      )),
+                                      borderRadius:  BorderRadius.circular(12),
                                       boxShadow: isSelected
                                           ? [
-                                              BoxShadow(
-                                                color: Color(0xFF764ba2).withOpacity(0.2),
-                                                blurRadius: 8,
-                                                offset: Offset(0, 4),
-                                              ),
-                                            ]
+                                        BoxShadow(
+                                          color: Color(0xFF764ba2)
+                                              .withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ]
                                           : (isHovered
-                                              ? [
-                                                  BoxShadow(
-                                                    color: Color(0xFF667eea).withOpacity(0.1),
-                                                    blurRadius: 4,
-                                                    offset: Offset(0, 2),
-                                                  ),
-                                                ]
-                                              : null),
+                                          ?  [
+                                        BoxShadow(
+                                          color: Color(0xFF667eea)
+                                              . withOpacity(0.1),
+                                          blurRadius: 4,
+                                          offset:  Offset(0, 2),
+                                        ),
+                                      ]
+                                          :  null),
                                     ),
                                     child: Icon(
                                       item['icon'] as IconData,
                                       size: 22,
                                       color: isSelected
                                           ? Colors.white
-                                          : (isHovered ? Color(0xFF667eea) : AppColors.textSecondary),
+                                          : (isHovered
+                                          ?  Color(0xFF667eea)
+                                          : AppColors.textSecondary),
                                     ),
                                   ),
                                   title: Text(
@@ -2007,25 +2248,30 @@ class _HomePageState extends State<HomePage> {
                                     style: AppTextStyles.bodyMedium.copyWith(
                                       color: isSelected
                                           ? AppColors.primary
-                                          : (isHovered ? Color(0xFF667eea) : AppColors.textPrimary),
+                                          :  (isHovered
+                                          ? Color(0xFF667eea)
+                                          : AppColors.textPrimary),
                                       fontWeight: isSelected
                                           ? FontWeight.w700
-                                          : (isHovered ? FontWeight.w600 : FontWeight.w500),
+                                          : (isHovered
+                                          ? FontWeight.w600
+                                          : FontWeight. w500),
                                     ),
                                   ),
                                   trailing: isSelected || isHovered
-                                      ? Container(
-                                          padding: EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Color(0xFF667eea).withOpacity(isSelected ? 0.1 : 0.05),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Icon(
-                                            Icons.chevron_right_rounded,
-                                            color: Color(0xFF667eea),
-                                            size: 20,
-                                          ),
-                                        )
+                                      ?  Container(
+                                    padding: EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF667eea)
+                                          .withOpacity(isSelected ? 0.1 :  0.05),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Color(0xFF667eea),
+                                      size: 20,
+                                    ),
+                                  )
                                       : null,
                                   contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 8),
@@ -2053,14 +2299,17 @@ class _HomePageState extends State<HomePage> {
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFff6b6b).withOpacity(0.1), Color(0xFFff8e8e).withOpacity(0.05)],
+                  colors: [
+                    Color(0xFFff6b6b).withOpacity(0.1),
+                    Color(0xFFff8e8e).withOpacity(0.05)
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Color(0xFFff6b6b).withOpacity(0.2)),
               ),
-              child: ListTile(
+              child:  ListTile(
                 leading: Container(
                   width: 44,
                   height: 44,
@@ -2087,7 +2336,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: _logout,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                const EdgeInsets. symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),

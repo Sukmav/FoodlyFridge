@@ -5,16 +5,15 @@ import 'package:barcode_widget/barcode_widget.dart';
 import '../config.dart';
 import '../restapi.dart';
 import 'add_menu_form.dart';
-import '../model/menu_model.dart';
 
 class MenuDetailPage extends StatefulWidget {
   final Map<String, dynamic> menu;
-  final VoidCallback? onMenuUpdated;
+  final VoidCallback?  onMenuUpdated;
   final VoidCallback? onMenuDeleted;
 
   const MenuDetailPage({
     super.key,
-    required this.menu,// ← Required
+    required this. menu,
     this.onMenuUpdated,
     this.onMenuDeleted,
   });
@@ -27,7 +26,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
   final DataService _dataService = DataService();
   bool _isLoading = false;
   late TabController _tabController;
-  
+
   // Gradient Colors
   static const LinearGradient priceTagGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -55,7 +54,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
   String _formatNumber(double number) {
     return number.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
+          (Match m) => '${m[1]}.',
     );
   }
 
@@ -67,9 +66,9 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
         if (rawStructured is List) {
           for (var it in rawStructured) {
             result.add({
-              'nama': it['nama_bahan']?.toString() ?? it['nama']?.toString() ?? '',
+              'nama':  it['nama_bahan']?.toString() ?? it['nama']?.toString() ?? '',
               'jumlah': it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0',
-              'satuan': it['unit']?.toString() ?? '',
+              'satuan':  it['unit']?.toString() ?? '',
               'biaya': it['biaya']?.toString() ?? '0',
             });
           }
@@ -79,11 +78,11 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
             final decoded = json.decode(rawStructured);
             if (decoded is List) {
               for (var it in decoded) {
-                result.add({
-                  'nama': it['nama_bahan']?.toString() ?? it['nama']?.toString() ?? '',
+                result. add({
+                  'nama':  it['nama_bahan']?. toString() ?? it['nama']?.toString() ?? '',
                   'jumlah': it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0',
-                  'satuan': it['unit']?.toString() ?? '',
-                  'biaya': it['biaya']?.toString() ?? '0',
+                  'satuan':  it['unit']?.toString() ?? '',
+                  'biaya':  it['biaya']?.toString() ?? '0',
                 });
               }
               return result;
@@ -93,19 +92,19 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
       }
 
       final bahanStr = widget.menu['bahan']?.toString() ?? '';
-      if (bahanStr.isEmpty) return result;
+      if (bahanStr. isEmpty) return result;
 
       final bahanList = bahanStr.split(',');
       final jumlahList = (widget.menu['jumlah']?.toString() ?? '').split(',');
       final satuanList = (widget.menu['satuan']?.toString() ?? '').split(',');
-      final biayaList = (widget.menu['biaya']?.toString() ?? '').split(',');
+      final biayaList = (widget.menu['biaya']?. toString() ?? '').split(',');
 
       for (int i = 0; i < bahanList.length; i++) {
         result.add({
-          'nama': bahanList[i].trim(),
-          'jumlah': i < jumlahList.length ? jumlahList[i].trim() : '0',
-          'satuan': i < satuanList.length ? satuanList[i].trim() : '',
-          'biaya': i < biayaList.length ? biayaList[i].trim() : '0',
+          'nama':  bahanList[i].trim(),
+          'jumlah': i < jumlahList.length ?  jumlahList[i].trim() : '0',
+          'satuan': i < satuanList.length ?  satuanList[i].trim() : '',
+          'biaya': i < biayaList. length ? biayaList[i].trim() : '0',
         });
       }
     } catch (e) {
@@ -141,9 +140,9 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(Icons.warning_rounded, color: Colors.red),
+              Icon(Icons. warning_rounded, color: Colors.red),
               SizedBox(width: 10),
-              Text('Hapus Menu?'),
+              Text('Hapus Menu? '),
             ],
           ),
           content: Text('Apakah Anda yakin ingin menghapus "${widget.menu['nama_menu']}"?'),
@@ -161,7 +160,6 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
         ),
       );
 
-      // Debug: Cek apakah dialog return nilai
       debugPrint('Dialog result: $confirm');
 
       if (confirm != true) {
@@ -173,7 +171,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
 
       final id = widget.menu['_id']?.toString() ?? widget.menu['id']?.toString() ?? '';
       debugPrint('Attempting to delete menu with ID: $id');
-      
+
       if (id.isEmpty) {
         Fluttertoast.showToast(msg: "ID menu tidak ditemukan", backgroundColor: Colors.red);
         setState(() => _isLoading = false);
@@ -185,7 +183,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
 
       if (success) {
         Fluttertoast.showToast(
-          msg: "Menu '${widget.menu['nama_menu']}' berhasil dihapus!",
+          msg: "Menu '${widget.menu['nama_menu']}' berhasil dihapus! ",
           backgroundColor: Colors.green,
           toastLength: Toast.LENGTH_LONG,
         );
@@ -195,16 +193,15 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
         Fluttertoast.showToast(
           msg: "Gagal menghapus menu",
           backgroundColor: Colors.red,
-          toastLength: Toast.LENGTH_LONG,
+          toastLength: Toast. LENGTH_LONG,
         );
       }
     } catch (e, stack) {
-      // Tambahkan error handling yang lebih detail
       debugPrint('Error in _deleteMenu: $e');
       debugPrint('Stack trace: $stack');
-      
-      Fluttertoast.showToast(
-        msg: "Terjadi kesalahan: ${e.toString()}",
+
+      Fluttertoast. showToast(
+        msg:  "Terjadi kesalahan:  ${e.toString()}",
         backgroundColor: Colors.red,
         toastLength: Toast.LENGTH_LONG,
       );
@@ -225,7 +222,6 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
     }
   }
 
-
   void _openEditForm() {
     Navigator.push(
       context,
@@ -234,18 +230,15 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
           initialData: widget.menu,
           isEditing: true,
           onMenuUpdated: () {
-            // Ini akan memperbarui halaman detail
             debugPrint('Menu updated via callback');
             widget.onMenuUpdated?.call();
-            
-            // Force rebuild untuk menampilkan data baru
+
             if (mounted) {
               setState(() {});
             }
-            
-            // Tampilkan toast di detail page
+
             Fluttertoast.showToast(
-              msg: "Menu telah diperbarui!",
+              msg: "Menu telah diperbarui! ",
               backgroundColor: Colors.green,
               toastLength: Toast.LENGTH_SHORT,
             );
@@ -253,13 +246,104 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
         ),
       ),
     ).then((value) {
-      // Optional: tambahan handling jika perlu
       debugPrint('Edit form closed');
     });
   }
 
+  // Helper method untuk menampilkan foto menu
+  Widget _buildMenuImage(String?  fotoMenu) {
+    // Jika foto kosong atau null
+    if (fotoMenu == null || fotoMenu.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Center(
+          child: Icon(
+            Icons.restaurant,
+            size: 80,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
+
+    // Jika foto adalah URL (dimulai dengan http)
+    if (fotoMenu.startsWith('http')) {
+      return Image.network(
+        fotoMenu,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, st) => Container(
+          color:  Colors.grey[200],
+          child: const Center(
+            child: Icon(Icons.broken_image, size: 60, color: Colors.grey),
+          ),
+        ),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress. expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          );
+        },
+      );
+    }
+
+    // Jika foto adalah base64 (string panjang)
+    if (fotoMenu.length > 100) {
+      try {
+        // Handle base64 dengan atau tanpa prefix
+        final base64String = fotoMenu. contains(',')
+            ? fotoMenu. split(',').last
+            : fotoMenu;
+
+        return Image.memory(
+          base64Decode(base64String),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Error decoding base64 image: $error');
+            return Container(
+              color: Colors. grey[200],
+              child:  const Center(
+                child: Icon(
+                  Icons.broken_image,
+                  size: 60,
+                  color: Colors.grey,
+                ),
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        debugPrint('Error displaying base64 image: $e');
+        return Container(
+          color:  Colors.grey[200],
+          child: const Center(
+            child: Icon(
+              Icons.broken_image,
+              size: 60,
+              color: Colors. grey,
+            ),
+          ),
+        );
+      }
+    }
+
+    // Default jika tidak cocok dengan format apapun
+    return Container(
+      color: Colors.grey[200],
+      child: const Center(
+        child: Icon(
+          Icons.restaurant,
+          size: 80,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
   Widget _buildRiwayatTab() {
-    // TODO: Implement riwayat content based on your data
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -285,13 +369,14 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
     final totalRecipe = _calculateTotalRecipeCost();
     final foodCost = _calculateFoodCost();
     final hargaJual = double.tryParse(widget.menu['harga_jual']?.toString() ?? widget.menu['harga']?.toString() ?? '0') ?? 0.0;
+    final fotoMenu = widget.menu['foto_menu']?.toString();
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image Section
+          // Image Section - GUNAKAN HELPER METHOD
           Container(
             width: double.infinity,
             height: 180,
@@ -299,30 +384,24 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
             ),
-            child: widget.menu['foto_menu'] != null && widget.menu['foto_menu'].toString().isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      widget.menu['foto_menu'],
-                      fit: BoxFit.cover,
-                      errorBuilder: (ctx, err, st) => Center(child: Icon(Icons.restaurant, size: 60, color: Colors.grey)),
-                    ),
-                  )
-                : Center(child: Icon(Icons.restaurant, size: 60, color: Colors.grey)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: _buildMenuImage(fotoMenu),
+            ),
           ),
           SizedBox(height: 20),
 
           // Informasi Menu Card
           Card(
-            elevation: 3,
+            elevation:  3,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: EdgeInsets. all(16),
+              child:  Column(
+                crossAxisAlignment:  CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment:  MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Informasi Menu',
@@ -350,7 +429,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                   _buildInfoRow('Nama Menu', widget.menu['nama_menu'] ?? '-'),
                   _buildInfoRow('Kategori', widget.menu['kategori'] ?? '-'),
                   Divider(height: 32),
-                  
+
                   // Cost Summary
                   Row(
                     children: [
@@ -364,7 +443,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                             SizedBox(height: 4),
                             Text(
                               'Rp ${_formatNumber(totalRecipe)}',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight. bold, color: Colors.blue[800]),
                             ),
                           ],
                         ),
@@ -380,10 +459,10 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                             SizedBox(height: 4),
                             Text(
                               '${foodCost.toStringAsFixed(1)}%',
-                              style: TextStyle(
+                              style:  TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: foodCost > 50 ? Colors.red : Colors.green,
+                                fontWeight: FontWeight. bold,
+                                color: foodCost > 50 ? Colors.red : Colors. green,
                               ),
                             ),
                           ],
@@ -405,7 +484,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:  CrossAxisAlignment.start,
                   children: [
                     Text('Barcode', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     SizedBox(height: 12),
@@ -416,9 +495,9 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                             padding: EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius:  BorderRadius.circular(8),
                             ),
-                            child: BarcodeWidget(
+                            child:  BarcodeWidget(
                               barcode: Barcode.code128(),
                               data: widget.menu['barcode'],
                               width: 250,
@@ -429,7 +508,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                           SizedBox(height: 8),
                           Text(
                             widget.menu['barcode'],
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 1.5),
+                            style: TextStyle(fontSize:  16, fontWeight: FontWeight.w500, letterSpacing: 1.5),
                           ),
                         ],
                       ),
@@ -454,11 +533,11 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                     children: [
                       Icon(Icons.shopping_basket_rounded, color: Colors.orange[700]),
                       SizedBox(width: 8),
-                      Text('Daftar Bahan Baku', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('Daftar Bahan Baku', style: TextStyle(fontSize:  16, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   SizedBox(height: 12),
-                  
+
                   if (bahanList.isEmpty)
                     Container(
                       padding: EdgeInsets.all(20),
@@ -481,14 +560,14 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
                           padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                           child: Row(
                             children: [
-                              Expanded(child: Text('Nama Bahan', style: TextStyle(fontWeight: FontWeight.bold))),
-                              Expanded(child: Text('Jumlah', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
-                              Expanded(child: Text('Biaya', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(child: Text('Nama Bahan', style: TextStyle(fontWeight:  FontWeight.bold))),
+                              Expanded(child: Text('Jumlah', textAlign: TextAlign.center, style: TextStyle(fontWeight:  FontWeight.bold))),
+                              Expanded(child: Text('Biaya', textAlign: TextAlign. right, style: TextStyle(fontWeight: FontWeight.bold))),
                             ],
                           ),
                         ),
                         SizedBox(height: 8),
-                        ...bahanList.asMap().entries.map((e) {
+                        ... bahanList.asMap().entries.map((e) {
                           final idx = e.key;
                           final item = e.value;
                           return Container(
@@ -536,7 +615,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
         children: [
           Expanded(
             flex: 2,
-            child: Text(label, style: TextStyle(color: Colors.grey[600])),
+            child:  Text(label, style: TextStyle(color: Colors.grey[600])),
           ),
           Expanded(
             flex: 3,
@@ -559,15 +638,15 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
         backgroundColor: Colors.white,
         elevation: 1,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons. arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Detail Menu',
           style: TextStyle(
-            fontSize: 18, // Ukuran lebih kecil
+            fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: Colors. black87,
           ),
         ),
         bottom: TabBar(
@@ -586,50 +665,50 @@ class _MenuDetailPageState extends State<MenuDetailPage> with SingleTickerProvid
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildDetailTab(),
-                _buildRiwayatTab(),
-              ],
-            ),
-            bottomNavigationBar: Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey[300]!)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _openEditForm,
-                      icon: Icon(Icons.edit_rounded, size: 20),
-                      label: Text('Ubah'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[700],
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _deleteMenu, // Disable ketika loading
-                      icon: Icon(Icons.delete_rounded, size: 20),
-                      label: Text('Hapus'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red[700],
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ),
-                ],
+        controller: _tabController,
+        children: [
+          _buildDetailTab(),
+          _buildRiwayatTab(),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey[300]! )),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton. icon(
+                onPressed: _openEditForm,
+                icon:  Icon(Icons.edit_rounded, size: 20),
+                label: Text('Ubah'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
             ),
+            SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _deleteMenu,
+                icon: Icon(Icons.delete_rounded, size: 20),
+                label: Text('Hapus'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors. red[700],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets. symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
