@@ -26,7 +26,6 @@ class _KasirPageState extends State<KasirPage> {
   String _userId = ''; // Variabel untuk menyimpan userId
   String _staffName = '';
 
-
   List<MenuModel> _menuList = [];
   List<BahanBakuModel> _bahanBakuList = [];
   bool _isLoading = false;
@@ -68,14 +67,16 @@ class _KasirPageState extends State<KasirPage> {
 
   void _initInvoiceCounter() {
     final now = DateTime.now();
-    final today = '${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}${now.year}';
+    final today =
+        '${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}${now.year}';
     _lastInvoiceDate = today;
     _invoiceCounter[today] = 1; // Mulai dari 1
   }
 
   String _generateInvoice() {
     final now = DateTime.now();
-    final today = '${now.day.toString().padLeft(2, '0')}'
+    final today =
+        '${now.day.toString().padLeft(2, '0')}'
         '${now.month.toString().padLeft(2, '0')}'
         '${now.year}';
 
@@ -97,11 +98,18 @@ class _KasirPageState extends State<KasirPage> {
     setState(() => _isLoading = true);
 
     try {
-      final menuResponse = await _dataService.selectAll(token, project, 'menu', appid);
+      final menuResponse = await _dataService.selectAll(
+        token,
+        project,
+        'menu',
+        appid,
+      );
       List<MenuModel> loadedMenus = [];
       List<String> loadedCategories = ['Semua'];
 
-      if (menuResponse.isNotEmpty && menuResponse != '[]' && menuResponse != 'null') {
+      if (menuResponse.isNotEmpty &&
+          menuResponse != '[]' &&
+          menuResponse != 'null') {
         try {
           final decoded = json.decode(menuResponse);
           List<dynamic> menuDataList = [];
@@ -114,13 +122,16 @@ class _KasirPageState extends State<KasirPage> {
 
           loadedMenus = menuDataList.map<MenuModel>((item) {
             try {
-              Map<String, dynamic> transformedItem = Map<String, dynamic>.from(item);
+              Map<String, dynamic> transformedItem = Map<String, dynamic>.from(
+                item,
+              );
 
               if (item.containsKey('id') && !item.containsKey('_id')) {
                 transformedItem['_id'] = item['id'];
               }
 
-              if (item.containsKey('bahan') && !item.containsKey('bahan_baku')) {
+              if (item.containsKey('bahan') &&
+                  !item.containsKey('bahan_baku')) {
                 final bahanStr = item['bahan']?.toString() ?? '';
                 final jumlahStr = item['jumlah']?.toString() ?? '';
                 final satuanStr = item['satuan']?.toString() ?? '';
@@ -135,8 +146,12 @@ class _KasirPageState extends State<KasirPage> {
                     if (bahanList[i].trim().isNotEmpty) {
                       bahanBakuArray.add({
                         'nama_bahan': bahanList[i].trim(),
-                        'jumlah': i < jumlahList.length ? jumlahList[i].trim() : '0',
-                        'unit': i < satuanList.length ? satuanList[i].trim() : 'pcs',
+                        'jumlah': i < jumlahList.length
+                            ? jumlahList[i].trim()
+                            : '0',
+                        'unit': i < satuanList.length
+                            ? satuanList[i].trim()
+                            : 'pcs',
                         'id_bahan': '',
                       });
                     }
@@ -146,14 +161,16 @@ class _KasirPageState extends State<KasirPage> {
                 }
               }
 
-              if (item.containsKey('harga_jual') && !item.containsKey('harga')) {
+              if (item.containsKey('harga_jual') &&
+                  !item.containsKey('harga')) {
                 transformedItem['harga'] = item['harga_jual'];
               }
 
               return MenuModel.fromJson(transformedItem);
             } catch (e) {
               return MenuModel(
-                id: item['id']?.toString() ??
+                id:
+                    item['id']?.toString() ??
                     item['_id']?.toString() ??
                     'fallback_${DateTime.now().millisecondsSinceEpoch}',
                 kode_menu: item['kode_menu']?.toString() ?? 'ERR',
@@ -175,7 +192,6 @@ class _KasirPageState extends State<KasirPage> {
               .toList();
 
           loadedCategories = ['Semua'] + categories;
-
         } catch (e) {
           _showToast("Format data menu tidak valid", isSuccess: false);
         }
@@ -183,10 +199,17 @@ class _KasirPageState extends State<KasirPage> {
         _showToast("Tidak ada data menu tersedia", isSuccess: false);
       }
 
-      final bahanResponse = await _dataService.selectAll(token, project, 'bahan_baku', appid);
+      final bahanResponse = await _dataService.selectAll(
+        token,
+        project,
+        'bahan_baku',
+        appid,
+      );
       List<BahanBakuModel> loadedBahanBaku = [];
 
-      if (bahanResponse.isNotEmpty && bahanResponse != '[]' && bahanResponse != 'null') {
+      if (bahanResponse.isNotEmpty &&
+          bahanResponse != '[]' &&
+          bahanResponse != 'null') {
         try {
           final decoded = json.decode(bahanResponse);
           List<dynamic> bahanDataList = [];
@@ -210,7 +233,6 @@ class _KasirPageState extends State<KasirPage> {
           _categories = loadedCategories;
         });
       }
-
     } catch (e) {
       _showToast("Gagal memuat data: $e", isSuccess: false);
     } finally {
@@ -236,15 +258,20 @@ class _KasirPageState extends State<KasirPage> {
     var filtered = _menuList;
 
     if (_selectedCategory != 'Semua') {
-      filtered = filtered.where((menu) => menu.kategori == _selectedCategory).toList();
+      filtered = filtered
+          .where((menu) => menu.kategori == _selectedCategory)
+          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final searchLower = _searchQuery.toLowerCase();
-      filtered = filtered.where((menu) =>
-      menu.nama_menu.toLowerCase().contains(searchLower) ||
-          menu.kode_menu.toLowerCase().contains(searchLower)
-      ).toList();
+      filtered = filtered
+          .where(
+            (menu) =>
+                menu.nama_menu.toLowerCase().contains(searchLower) ||
+                menu.kode_menu.toLowerCase().contains(searchLower),
+          )
+          .toList();
     }
 
     return filtered;
@@ -256,7 +283,9 @@ class _KasirPageState extends State<KasirPage> {
       return;
     }
 
-    final existingIndex = _cartItems.indexWhere((item) => item.menu.id == menu.id);
+    final existingIndex = _cartItems.indexWhere(
+      (item) => item.menu.id == menu.id,
+    );
 
     if (existingIndex != -1) {
       setState(() {
@@ -267,10 +296,7 @@ class _KasirPageState extends State<KasirPage> {
       });
     } else {
       setState(() {
-        _cartItems.add(CartItem(
-          menu: menu,
-          quantity: 1,
-        ));
+        _cartItems.add(CartItem(menu: menu, quantity: 1));
       });
     }
 
@@ -294,19 +320,22 @@ class _KasirPageState extends State<KasirPage> {
         final totalKebutuhan = jumlahPerMenu * tambahanQuantity;
 
         final bahanBaku = _bahanBakuList.firstWhere(
-              (b) => b.nama_bahan.toLowerCase() == nama_bahan.toLowerCase(),
+          (b) => b.nama_bahan.toLowerCase() == nama_bahan.toLowerCase(),
           orElse: () => BahanBakuModel.fromJson({}),
         );
 
         if (bahanBaku.id.isEmpty) continue;
 
-        final stokTersedia = double.tryParse(bahanBaku.stok_tersedia ?? '0') ?? 0.0;
+        final stokTersedia =
+            double.tryParse(bahanBaku.stok_tersedia ?? '0') ?? 0.0;
 
         double totalDiKeranjang = 0.0;
         for (var item in _cartItems) {
           for (var bahanItem in item.menu.bahan_baku) {
-            if (bahanItem.nama_bahan.toLowerCase() == nama_bahan.toLowerCase()) {
-              totalDiKeranjang += (double.tryParse(bahanItem.jumlah) ?? 0.0) * item.quantity;
+            if (bahanItem.nama_bahan.toLowerCase() ==
+                nama_bahan.toLowerCase()) {
+              totalDiKeranjang +=
+                  (double.tryParse(bahanItem.jumlah) ?? 0.0) * item.quantity;
               break;
             }
           }
@@ -315,7 +344,10 @@ class _KasirPageState extends State<KasirPage> {
         totalDiKeranjang += totalKebutuhan;
 
         if (stokTersedia < totalDiKeranjang) {
-          _showToast("Stok $nama_bahan tidak mencukupi (tersedia: $stokTersedia ${bahan.unit})", isSuccess: false);
+          _showToast(
+            "Stok $nama_bahan tidak mencukupi (tersedia: $stokTersedia ${bahan.unit})",
+            isSuccess: false,
+          );
           return false;
         }
       }
@@ -347,10 +379,7 @@ class _KasirPageState extends State<KasirPage> {
     }
 
     setState(() {
-      _cartItems[index] = CartItem(
-        menu: item.menu,
-        quantity: newQuantity,
-      );
+      _cartItems[index] = CartItem(menu: item.menu, quantity: newQuantity);
     });
 
     _calculateTotal();
@@ -400,10 +429,14 @@ class _KasirPageState extends State<KasirPage> {
         appid: appid,
         invoice: invoice,
         namaPemesanan: _namaPemesanController.text,
-        noMeja: _noMejaController.text.isNotEmpty ? _noMejaController.text : '-',
+        noMeja: _noMejaController.text.isNotEmpty
+            ? _noMejaController.text
+            : '-',
         tanggal: formattedTanggal,
         menu: formattedMenu,
-        catatan: _catatanController.text.isNotEmpty ? _catatanController.text : '-',
+        catatan: _catatanController.text.isNotEmpty
+            ? _catatanController.text
+            : '-',
         totalHarga: _totalHarga.toString(),
       );
 
@@ -417,7 +450,6 @@ class _KasirPageState extends State<KasirPage> {
           _resetForm();
         }
       });
-
     } catch (e) {
       _showToast("Gagal memproses pembayaran: $e", isSuccess: false);
     } finally {
@@ -454,7 +486,7 @@ class _KasirPageState extends State<KasirPage> {
         if (namaBahan.isEmpty) continue;
 
         final bahanIndex = _bahanBakuList.indexWhere(
-              (b) => b.nama_bahan.toLowerCase() == namaBahan.toLowerCase(),
+          (b) => b.nama_bahan.toLowerCase() == namaBahan.toLowerCase(),
         );
 
         if (bahanIndex == -1) continue;
@@ -529,7 +561,6 @@ class _KasirPageState extends State<KasirPage> {
           });
         }
       }
-
     } catch (e) {
       throw Exception('Gagal mengurangi stok: $e');
     }
@@ -537,9 +568,16 @@ class _KasirPageState extends State<KasirPage> {
 
   Future<void> _refreshBahanBakuData() async {
     try {
-      final bahanResponse = await _dataService.selectAll(token, project, 'bahan_baku', appid);
+      final bahanResponse = await _dataService.selectAll(
+        token,
+        project,
+        'bahan_baku',
+        appid,
+      );
 
-      if (bahanResponse.isNotEmpty && bahanResponse != '[]' && bahanResponse != 'null') {
+      if (bahanResponse.isNotEmpty &&
+          bahanResponse != '[]' &&
+          bahanResponse != 'null') {
         final decoded = json.decode(bahanResponse);
         List<dynamic> bahanDataList = [];
 
@@ -601,8 +639,12 @@ class _KasirPageState extends State<KasirPage> {
     }).toList();
 
     final String savedNamaPemesan = _namaPemesanController.text;
-    final String savedNoMeja = _noMejaController.text.isNotEmpty ? _noMejaController.text : '-';
-    final String savedCatatan = _catatanController.text.isNotEmpty ? _catatanController.text : '-';
+    final String savedNoMeja = _noMejaController.text.isNotEmpty
+        ? _noMejaController.text
+        : '-';
+    final String savedCatatan = _catatanController.text.isNotEmpty
+        ? _catatanController.text
+        : '-';
     final double savedTotalHarga = _totalHarga;
     final String savedUserId = _userId;
 
@@ -610,9 +652,7 @@ class _KasirPageState extends State<KasirPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(Icons.check_circle, color: AppColors.success, size: 30),
@@ -626,14 +666,27 @@ class _KasirPageState extends State<KasirPage> {
           children: [
             Text('Invoice: $invoice', style: AppTextStyles.bodyMedium),
             SizedBox(height: 10),
-            Text('Total: Rp ${_formatNumber(savedTotalHarga)}',
-                style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              'Total: Rp ${_formatNumber(savedTotalHarga)}',
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             SizedBox(height: 10),
-            Text('Jumlah Item: ${savedCartItems.length}', style: AppTextStyles.bodySmall),
+            Text(
+              'Jumlah Item: ${savedCartItems.length}',
+              style: AppTextStyles.bodySmall,
+            ),
             SizedBox(height: 5),
-            Text('Pelanggan: $savedNamaPemesan', style: AppTextStyles.bodySmall),
+            Text(
+              'Pelanggan: $savedNamaPemesan',
+              style: AppTextStyles.bodySmall,
+            ),
             SizedBox(height: 10),
-            Text('Terima kasih atas pembeliannya!', style: AppTextStyles.bodySmall),
+            Text(
+              'Terima kasih atas pembeliannya!',
+              style: AppTextStyles.bodySmall,
+            ),
           ],
         ),
         actions: [
@@ -674,7 +727,9 @@ class _KasirPageState extends State<KasirPage> {
               print('Nama Pemesan: $savedNamaPemesan');
               print('Jumlah Items: ${savedCartItems.length}');
               for (var i = 0; i < savedCartItems.length; i++) {
-                print('  Item $i: ${savedCartItems[i]['nama_menu']} x${savedCartItems[i]['quantity']} = Rp ${savedCartItems[i]['subtotal']}');
+                print(
+                  '  Item $i: ${savedCartItems[i]['nama_menu']} x${savedCartItems[i]['quantity']} = Rp ${savedCartItems[i]['subtotal']}',
+                );
               }
               print('Total: Rp $savedTotalHarga');
               print('User ID: $savedUserId');
@@ -684,10 +739,8 @@ class _KasirPageState extends State<KasirPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => StrukPage(
-                    transaksi: transaksiData,
-                    userId: savedUserId,
-                  ),
+                  builder: (context) =>
+                      StrukPage(transaksi: transaksiData, userId: savedUserId),
                 ),
               );
 
@@ -730,9 +783,7 @@ class _KasirPageState extends State<KasirPage> {
 
     return Card(
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: EdgeInsets.all(6),
       shadowColor: Colors.black.withOpacity(0.1),
       child: InkWell(
@@ -748,12 +799,12 @@ class _KasirPageState extends State<KasirPage> {
                   borderRadius: BorderRadius.circular(16),
                   child: menu.foto_menu != null && menu.foto_menu!.isNotEmpty
                       ? Image.network(
-                    menu.foto_menu!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _buildDefaultBackground(menu);
-                    },
-                  )
+                          menu.foto_menu!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildDefaultBackground(menu);
+                          },
+                        )
                       : _buildDefaultBackground(menu),
                 ),
               ),
@@ -788,11 +839,16 @@ class _KasirPageState extends State<KasirPage> {
                       children: [
                         // Kode menu dengan glassmorphism effect
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.3)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
                           ),
                           child: Text(
                             menu.kode_menu,
@@ -807,9 +863,14 @@ class _KasirPageState extends State<KasirPage> {
 
                         // Kategori dengan warna sesuai jenis (MENGUNAKAN APPCOLORS)
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: _getCategoryColor(menu.kategori ?? '').withOpacity(0.9),
+                            color: _getCategoryColor(
+                              menu.kategori ?? '',
+                            ).withOpacity(0.9),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -857,7 +918,10 @@ class _KasirPageState extends State<KasirPage> {
                           children: [
                             // Harga dengan glowing effect (MENGUNAKAN APPCOLORS)
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.9),
                                 borderRadius: BorderRadius.circular(8),
@@ -882,14 +946,21 @@ class _KasirPageState extends State<KasirPage> {
                             // Stok indicator (MENGUNAKAN APPCOLORS)
                             if (stokMenu > 0)
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.9),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.inventory, size: 12, color: AppColors.success),
+                                    Icon(
+                                      Icons.inventory,
+                                      size: 12,
+                                      color: AppColors.success,
+                                    ),
                                     SizedBox(width: 4),
                                     Text(
                                       '$stokMenu',
@@ -901,7 +972,7 @@ class _KasirPageState extends State<KasirPage> {
                                     ),
                                   ],
                                 ),
-                              )
+                              ),
                           ],
                         ),
                       ],
@@ -928,14 +999,11 @@ class _KasirPageState extends State<KasirPage> {
                           spreadRadius: 1,
                         ),
                       ],
-                      gradient: AppColors.primaryGradient, // MENGGUNAKAN GRADIENT DARI APPCOLORS
+                      gradient: AppColors
+                          .primaryGradient, // MENGGUNAKAN GRADIENT DARI APPCOLORS
                     ),
                     child: Center(
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      child: Icon(Icons.add, color: Colors.white, size: 20),
                     ),
                   ),
                 ),
@@ -1040,7 +1108,8 @@ class _KasirPageState extends State<KasirPage> {
                     children: [
                       Text(
                         item.menu.nama_menu,
-                        style: AppTextStyles.bodyMedium.copyWith( // MENGGUNAKAN TEXT STYLES
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          // MENGGUNAKAN TEXT STYLES
                           fontWeight: FontWeight.w600,
                         ),
                         maxLines: 1,
@@ -1052,14 +1121,18 @@ class _KasirPageState extends State<KasirPage> {
                         child: Row(
                           children: [
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.card, // MENGGUNAKAN CARD COLOR
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 'Kode: ${item.menu.kode_menu}',
-                                style: AppTextStyles.labelSmall.copyWith( // MENGGUNAKAN TEXT STYLES
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  // MENGGUNAKAN TEXT STYLES
                                   color: AppColors.textSecondary,
                                 ),
                               ),
@@ -1067,7 +1140,10 @@ class _KasirPageState extends State<KasirPage> {
                             if (item.menu.bahan_baku.isNotEmpty) ...[
                               SizedBox(width: 6),
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.warning.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(4),
@@ -1126,11 +1202,18 @@ class _KasirPageState extends State<KasirPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        onPressed: () => _updateQuantity(index, item.quantity - 1),
+                        onPressed: () =>
+                            _updateQuantity(index, item.quantity - 1),
                         icon: Icon(Icons.remove, size: 16),
                         color: AppColors.textPrimary,
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        constraints: BoxConstraints(minWidth: 40, minHeight: 36),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 36,
+                        ),
                       ),
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 12),
@@ -1144,11 +1227,18 @@ class _KasirPageState extends State<KasirPage> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => _updateQuantity(index, item.quantity + 1),
+                        onPressed: () =>
+                            _updateQuantity(index, item.quantity + 1),
                         icon: Icon(Icons.add, size: 16),
                         color: AppColors.textPrimary,
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        constraints: BoxConstraints(minWidth: 40, minHeight: 36),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 36,
+                        ),
                       ),
                     ],
                   ),
@@ -1159,7 +1249,9 @@ class _KasirPageState extends State<KasirPage> {
                   decoration: BoxDecoration(
                     color: AppColors.danger.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.danger.withOpacity(0.2)),
+                    border: Border.all(
+                      color: AppColors.danger.withOpacity(0.2),
+                    ),
                   ),
                   child: IconButton(
                     onPressed: () => _removeFromCart(index),
@@ -1228,7 +1320,10 @@ class _KasirPageState extends State<KasirPage> {
             decoration: InputDecoration(
               labelText: 'Nomor Meja',
               labelStyle: TextStyle(color: AppColors.textSecondary),
-              prefixIcon: Icon(Icons.table_restaurant, color: AppColors.primary),
+              prefixIcon: Icon(
+                Icons.table_restaurant,
+                color: AppColors.primary,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: AppColors.border),
@@ -1317,7 +1412,9 @@ class _KasirPageState extends State<KasirPage> {
   void _showToast(String message, {bool isSuccess = false}) {
     Fluttertoast.showToast(
       msg: message,
-      backgroundColor: isSuccess ? AppColors.success : AppColors.danger, // MENGGUNAKAN APPCOLORS
+      backgroundColor: isSuccess
+          ? AppColors.success
+          : AppColors.danger, // MENGGUNAKAN APPCOLORS
       textColor: Colors.white,
       fontSize: 14,
       toastLength: Toast.LENGTH_SHORT,
@@ -1325,10 +1422,12 @@ class _KasirPageState extends State<KasirPage> {
   }
 
   String _formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (m) => '${m[1]}.',
-    );
+        );
   }
 
   @override
@@ -1339,26 +1438,26 @@ class _KasirPageState extends State<KasirPage> {
       backgroundColor: AppColors.background, // MENGGUNAKAN BACKGROUND COLOR
       body: _isLoading
           ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(AppColors.primary),
-            ),
-            SizedBox(height: 16),
-            Text('Memuat data...', style: AppTextStyles.bodyMedium),
-          ],
-        ),
-      )
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                  ),
+                  SizedBox(height: 16),
+                  Text('Memuat data...', style: AppTextStyles.bodyMedium),
+                ],
+              ),
+            )
           : LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth > 1000) {
-            return _buildDesktopLayout(filteredMenus);
-          } else {
-            return _buildMobileLayout(filteredMenus);
-          }
-        },
-      ),
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 1000) {
+                  return _buildDesktopLayout(filteredMenus);
+                } else {
+                  return _buildMobileLayout(filteredMenus);
+                }
+              },
+            ),
     );
   }
 
@@ -1397,24 +1496,27 @@ class _KasirPageState extends State<KasirPage> {
                         decoration: InputDecoration(
                           hintText: 'Cari menu atau kode...',
                           hintStyle: TextStyle(color: AppColors.textDisabled),
-                          prefixIcon: Icon(Icons.search, color: AppColors.primary),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: AppColors.primary,
+                          ),
                           filled: true,
                           fillColor: AppColors.card,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
                         ),
                       ),
 
                       SizedBox(height: 12),
 
                       // Categories
-                      Container(
-                        height: 40,
-                        child: _buildCategoryFilter(),
-                      ),
+                      Container(height: 40, child: _buildCategoryFilter()),
                     ],
                   ),
                 ),
@@ -1445,10 +1547,7 @@ class _KasirPageState extends State<KasirPage> {
         ),
 
         // Divider
-        Container(
-          width: 1,
-          color: AppColors.border,
-        ),
+        Container(width: 1, color: AppColors.border),
 
         // Right Panel - Cart & Form
         Expanded(
@@ -1487,7 +1586,10 @@ class _KasirPageState extends State<KasirPage> {
                             ),
                             Spacer(),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
@@ -1508,31 +1610,33 @@ class _KasirPageState extends State<KasirPage> {
                         // Cart Items
                         _cartItems.isEmpty
                             ? Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.shopping_cart_outlined,
-                                size: 80,
-                                color: AppColors.textDisabled,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Keranjang Kosong',
-                                style: AppTextStyles.bodyLarge.copyWith(
-                                  color: AppColors.textDisabled,
-                                  fontWeight: FontWeight.w500,
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.shopping_cart_outlined,
+                                      size: 80,
+                                      color: AppColors.textDisabled,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'Keranjang Kosong',
+                                      style: AppTextStyles.bodyLarge.copyWith(
+                                        color: AppColors.textDisabled,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        )
+                              )
                             : Column(
-                          children: _cartItems.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final item = entry.value;
-                            return _buildCartItem(item, index);
-                          }).toList(),
-                        ),
+                                children: _cartItems.asMap().entries.map((
+                                  entry,
+                                ) {
+                                  final index = entry.key;
+                                  final item = entry.value;
+                                  return _buildCartItem(item, index);
+                                }).toList(),
+                              ),
 
                         SizedBox(height: 20),
 
@@ -1546,19 +1650,30 @@ class _KasirPageState extends State<KasirPage> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Total Item:', style: AppTextStyles.bodyMedium),
-                                  Text('${_cartItems.length}', style: AppTextStyles.bodyMedium),
+                                  Text(
+                                    'Total Item:',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                  Text(
+                                    '${_cartItems.length}',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
                                 ],
                               ),
                               SizedBox(height: 8),
                               Divider(color: AppColors.border),
                               SizedBox(height: 12),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Total Harga:', style: AppTextStyles.headlineSmall),
+                                  Text(
+                                    'Total Harga:',
+                                    style: AppTextStyles.headlineSmall,
+                                  ),
                                   Text(
                                     'Rp ${_formatNumber(_totalHarga)}',
                                     style: AppTextStyles.displaySmall.copyWith(
@@ -1578,28 +1693,48 @@ class _KasirPageState extends State<KasirPage> {
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: _cartItems.isEmpty ? null : () {
-                                  setState(() {
-                                    _cartItems.clear();
-                                    _totalHarga = 0.0;
-                                  });
-                                  _showToast("Keranjang dibersihkan");
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.danger,
-                                  foregroundColor: Colors.white, // Teks PUTIH agar terlihat
-                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                onPressed: _cartItems.isEmpty
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _cartItems.clear();
+                                          _totalHarga = 0.0;
+                                        });
+                                        _showToast("Keranjang dibersihkan");
+                                      },
+                                style: TextButton.styleFrom(
+                                  backgroundColor: AppColors.danger.withOpacity(
+                                    0.1,
+                                  ),
+                                  foregroundColor: AppColors.danger,
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 24,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: AppColors.danger,
+                                      width: 2,
+                                    ),
                                   ),
-                                  elevation: 2,
+                                  // Nonaktifkan overlay effect
+                                  overlayColor: Colors.transparent,
+                                  splashFactory: NoSplash.splashFactory,
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.delete_outline, size: 20),
                                     SizedBox(width: 8),
-                                    Text('Bersihkan', style: AppTextStyles.buttonMedium),
+                                    Text(
+                                      'Bersihkan',
+                                      style: AppTextStyles.buttonMedium
+                                          .copyWith(
+                                            color: AppColors.danger,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1619,21 +1754,29 @@ class _KasirPageState extends State<KasirPage> {
                                 ),
                                 child: _isProcessing
                                     ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
                                     : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.payment, size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Proses Pembayaran', style: AppTextStyles.buttonMedium),
-                                  ],
-                                ),
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.payment, size: 20),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Proses Pembayaran',
+                                            style: AppTextStyles.buttonMedium
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
                           ],
@@ -1723,11 +1866,15 @@ class _KasirPageState extends State<KasirPage> {
                   child: Column(
                     children: [
                       TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
                         decoration: InputDecoration(
                           hintText: 'Cari menu...',
                           hintStyle: TextStyle(color: AppColors.textDisabled),
-                          prefixIcon: Icon(Icons.search, color: AppColors.primary),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: AppColors.primary,
+                          ),
                           filled: true,
                           fillColor: AppColors.card,
                           border: OutlineInputBorder(
@@ -1737,10 +1884,7 @@ class _KasirPageState extends State<KasirPage> {
                         ),
                       ),
                       SizedBox(height: 12),
-                      Container(
-                        height: 40,
-                        child: _buildCategoryFilter(),
-                      ),
+                      Container(height: 40, child: _buildCategoryFilter()),
                     ],
                   ),
                 ),
@@ -1774,120 +1918,162 @@ class _KasirPageState extends State<KasirPage> {
                   // Cart Items
                   _cartItems.isEmpty
                       ? Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 100,
-                          color: AppColors.textDisabled,
-                        ),
-                        SizedBox(height: 20),
-                        Text(
-                          'Keranjang Kosong',
-                          style: AppTextStyles.bodyLarge.copyWith(
-                            color: AppColors.textDisabled,
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 100,
+                                color: AppColors.textDisabled,
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                'Keranjang Kosong',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  color: AppColors.textDisabled,
+                                ),
+                              ),
+                              Text(
+                                'Pilih menu dari tab Menu',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textDisabled,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Text(
-                          'Pilih menu dari tab Menu',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textDisabled,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                        )
                       : Column(
-                    children: [
-                      ..._cartItems.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final item = entry.value;
-                        return _buildCartItem(item, index);
-                      }),
-                      SizedBox(height: 20),
-
-                      // Form Input
-                      _buildFormInput(),
-
-                      SizedBox(height: 20),
-
-                      Container(
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Total Item:', style: AppTextStyles.bodyMedium),
-                                Text('${_cartItems.length}', style: AppTextStyles.bodyMedium),
-                              ],
+                            ..._cartItems.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final item = entry.value;
+                              return _buildCartItem(item, index);
+                            }),
+                            SizedBox(height: 20),
+
+                            // Form Input
+                            _buildFormInput(),
+
+                            SizedBox(height: 20),
+
+                            Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Total Item:',
+                                        style: AppTextStyles.bodyMedium,
+                                      ),
+                                      Text(
+                                        '${_cartItems.length}',
+                                        style: AppTextStyles.bodyMedium,
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Divider(color: AppColors.border),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Total Harga:',
+                                        style: AppTextStyles.headlineMedium,
+                                      ),
+                                      Text(
+                                        'Rp ${_formatNumber(_totalHarga)}',
+                                        style: AppTextStyles.displaySmall
+                                            .copyWith(color: AppColors.success),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                            SizedBox(height: 8),
-                            Divider(color: AppColors.border),
-                            SizedBox(height: 8),
+                            SizedBox(height: 20),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Total Harga:', style: AppTextStyles.headlineMedium),
-                                Text(
-                                  'Rp ${_formatNumber(_totalHarga)}',
-                                  style: AppTextStyles.displaySmall.copyWith(
-                                    color: AppColors.success,
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _cartItems.isEmpty
+                                        ? null
+                                        : () {
+                                            setState(() {
+                                              _cartItems.clear();
+                                              _totalHarga = 0.0;
+                                            });
+                                            _showToast("Keranjang dibersihkan");
+                                          },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: _cartItems.isEmpty
+                                          ? AppColors.danger.withOpacity(0.05)
+                                          : AppColors.danger.withOpacity(0.1),
+                                      foregroundColor: _cartItems.isEmpty
+                                          ? AppColors.danger.withOpacity(0.5)
+                                          : AppColors.danger,
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      side: BorderSide(
+                                        color: _cartItems.isEmpty
+                                            ? AppColors.danger.withOpacity(0.3)
+                                            : AppColors.danger,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Bersihkan',
+                                      style: AppTextStyles.buttonMedium
+                                          .copyWith(
+                                            color: _cartItems.isEmpty
+                                                ? AppColors.danger.withOpacity(
+                                                    0.5,
+                                                  )
+                                                : AppColors.danger,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _prosesPembayaran,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.success,
+                                      foregroundColor: Colors.white,
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: _isProcessing
+                                        ? CircularProgressIndicator(
+                                            color: Colors.white,
+                                          )
+                                        : Text(
+                                            'Proses Pembayaran',
+                                            style: AppTextStyles.buttonMedium,
+                                          ),
                                   ),
                                 ),
                               ],
                             ),
                           ],
                         ),
-                      ),
-                      SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _cartItems.isEmpty ? null : () {
-                                setState(() {
-                                  _cartItems.clear();
-                                  _totalHarga = 0.0;
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.surface,
-                                foregroundColor: AppColors.danger,
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(color: AppColors.danger),
-                                ),
-                              ),
-                              child: Text('Bersihkan', style: AppTextStyles.buttonMedium),
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _prosesPembayaran,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.success,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: _isProcessing
-                                  ? CircularProgressIndicator(color: Colors.white)
-                                  : Text('Proses Pembayaran', style: AppTextStyles.buttonMedium),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -1903,8 +2089,5 @@ class CartItem {
   final MenuModel menu;
   int quantity;
 
-  CartItem({
-    required this.menu,
-    required this.quantity,
-  });
+  CartItem({required this.menu, required this.quantity});
 }

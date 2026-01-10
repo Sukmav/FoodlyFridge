@@ -13,8 +13,13 @@ import 'hapus_akun_page.dart';
 
 class PengaturanPage extends StatefulWidget {
   final String userId;
+  final VoidCallback? onProfileUpdated; // <-- TAMBAHKAN PARAMETER INI
 
-  const PengaturanPage({super.key, required this.userId});
+  const PengaturanPage({
+    super.key,
+    required this.userId,
+    this.onProfileUpdated, // <-- TAMBAHKAN INI
+  });
 
   @override
   State<PengaturanPage> createState() => _PengaturanPageState();
@@ -28,7 +33,11 @@ class _PengaturanPageState extends State<PengaturanPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProfilePage(userId: widget.userId),
+        builder: (context) => ProfilePage(
+          userId: widget.userId,
+          onProfileUpdated:
+              widget.onProfileUpdated, // <-- TERUSKAN KE ProfilePage
+        ),
       ),
     );
   }
@@ -36,18 +45,21 @@ class _PengaturanPageState extends State<PengaturanPage> {
   void _navigateToKedai() async {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => KedaiPage(userId: widget.userId),
-      ),
+      MaterialPageRoute(builder: (context) => KedaiPage(userId: widget.userId)),
     );
 
-    _kedaiService.getKedaiByUserId(widget.userId).then((kedai) {
-      if (kDebugMode) {
-        print('Background kedai check finished for user ${widget.userId}. kedai != null: ${kedai != null}');
-      }
-    }).catchError((e) {
-      if (kDebugMode) print('Background kedai check failed: $e');
-    });
+    _kedaiService
+        .getKedaiByUserId(widget.userId)
+        .then((kedai) {
+          if (kDebugMode) {
+            print(
+              'Background kedai check finished for user ${widget.userId}. kedai != null: ${kedai != null}',
+            );
+          }
+        })
+        .catchError((e) {
+          if (kDebugMode) print('Background kedai check failed: $e');
+        });
   }
 
   void _navigateToChangePassword() {
@@ -77,8 +89,13 @@ class _PengaturanPageState extends State<PengaturanPage> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text('Hapus Akun', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: Text(
+            'Hapus Akun',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          ),
           content: Text(
             'Apakah Anda yakin ingin menghapus akun "$display"? Tindakan ini tidak dapat dibatalkan.',
             style: GoogleFonts.poppins(),
@@ -86,11 +103,20 @@ class _PengaturanPageState extends State<PengaturanPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text('Tidak', style: GoogleFonts.poppins(color: Colors.grey[700])),
+              child: Text(
+                'Tidak',
+                style: GoogleFonts.poppins(color: Colors.grey[700]),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text('Ya', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Ya',
+                style: GoogleFonts.poppins(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );
@@ -147,28 +173,21 @@ class _PengaturanPageState extends State<PengaturanPage> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
           SizedBox(height: 8), // Tambah spacer di atas
-          _buildMenuItem(
-            title: 'Profil',
-            onTap: _navigateToProfile,
-          ),
-          _buildMenuItem(
-            title: 'Kedaimu',
-            onTap: _navigateToKedai,
-          ),
+          _buildMenuItem(title: 'Profil', onTap: _navigateToProfile),
+          _buildMenuItem(title: 'Kedaimu', onTap: _navigateToKedai),
           _buildMenuItem(
             title: 'Ubah Kata Sandi',
             onTap: _navigateToChangePassword,
           ),
-          _buildMenuItem(
-            title: 'Struk',
-            onTap: _navigateToStruk,
-          ),
+          _buildMenuItem(title: 'Struk', onTap: _navigateToStruk),
           _buildMenuItem(
             title: 'Hapus Akun',
             onTap: _showDeleteAccountConfirmation,
             textColor: Colors.red,
           ),
-          SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16), // Spacer untuk keyboard
+          SizedBox(
+            height: MediaQuery.of(context).viewInsets.bottom + 16,
+          ), // Spacer untuk keyboard
         ],
       ),
     );

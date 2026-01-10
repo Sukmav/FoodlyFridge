@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import '../restapi.dart';
 import '../config.dart';
 import '../model/bahan_baku_model.dart';
-import '../helpers/image_helper.dart';
 
 class BahanBakuPage extends StatefulWidget {
   const BahanBakuPage({super.key});
@@ -38,7 +37,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Future<void> _loadKategori() async {
-    // Load unique kategori from existing bahan baku data
     Set<String> uniqueKategori = {};
     for (var bahan in _bahanBakuList) {
       if (bahan.kategori.isNotEmpty) {
@@ -60,7 +58,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Future<void> _loadTempatPenyimpanan() async {
-    // Load unique tempat penyimpanan from existing bahan baku data
     Set<String> uniqueTempat = {};
     for (var bahan in _bahanBakuList) {
       if (bahan.tempat_penyimpanan.isNotEmpty) {
@@ -95,7 +92,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         appid,
       );
 
-      print('Response: $response');
+      print('Response:  $response');
 
       if (response == '[]' || response.isEmpty || response == 'null') {
         print('Data kosong atau null');
@@ -124,7 +121,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
       print('Jumlah data yang dimuat: ${dataList.length}');
 
-      final newList = dataList.map((json) => BahanBakuModel.fromJson(json)).toList();
+      final newList = dataList
+          .map((json) => BahanBakuModel.fromJson(json))
+          .toList();
 
       setState(() {
         _bahanBakuList = newList;
@@ -132,14 +131,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         _isLoading = false;
       });
 
-      print('Data berhasil dimuat: ${_bahanBakuList.length} items');
+      print('Data berhasil dimuat:  ${_bahanBakuList.length} items');
 
-      // Load kategori and tempat penyimpanan from existing data
       await _loadKategori();
       await _loadTempatPenyimpanan();
-
     } catch (e, stackTrace) {
-      print('Error: $e');
+      print('Error:  $e');
       print('StackTrace: $stackTrace');
 
       setState(() {
@@ -161,9 +158,13 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         _filteredList = _bahanBakuList;
       } else {
         _filteredList = _bahanBakuList
-            .where((bahan) =>
-        bahan.nama_bahan.toLowerCase().contains(query.toLowerCase()) ||
-            bahan.kategori.toLowerCase().contains(query.toLowerCase()))
+            .where(
+              (bahan) =>
+                  bahan.nama_bahan.toLowerCase().contains(
+                    query.toLowerCase(),
+                  ) ||
+                  bahan.kategori.toLowerCase().contains(query.toLowerCase()),
+            )
             .toList();
       }
     });
@@ -172,56 +173,69 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   void _showAddEditDialog({BahanBakuModel? bahanBaku}) {
     final bool isEdit = bahanBaku != null;
 
-    final TextEditingController namaController = TextEditingController(text: bahanBaku?.nama_bahan ?? '');
+    final TextEditingController namaController = TextEditingController(
+      text: bahanBaku?.nama_bahan ?? '',
+    );
     String selectedUnit = bahanBaku?.unit ?? 'kg';
 
-    // Helper function to parse value with unit
     Map<String, String> parseValueWithUnit(String? value) {
       if (value == null || value.isEmpty) return {'value': '', 'unit': 'kg'};
 
-      // Try to split by space to separate number and unit
       final parts = value.trim().split(' ');
       if (parts.length >= 2) {
-        return {
-          'value': parts[0],
-          'unit': parts[1],
-        };
+        return {'value': parts[0], 'unit': parts[1]};
       }
-      // If no unit found, return value only with default unit
       return {'value': value, 'unit': 'kg'};
     }
 
-    // Parse existing values
     final grossQtyParsed = parseValueWithUnit(bahanBaku?.gross_qty);
     final stokTersediaParsed = parseValueWithUnit(bahanBaku?.stok_tersedia);
     final stokMinimalParsed = parseValueWithUnit(bahanBaku?.stok_minimal);
 
-    // Satuan untuk masing-masing field (bisa berbeda)
     String selectedSatuanPembelian = grossQtyParsed['unit']!;
     String selectedSatuanStokTersedia = stokTersediaParsed['unit']!;
     String selectedSatuanStokMinimal = stokMinimalParsed['unit']!;
 
-    final TextEditingController hargaGrossController = TextEditingController(text: bahanBaku?.harga_per_gross ?? '');
-    final TextEditingController hargaUnitController = TextEditingController(text: bahanBaku?.harga_per_unit ?? '');
-    final TextEditingController stokTersediaController = TextEditingController(text: stokTersediaParsed['value']);
-    final TextEditingController stokMinimalController = TextEditingController(text: stokMinimalParsed['value']);
-    final TextEditingController estimasiUmurController = TextEditingController(text: bahanBaku?.estimasi_umur ?? '');
-    final TextEditingController grossQtyController = TextEditingController(text: grossQtyParsed['value']);
-    DateTime? tanggalMasuk = bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
+    final TextEditingController hargaGrossController = TextEditingController(
+      text: bahanBaku?.harga_per_gross ?? '',
+    );
+    final TextEditingController hargaUnitController = TextEditingController(
+      text: bahanBaku?.harga_per_unit ?? '',
+    );
+    final TextEditingController stokTersediaController = TextEditingController(
+      text: stokTersediaParsed['value'],
+    );
+    final TextEditingController stokMinimalController = TextEditingController(
+      text: stokMinimalParsed['value'],
+    );
+    final TextEditingController estimasiUmurController = TextEditingController(
+      text: bahanBaku?.estimasi_umur ?? '',
+    );
+    final TextEditingController grossQtyController = TextEditingController(
+      text: grossQtyParsed['value'],
+    );
+    DateTime? tanggalMasuk =
+        bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_masuk)
         : null;
-    DateTime? tanggalKadaluarsa = bahanBaku?.tanggal_kadaluarsa != null && bahanBaku!.tanggal_kadaluarsa.isNotEmpty
+    DateTime? tanggalKadaluarsa =
+        bahanBaku?.tanggal_kadaluarsa != null &&
+            bahanBaku!.tanggal_kadaluarsa.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_kadaluarsa)
         : null;
-    final TextEditingController kategoriController = TextEditingController(text: bahanBaku?.kategori ?? '');
-    final TextEditingController tempatPenyimpananController = TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
-    final TextEditingController catatanController = TextEditingController(text: bahanBaku?.catatan ?? '');
+    final TextEditingController kategoriController = TextEditingController(
+      text: bahanBaku?.kategori ?? '',
+    );
+    final TextEditingController tempatPenyimpananController =
+        TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
+    final TextEditingController catatanController = TextEditingController(
+      text: bahanBaku?.catatan ?? '',
+    );
 
     // Variable untuk menyimpan gambar yang dipilih
     File? selectedImage;
-    String? selectedImagePath = bahanBaku?.foto_bahan;
+    String? fotoBase64 = bahanBaku?.foto_bahan;
 
-    // Function untuk kalkulasi tanggal kadaluarsa
     DateTime? calculateExpiryDate(DateTime? startDate, String estimasi) {
       if (startDate == null || estimasi.isEmpty) return null;
       try {
@@ -232,8 +246,74 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       }
     }
 
+    // Function untuk pick image dari camera
+    Future<void> pickImageFromCamera(StateSetter setDialogState) async {
+      try {
+        final picker = ImagePicker();
+        final pickedFile = await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 85,
+        );
 
-    //menuju halaman edit data bahan baku atau pun tambah data baru
+        if (pickedFile != null) {
+          final imageFile = File(pickedFile.path);
+          final bytes = await imageFile.readAsBytes();
+
+          setDialogState(() {
+            selectedImage = imageFile;
+            fotoBase64 = base64Encode(bytes);
+          });
+
+          Fluttertoast.showToast(
+            msg: "Foto berhasil diambil",
+            backgroundColor: Colors.green,
+          );
+        }
+      } catch (e) {
+        print('Error mengambil foto: $e');
+        Fluttertoast.showToast(
+          msg: "Gagal mengambil foto:  $e",
+          backgroundColor: Colors.red,
+        );
+      }
+    }
+
+    // Function untuk pick image dari gallery
+    Future<void> pickImageFromGallery(StateSetter setDialogState) async {
+      try {
+        final picker = ImagePicker();
+        final pickedFile = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 85,
+        );
+
+        if (pickedFile != null) {
+          final imageFile = File(pickedFile.path);
+          final bytes = await imageFile.readAsBytes();
+
+          setDialogState(() {
+            selectedImage = imageFile;
+            fotoBase64 = base64Encode(bytes);
+          });
+
+          Fluttertoast.showToast(
+            msg: "Foto berhasil dipilih",
+            backgroundColor: Colors.green,
+          );
+        }
+      } catch (e) {
+        print('Error memilih gambar: $e');
+        Fluttertoast.showToast(
+          msg: "Gagal memilih gambar:  $e",
+          backgroundColor: Colors.red,
+        );
+      }
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -253,70 +333,111 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   children: [
                     // Icon Upload Gambar
                     Center(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final imageFile = await ImageHelper.showImageSourceDialog(context);
-                          if (imageFile != null) {
-                            setDialogState(() {
-                              selectedImage = imageFile;
-                              if (kIsWeb) {
-                                selectedImagePath = imageFile.path;
-                              }
-                            });
-                          }
-                        },
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: Colors.green[700],
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (selectedImage != null || (selectedImagePath != null && selectedImagePath!.isNotEmpty))
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: _buildImagePreview(selectedImage, selectedImagePath),
-                                )
-                              else
-                                Icon(
-                                  Icons.camera_alt,
-                                  size: 50,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                ),
-                              Positioned(
-                                bottom: 10,
-                                right: 10,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.green[700],
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.green[700]!,
+                                width: 3,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                if (selectedImage != null)
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.file(
+                                      selectedImage!,
+                                      width: 120,
+                                      height: 120,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                else if (fotoBase64 != null &&
+                                    fotoBase64!.isNotEmpty)
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: _buildImageFromBase64(fotoBase64!),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.camera_alt,
+                                    size: 50,
+                                    color: Colors.white.withOpacity(0.8),
                                   ),
-                                  child: Icon(
-                                    Icons.add_circle,
-                                    color: Colors.green[700],
-                                    size: 24,
+                                if (selectedImage == null &&
+                                    (fotoBase64 == null || fotoBase64!.isEmpty))
+                                  Positioned(
+                                    bottom: 10,
+                                    right: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.add_circle,
+                                        color: Colors.green[700],
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () =>
+                                    pickImageFromCamera(setDialogState),
+                                icon: const Icon(Icons.camera_alt, size: 20),
+                                label: const Text('Kamera'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[700],
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton.icon(
+                                onPressed: () =>
+                                    pickImageFromGallery(setDialogState),
+                                icon: const Icon(Icons.photo_library, size: 20),
+                                label: const Text('Galeri'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[700],
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 30),
 
-                    // Informasi Utama Section
                     _buildSectionTitle('Informasi Utama'),
                     const SizedBox(height: 16),
 
                     _buildTextField(namaController, 'Nama Bahan Baku'),
                     const SizedBox(height: 16),
 
-                    // Unit Dropdown
                     _buildDropdown(
                       label: 'Unit',
                       value: selectedUnit,
@@ -345,12 +466,19 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       setState: setDialogState,
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField(hargaGrossController, 'Harga Per Satuan', TextInputType.number),
+                    _buildTextField(
+                      hargaGrossController,
+                      'Harga Per Satuan',
+                      TextInputType.number,
+                    ),
                     const SizedBox(height: 16),
-                    _buildTextField(hargaUnitController, 'Harga Per Unit', TextInputType.number),
+                    _buildTextField(
+                      hargaUnitController,
+                      'Harga Per Unit',
+                      TextInputType.number,
+                    ),
                     const SizedBox(height: 30),
 
-                    // Stok Section
                     _buildSectionTitle('Stok'),
                     const SizedBox(height: 16),
 
@@ -369,7 +497,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Stok Minimal (Editable by user with unit)
                     _buildTextFieldWithUnit(
                       controller: stokMinimalController,
                       label: 'Stok Minimal',
@@ -385,11 +512,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Kadaluarsa dan Penyimpanan Section
                     _buildSectionTitle('Kadaluarsa dan Penyimpanan'),
                     const SizedBox(height: 16),
 
-                    // Tanggal Masuk (Date Picker)
                     InkWell(
                       onTap: () async {
                         final DateTime? picked = await showDatePicker(
@@ -411,7 +536,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         if (picked != null) {
                           setDialogState(() {
                             tanggalMasuk = picked;
-                            tanggalKadaluarsa = calculateExpiryDate(picked, estimasiUmurController.text);
+                            tanggalKadaluarsa = calculateExpiryDate(
+                              picked,
+                              estimasiUmurController.text,
+                            );
                           });
                         }
                       },
@@ -430,21 +558,22 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Estimasi Umur Simpan
                     _buildTextField(
                       estimasiUmurController,
                       'Estimasi Penyimpanan (hari)',
                       TextInputType.number,
                       null,
-                          (value) {
+                      (value) {
                         setDialogState(() {
-                          tanggalKadaluarsa = calculateExpiryDate(tanggalMasuk, value);
+                          tanggalKadaluarsa = calculateExpiryDate(
+                            tanggalMasuk,
+                            value,
+                          );
                         });
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // Tanggal Kadaluarsa (Auto-calculated, Read-only)
                     _buildReadOnlyField(
                       'Tgl Kadaluarsa',
                       tanggalKadaluarsa != null
@@ -453,7 +582,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Kategori
                     InkWell(
                       onTap: () => _showKategoriDialog(kategoriController),
                       child: IgnorePointer(
@@ -467,9 +595,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Tempat Penyimpanan - Dropdown with add functionality
                     InkWell(
-                      onTap: () => _showTempatPenyimpananDialog(tempatPenyimpananController),
+                      onTap: () => _showTempatPenyimpananDialog(
+                        tempatPenyimpananController,
+                      ),
                       child: IgnorePointer(
                         child: _buildTextField(
                           tempatPenyimpananController,
@@ -481,7 +610,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Catatan Section
                     _buildSectionTitle('Catatan Tambahan (Opsional)'),
                     const SizedBox(height: 16),
 
@@ -489,7 +617,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       controller: catatanController,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        hintText: 'Tambahkan catatan...',
+                        hintText: 'Tambahkan catatan.. .',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: Colors.orange[300]!),
@@ -500,13 +628,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+                          borderSide: BorderSide(
+                            color: Colors.orange[700]!,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 30),
 
-                    // Simpan Button
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -514,70 +644,28 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         onPressed: () async {
                           if (namaController.text.isEmpty) {
                             Fluttertoast.showToast(
-                              msg: "Nama bahan harus diisi!",
+                              msg: "Nama bahan harus diisi! ",
                               backgroundColor: Colors.red,
                             );
                             return;
                           }
 
-                          // Proses upload gambar jika ada
-                          String imageUrl = '';
-
-                          if (selectedImage != null) {
-                            try {
-                              Fluttertoast.showToast(
-                                msg: "Memproses gambar...",
-                                backgroundColor: Colors.blue,
-                              );
-
-                              if (!kIsWeb) {
-                                final localPath = await ImageHelper.saveImageToAssets(
-                                  selectedImage!,
-                                  namaController.text.replaceAll(' ', '_'),
-                                );
-                                if (localPath != null) {
-                                  imageUrl = localPath;
-                                }
-                              }
-
-                              final cloudUrl = await ImageHelper.uploadImageToGoCloud(
-                                imageFile: selectedImage!,
-                                token: token,
-                                project: project,
-                                fileName: namaController.text.replaceAll(' ', '_'),
-                              );
-
-                              if (cloudUrl != null && cloudUrl.isNotEmpty) {
-                                imageUrl = cloudUrl;
-                              } else {
-                                final base64Image = await ImageHelper.convertImageToBase64(selectedImage!);
-                                if (base64Image != null && base64Image.isNotEmpty) {
-                                  imageUrl = base64Image;
-                                }
-                              }
-                            } catch (e) {
-                              print('Error memproses gambar: $e');
-                            }
-                          } else {
-                            if (isEdit && bahanBaku!.foto_bahan.isNotEmpty) {
-                              imageUrl = bahanBaku.foto_bahan;
-                            }
-                          }
-
                           Navigator.pop(context);
 
-                          // Format tanggal untuk database
                           String tanggalMasukStr = tanggalMasuk != null
                               ? '${tanggalMasuk!.year}-${tanggalMasuk!.month.toString().padLeft(2, '0')}-${tanggalMasuk!.day.toString().padLeft(2, '0')}'
                               : '';
-                          String tanggalKadaluarsaStr = tanggalKadaluarsa != null
+                          String tanggalKadaluarsaStr =
+                              tanggalKadaluarsa != null
                               ? '${tanggalKadaluarsa!.year}-${tanggalKadaluarsa!.month.toString().padLeft(2, '0')}-${tanggalKadaluarsa!.day.toString().padLeft(2, '0')}'
                               : '';
 
-                          // Gabungkan nilai dengan satuan
-                          String grossQtyWithUnit = '${grossQtyController.text} $selectedSatuanPembelian';
-                          String stokTersediaWithUnit = '${stokTersediaController.text} $selectedSatuanStokTersedia';
-                          String stokMinimalWithUnit = '${stokMinimalController.text} $selectedSatuanStokMinimal';
+                          String grossQtyWithUnit =
+                              '${grossQtyController.text} $selectedSatuanPembelian';
+                          String stokTersediaWithUnit =
+                              '${stokTersediaController.text} $selectedSatuanStokTersedia';
+                          String stokMinimalWithUnit =
+                              '${stokMinimalController.text} $selectedSatuanStokMinimal';
 
                           if (isEdit) {
                             await _updateBahanBaku(
@@ -595,7 +683,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               tempatPenyimpananController.text,
                               grossQtyWithUnit,
                               catatanController.text,
-                              imageUrl,
+                              fotoBase64 ?? '',
                               bahanBaku.nama_bahan,
                             );
                           } else {
@@ -613,7 +701,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               tempatPenyimpananController.text,
                               grossQtyWithUnit,
                               catatanController.text,
-                              imageUrl,
+                              fotoBase64 ?? '',
                             );
                           }
                         },
@@ -656,21 +744,18 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Widget _buildTextField(
-      TextEditingController controller,
-      String label, [
-        TextInputType? keyboardType,
-        IconData? suffixIcon,
-        Function(String)? onChanged,
-      ]) {
+    TextEditingController controller,
+    String label, [
+    TextInputType? keyboardType,
+    IconData? suffixIcon,
+    Function(String)? onChanged,
+  ]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -680,7 +765,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
           decoration: InputDecoration(
             hintText: label,
             hintStyle: TextStyle(color: Colors.grey[400]),
-            suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: Colors.orange[700]) : null,
+            suffixIcon: suffixIcon != null
+                ? Icon(suffixIcon, color: Colors.orange[700])
+                : null,
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -695,7 +782,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
       ],
@@ -708,10 +798,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         Container(
@@ -746,14 +833,11 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: value,
+          value: value,
           decoration: InputDecoration(
             hintText: 'Pilih $label',
             hintStyle: TextStyle(color: Colors.grey[400]),
@@ -771,13 +855,13 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
           items: items.map((String item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(item),
-            );
+            return DropdownMenuItem<String>(value: item, child: Text(item));
           }).toList(),
           onChanged: onChanged,
         ),
@@ -797,10 +881,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         Row(
@@ -825,9 +906,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+                    borderSide: BorderSide(
+                      color: Colors.orange[700]!,
+                      width: 2,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
               ),
             ),
@@ -849,9 +936,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.orange[700]!, width: 2),
+                    borderSide: BorderSide(
+                      color: Colors.orange[700]!,
+                      width: 2,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
                 ),
                 items: ['kg', 'gr', 'dus', 'liter', 'pcs'].map((String item) {
                   return DropdownMenuItem<String>(
@@ -872,9 +965,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
           child: Column(
@@ -906,7 +997,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   itemBuilder: (context, index) {
                     if (index == _kategoriList.length) {
                       return ListTile(
-                        leading: const Icon(Icons.add, color: Color(0xFF8B5A3C)),
+                        leading: const Icon(
+                          Icons.add,
+                          color: Color(0xFF8B5A3C),
+                        ),
                         title: const Text('Tambah Kategori Baru'),
                         onTap: () {
                           Navigator.pop(context);
@@ -931,16 +1025,13 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
-  //bagian dropdown tambah kategori baru
   void _showTambahKategoriDialog(TextEditingController kategoriController) {
     final TextEditingController newKategoriController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400),
           padding: const EdgeInsets.all(24),
@@ -949,10 +1040,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
             children: [
               const Text(
                 'Tambah Kategori Baru',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
               TextField(
@@ -979,7 +1067,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     backgroundColor: const Color(0xFF8B5A3C),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Simpan',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ],
@@ -989,14 +1080,13 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
-  //bagian dropdown untuk tempat penyimpanan
-  void _showTempatPenyimpananDialog(TextEditingController tempatPenyimpananController) {
+  void _showTempatPenyimpananDialog(
+    TextEditingController tempatPenyimpananController,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
           child: Column(
@@ -1028,18 +1118,24 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   itemBuilder: (context, index) {
                     if (index == _tempatPenyimpananList.length) {
                       return ListTile(
-                        leading: const Icon(Icons.add, color: Color(0xFF8B5A3C)),
+                        leading: const Icon(
+                          Icons.add,
+                          color: Color(0xFF8B5A3C),
+                        ),
                         title: const Text('Tambah Tempat Penyimpanan Baru'),
                         onTap: () {
                           Navigator.pop(context);
-                          _showTambahTempatPenyimpananDialog(tempatPenyimpananController);
+                          _showTambahTempatPenyimpananDialog(
+                            tempatPenyimpananController,
+                          );
                         },
                       );
                     }
                     return ListTile(
                       title: Text(_tempatPenyimpananList[index]),
                       onTap: () {
-                        tempatPenyimpananController.text = _tempatPenyimpananList[index];
+                        tempatPenyimpananController.text =
+                            _tempatPenyimpananList[index];
                         Navigator.pop(context);
                       },
                     );
@@ -1053,16 +1149,15 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
-  //bagian dropdown tambah tempat penyimpanan baru
-  void _showTambahTempatPenyimpananDialog(TextEditingController tempatPenyimpananController) {
+  void _showTambahTempatPenyimpananDialog(
+    TextEditingController tempatPenyimpananController,
+  ) {
     final TextEditingController newTempatController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400),
           padding: const EdgeInsets.all(24),
@@ -1071,10 +1166,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
             children: [
               const Text(
                 'Tambah Tempat Penyimpanan Baru',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
               TextField(
@@ -1093,7 +1185,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   onPressed: () {
                     if (newTempatController.text.isNotEmpty) {
                       _saveTempatPenyimpanan(newTempatController.text);
-                      tempatPenyimpananController.text = newTempatController.text;
+                      tempatPenyimpananController.text =
+                          newTempatController.text;
                       Navigator.pop(context);
                     }
                   },
@@ -1101,7 +1194,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     backgroundColor: const Color(0xFF8B5A3C),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Simpan',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ],
@@ -1111,23 +1207,22 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
-  //ini bagian utama tampilan halaman bahan baku
   Future<void> _addBahanBaku(
-      String nama,
-      String unit,
-      String hargaGross,
-      String hargaUnit,
-      String stokTersedia,
-      String stokMinimal,
-      String estimasi_penyimpanan,
-      String tanggalMasuk,
-      String tanggalKadaluarsa,
-      String kategori,
-      String tempatPenyimpanan,
-      String grossQty,
-      String catatan,
-      String foto_bahan,
-      ) async {
+    String nama,
+    String unit,
+    String hargaGross,
+    String hargaUnit,
+    String stokTersedia,
+    String stokMinimal,
+    String estimasi_penyimpanan,
+    String tanggalMasuk,
+    String tanggalKadaluarsa,
+    String kategori,
+    String tempatPenyimpanan,
+    String grossQty,
+    String catatan,
+    String foto_bahan,
+  ) async {
     setState(() {
       _isLoading = true;
     });
@@ -1135,8 +1230,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     try {
       print('=== MULAI INSERT ===');
 
-      // Map parameters to DataService.insertBahanBaku signature:
-      // insertBahanBaku(String appid, String foto_bahan, String nama_bahan, String unit, String gross_qty, String harga_per_gross, String harga_per_unit, String stok_tersedia, String stok_minimal, String estimasi_umur, String tanggal_masuk, String tanggal_kadaluarsa, String kategori, String tempat_penyimpanan, String catatan)
       final result = await _dataService.insertBahanBaku(
         appid,
         foto_bahan,
@@ -1161,7 +1254,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       await _loadBahanBaku();
 
       Fluttertoast.showToast(
-        msg: "Bahan baku '$nama' berhasil ditambahkan!",
+        msg: "Bahan baku '$nama' berhasil ditambahkan! ",
         backgroundColor: Colors.green,
       );
     } catch (e) {
@@ -1169,45 +1262,40 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         _isLoading = false;
       });
       Fluttertoast.showToast(
-        msg: "Gagal menambahkan: ${e.toString()}",
+        msg: "Gagal menambahkan:  ${e.toString()}",
         backgroundColor: Colors.red,
       );
     }
   }
 
   Future<void> _updateBahanBaku(
-      String id,
-      String nama,
-      String unit,
-      String hargaGross,
-      String hargaUnit,
-      String stokTersedia,
-      String stokMinimal,
-      String estimasi_penyimpanan,
-      String tanggalMasuk,
-      String tanggalKadaluarsa,
-      String kategori,
-      String tempatPenyimpanan,
-      String grossQty,
-      String catatan,
-      String foto_bahan,
-      String namaLama, // Tambahkan nama lama untuk updateWhere
-      ) async {
+    String id,
+    String nama,
+    String unit,
+    String hargaGross,
+    String hargaUnit,
+    String stokTersedia,
+    String stokMinimal,
+    String estimasi_penyimpanan,
+    String tanggalMasuk,
+    String tanggalKadaluarsa,
+    String kategori,
+    String tempatPenyimpanan,
+    String grossQty,
+    String catatan,
+    String foto_bahan,
+    String namaLama,
+  ) async {
     setState(() {
       _isLoading = true;
     });
 
     try {
       print('=== MULAI UPDATE BAHAN BAKU ===');
-      print('ID: $id');
-      print('Nama Lama: $namaLama');
-      print('Nama Baru: $nama');
 
-      // Karena ID mungkin kosong, gunakan updateWhere berdasarkan nama lama
       if (id.isEmpty || id == '') {
         print('ID kosong, menggunakan updateWhere berdasarkan nama');
 
-        // Update semua field menggunakan updateWhere
         final fields = {
           'nama_bahan': nama,
           'unit': unit,
@@ -1239,32 +1327,138 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
           print('Update ${entry.key}: $result');
         }
       } else {
-        // Jika ID ada, gunakan updateId
         print('Menggunakan updateId');
 
-        final results = await Future.wait([
-          _dataService.updateId('nama_bahan', nama, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('unit', unit, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('harga_per_gross', hargaGross, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('harga_per_unit', hargaUnit, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('stok_tersedia', stokTersedia, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('stok_minimal', stokMinimal, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('estimasi_umur', estimasi_penyimpanan, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('tanggal_masuk', tanggalMasuk, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('tanggal_kadaluarsa', tanggalKadaluarsa, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('kategori', kategori, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('tempat_penyimpanan', tempatPenyimpanan, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('gross_qty', grossQty, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('catatan', catatan, token, project, 'bahan_baku', appid, id),
-          _dataService.updateId('foto_bahan', foto_bahan, token, project, 'bahan_baku', appid, id),
+        await Future.wait([
+          _dataService.updateId(
+            'nama_bahan',
+            nama,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'unit',
+            unit,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'harga_per_gross',
+            hargaGross,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'harga_per_unit',
+            hargaUnit,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'stok_tersedia',
+            stokTersedia,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'stok_minimal',
+            stokMinimal,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'estimasi_umur',
+            estimasi_penyimpanan,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'tanggal_masuk',
+            tanggalMasuk,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'tanggal_kadaluarsa',
+            tanggalKadaluarsa,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'kategori',
+            kategori,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'tempat_penyimpanan',
+            tempatPenyimpanan,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'gross_qty',
+            grossQty,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'catatan',
+            catatan,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
+          _dataService.updateId(
+            'foto_bahan',
+            foto_bahan,
+            token,
+            project,
+            'bahan_baku',
+            appid,
+            id,
+          ),
         ]);
-
-        print('Update results: $results');
       }
 
-      print('✓ Update berhasil di API');
-
-      // Reload data dari database untuk memastikan sinkronisasi
       await _loadBahanBaku();
 
       setState(() {
@@ -1278,7 +1472,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       );
 
       print('=== SELESAI UPDATE ===');
-
     } catch (e, stackTrace) {
       print('=== ERROR UPDATE ===');
       print('Error: $e');
@@ -1294,7 +1487,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         toastLength: Toast.LENGTH_LONG,
       );
 
-      // Reload data untuk memastikan konsistensi
       await _loadBahanBaku();
     }
   }
@@ -1303,9 +1495,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -1315,7 +1505,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: Colors.red.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1326,15 +1516,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Hapus Bahan Baku?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Hapus Bahan Baku? ',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
-                'Apakah Anda yakin ingin menghapus "$nama"? Data yang dihapus tidak dapat dikembalikan.',
+                'Apakah Anda yakin ingin menghapus "$nama"?  Data yang dihapus tidak dapat dikembalikan.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600]),
               ),
@@ -1354,7 +1541,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                       ),
-                      child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+                      child: const Text(
+                        'Hapus',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 ],
@@ -1369,10 +1559,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
     try {
       print('=== MULAI DELETE BAHAN BAKU ===');
-      print('ID yang akan dihapus: $id');
-      print('Nama bahan: $nama');
 
-      // Gunakan removeWhere berdasarkan nama (lebih reliable daripada ID)
       final result = await _dataService.removeWhere(
         token,
         project,
@@ -1384,36 +1571,28 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
       print('Result delete dari API: $result');
 
-      if (result == true || result == 'true' || result.toString().contains('"status":"1"')) {
-        // Delete berhasil
-        print('✓ Delete berhasil di database!');
+      if (result == true ||
+          result == 'true' ||
+          result.toString().contains('"status":"1"')) {
+        print('✓ Delete berhasil di database! ');
 
-        // Hapus dari list lokal
         setState(() {
           _bahanBakuList.removeWhere((item) => item.nama_bahan == nama);
           _filteredList.removeWhere((item) => item.nama_bahan == nama);
         });
 
-        // Toast sukses
         Fluttertoast.showToast(
           msg: "Bahan baku '$nama' berhasil dihapus!",
           backgroundColor: Colors.green,
           toastLength: Toast.LENGTH_SHORT,
         );
-
-        print('✓ Data berhasil dihapus dari tampilan');
       } else {
-        // Delete gagal
-        print('✗ Delete gagal: $result');
-        throw Exception('Delete gagal: $result');
+        throw Exception('Delete gagal:  $result');
       }
-
-      print('=== SELESAI DELETE ===');
-
     } catch (e, stackTrace) {
       print('=== ERROR DELETE ===');
       print('Error: $e');
-      print('StackTrace: $stackTrace');
+      print('StackTrace:  $stackTrace');
 
       Fluttertoast.showToast(
         msg: "Gagal menghapus bahan baku: ${e.toString()}",
@@ -1421,7 +1600,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         toastLength: Toast.LENGTH_LONG,
       );
 
-      // Reload data untuk memastikan konsistensi
       await _loadBahanBaku();
     }
   }
@@ -1452,7 +1630,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image Header
                 Container(
                   width: double.infinity,
                   height: 200,
@@ -1463,13 +1640,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   child: bahan.foto_bahan.isNotEmpty
                       ? _buildImageWidget(bahan.foto_bahan)
                       : const Icon(
-                    Icons.inventory_2,
-                    size: 80,
-                    color: Colors.grey,
-                  ),
+                          Icons.inventory_2,
+                          size: 80,
+                          color: Colors.grey,
+                        ),
                 ),
 
-                // Tabs
                 Container(
                   decoration: BoxDecoration(
                     border: Border(
@@ -1506,10 +1682,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                           child: const Text(
                             'Riwayat',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         ),
                       ),
@@ -1517,61 +1690,99 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   ),
                 ),
 
-                // Content
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Informasi Pembelian
                       _buildDetailSection(
                         'Informasi Pembelian',
                         Colors.orange[700]!,
                         [
-                          _buildDetailRow('Satuan Pembelian', '${bahan.gross_qty}', Colors.green[700]!),
-                          _buildDetailRow('Harga per Satuan', 'Rp ${bahan.harga_per_gross}', Colors.green[700]!),
-                          _buildDetailRow('Jumlah Pernah Beli', '-', Colors.green[700]!),
+                          _buildDetailRow(
+                            'Satuan Pembelian',
+                            '${bahan.gross_qty}',
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Harga per Satuan',
+                            'Rp ${bahan.harga_per_gross}',
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Jumlah Pernah Beli',
+                            '-',
+                            Colors.green[700]!,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
 
-                      // Penggunaan untuk Menu
                       _buildDetailSection(
                         'Penggunaan untuk Menu',
                         Colors.orange[700]!,
                         [
-                          _buildDetailRow('Unit Dasar', bahan.unit, Colors.green[700]!),
-                          _buildDetailRow('Harga per unit', 'Rp${bahan.harga_per_unit}', Colors.green[700]!),
+                          _buildDetailRow(
+                            'Unit Dasar',
+                            bahan.unit,
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Harga per unit',
+                            'Rp${bahan.harga_per_unit}',
+                            Colors.green[700]!,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
 
-                      // Stok
-                      _buildDetailSection(
-                        'Stok',
-                        Colors.red[700]!,
-                        [
-                          _buildDetailRow('Stok tersedia', '${bahan.stok_tersedia} ${bahan.unit}', Colors.green[700]!),
-                          _buildDetailRow('Stok Minimal', '${bahan.stok_minimal} ${bahan.unit}', Colors.green[700]!),
-                        ],
-                      ),
+                      _buildDetailSection('Stok', Colors.red[700]!, [
+                        _buildDetailRow(
+                          'Stok tersedia',
+                          '${bahan.stok_tersedia}',
+                          Colors.green[700]!,
+                        ),
+                        _buildDetailRow(
+                          'Stok Minimal',
+                          '${bahan.stok_minimal}',
+                          Colors.green[700]!,
+                        ),
+                      ]),
                       const SizedBox(height: 24),
 
-                      // Kadaluarsa dan Penyimpanan
                       _buildDetailSection(
                         'Kadaluarsa dan Penyimpanan',
                         Colors.red[700]!,
                         [
-                          _buildDetailRow('Estimasi umur Simpan', '${bahan.estimasi_umur} hari', Colors.green[700]!),
-                          _buildDetailRow('Tgl Kedatangan', _formatDate(bahan.tanggal_masuk), Colors.green[700]!),
-                          _buildDetailRow('Tgl Kadaluarsa', _formatDate(bahan.tanggal_kadaluarsa), Colors.green[700]!),
-                          _buildDetailRow('Kategori', bahan.kategori, Colors.green[700]!),
-                          _buildDetailRow('Penyimpanan', bahan.tempat_penyimpanan, Colors.green[700]!),
+                          _buildDetailRow(
+                            'Estimasi umur Simpan',
+                            '${bahan.estimasi_umur} hari',
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Tgl Kedatangan',
+                            _formatDate(bahan.tanggal_masuk),
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Tgl Kadaluarsa',
+                            _formatDate(bahan.tanggal_kadaluarsa),
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Kategori',
+                            bahan.kategori,
+                            Colors.green[700]!,
+                          ),
+                          _buildDetailRow(
+                            'Penyimpanan',
+                            bahan.tempat_penyimpanan,
+                            Colors.green[700]!,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
 
-                      // Catatan
                       Text(
                         'Catatan',
                         style: TextStyle(
@@ -1589,7 +1800,9 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          bahan.catatan.isEmpty ? 'Tidak ada catatan' : bahan.catatan,
+                          bahan.catatan.isEmpty
+                              ? 'Tidak ada catatan'
+                              : bahan.catatan,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[700],
@@ -1598,7 +1811,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       ),
                       const SizedBox(height: 30),
 
-                      // Button Ubah
                       SizedBox(
                         width: double.infinity,
                         height: 55,
@@ -1635,7 +1847,11 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     );
   }
 
-  Widget _buildDetailSection(String title, Color titleColor, List<Widget> children) {
+  Widget _buildDetailSection(
+    String title,
+    Color titleColor,
+    List<Widget> children,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1660,13 +1876,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
           Text(
             value,
             style: TextStyle(
@@ -1700,104 +1910,124 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
             // Search bar
             Padding(
               padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _filterBahanBaku,
-              decoration: InputDecoration(
-                hintText: 'Cari bahan baku...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _filterBahanBaku,
+                decoration: InputDecoration(
+                  hintText: 'Cari bahan baku...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF8B5A3C),
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF8B5A3C), width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
               ),
             ),
-          ),
-          // List content
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredList.isEmpty
-                ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Tidak ada data bahan baku', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            )
-                : ListView.builder(
-              itemCount: _filteredList.length,
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final bahan = _filteredList[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B5A3C).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+            // List content
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredList.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Tidak ada data bahan baku',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _buildImageWidget(bahan.foto_bahan),
-                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _filteredList.length,
+                      padding: const EdgeInsets.all(16),
+                      itemBuilder: (context, index) {
+                        final bahan = _filteredList[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(16),
+                            leading: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5A3C).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _buildImageWidget(bahan.foto_bahan),
+                              ),
+                            ),
+                            title: Text(
+                              bahan.nama_bahan,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text('Stok: ${bahan.stok_tersedia}'),
+                                Text('Kategori: ${bahan.kategori}'),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () =>
+                                      _showAddEditDialog(bahanBaku: bahan),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () => _deleteBahanBaku(
+                                    bahan.id,
+                                    bahan.nama_bahan,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            onTap: () => _showDetailBahanBaku(bahan),
+                          ),
+                        );
+                      },
                     ),
-                    title: Text(
-                      bahan.nama_bahan,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text('Stok: ${bahan.stok_tersedia}'),
-                        Text('Kategori: ${bahan.kategori}'),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showAddEditDialog(bahanBaku: bahan),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteBahanBaku(bahan.id, bahan.nama_bahan),
-                        ),
-                      ],
-                    ),
-                    onTap: () => _showDetailBahanBaku(bahan),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+            ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -1813,115 +2043,88 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   Widget _buildImageWidget(String imagePath) {
     // Jika string kosong, tampilkan icon default
     if (imagePath.isEmpty) {
-      return const Icon(
-        Icons.inventory_2,
-        color: Color(0xFF8B5A3C),
-      );
+      return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
     }
 
+    // Jika URL (dimulai dengan http)
     if (imagePath.startsWith('http')) {
-      // URL gambar dari internet
       return Image.network(
         imagePath,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          return const Icon(
-            Icons.inventory_2,
-            color: Color(0xFF8B5A3C),
-          );
+          return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
         },
       );
-    } else if (imagePath.startsWith('data:image')) {
-      // Base64 image
+    }
+
+    // Jika base64 (panjang string > 100 dan tidak dimulai dengan http)
+    if (imagePath.length > 100 && !imagePath.startsWith('http')) {
       try {
+        // Handle base64 dengan atau tanpa prefix
+        final base64String = imagePath.contains(',')
+            ? imagePath.split(',').last
+            : imagePath;
+
         return Image.memory(
-          base64Decode(imagePath.split(',').last),
+          base64Decode(base64String),
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              color: Color(0xFF8B5A3C),
-            );
+            return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
           },
         );
       } catch (e) {
-        return const Icon(
-          Icons.inventory_2,
-          color: Color(0xFF8B5A3C),
-        );
+        print('Error decoding base64: $e');
+        return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
       }
-    } else if (!kIsWeb) {
-      // Path lokal (hanya untuk mobile)
+    }
+
+    // Jika path lokal (hanya untuk mobile)
+    if (!kIsWeb) {
       try {
         return Image.file(
           File(imagePath),
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              color: Color(0xFF8B5A3C),
-            );
+            return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
           },
         );
       } catch (e) {
-        return const Icon(
-          Icons.inventory_2,
-          color: Color(0xFF8B5A3C),
-        );
+        return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
       }
-    } else {
-      // Web: jika bukan URL atau base64, tampilkan icon default
-      return const Icon(
-        Icons.inventory_2,
-        color: Color(0xFF8B5A3C),
-      );
     }
+
+    // Default:  tampilkan icon
+    return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
   }
 
-  // Method untuk preview gambar saat memilih gambar baru
-  Widget _buildImagePreview(File? imageFile, String? imagePath) {
-    if (imageFile != null) {
-      // Jika ada file gambar yang baru dipilih
-      if (kIsWeb) {
-        // Untuk web, gunakan Image.network jika path adalah URL
-        return Image.network(
-          imageFile.path,
-          width: 120,
-          height: 120,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              color: Colors.white,
-              size: 50,
-            );
-          },
-        );
-      } else {
-        // Untuk mobile, gunakan Image.file
-        return Image.file(
-          imageFile,
-          width: 120,
-          height: 120,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.inventory_2,
-              color: Colors.white,
-              size: 50,
-            );
-          },
-        );
-      }
-    } else if (imagePath != null && imagePath.isNotEmpty) {
-      // Jika ada path gambar yang sudah ada (untuk edit)
-      return _buildImageWidget(imagePath);
-    } else {
-      // Default icon jika tidak ada gambar
+  // Method untuk menampilkan gambar dari base64 (untuk preview di dialog)
+  Widget _buildImageFromBase64(String base64String) {
+    try {
+      // Handle base64 dengan atau tanpa prefix
+      final cleanBase64 = base64String.contains(',')
+          ? base64String.split(',').last
+          : base64String;
+
+      return Image.memory(
+        base64Decode(cleanBase64),
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Error loading base64 image: $error');
+          return Icon(
+            Icons.camera_alt,
+            size: 50,
+            color: Colors.white.withOpacity(0.8),
+          );
+        },
+      );
+    } catch (e) {
+      print('Error decoding base64 in preview: $e');
       return Icon(
         Icons.camera_alt,
         size: 50,
-        color: Colors.white.withValues(alpha: 0.8),
+        color: Colors.white.withOpacity(0.8),
       );
     }
   }

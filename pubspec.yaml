@@ -73,6 +73,15 @@ dependencies:
   image_gallery_saver_plus: ^4.0.1
   permission_handler: ^12.0.1
 
+  #laporan
+  syncfusion_flutter_xlsio: ^29.2.11
+  syncfusion_flutter_datepicker: ^29.2.11
+  open_file: ^3.3.3
+  date_picker_timeline: ^1.2.5
+  excel: ^2.0.0-null-safety-4
+  share_plus: ^7.2.1
+
+
 
 dev_dependencies:
   flutter_test:
