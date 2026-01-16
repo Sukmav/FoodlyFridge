@@ -346,6 +346,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
                               side: const BorderSide(
                                 color: Color(0xFF7A9B3B),
                                 width: 2,
+
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
