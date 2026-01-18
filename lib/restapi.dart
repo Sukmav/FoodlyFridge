@@ -2,6 +2,7 @@
 
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 class DataService {
 
@@ -286,17 +287,18 @@ class DataService {
     required String menu, // JSON string
     String catatan = '',
     String totalHarga = '0',
+    required String userId, // TAMBAHKAN: user_id untuk data isolation
   }) async {
-    String uri = 'https://api.247go.app/v5/insert/'; 
+    String uri = 'https://api.247go.app/v5/insert/';
 
     try {
-      print('🔄 Insert stok keluar: $invoice');
-      
+      print('🔄 Insert stok keluar: $invoice untuk user: $userId');
+
       final response = await http.post(Uri.parse(uri), body: {
         'token': '68d7486b1f753691225cdf8d',
         'project': 'foodlydfridge',
         'collection': 'stok_keluar',
-        'appid': appid, // 2. PERHATIKAN INI - appid dari mana?
+        'appid': appid,
         'invoice': invoice,
         'nama_pemesanan': namaPemesanan,
         'no_meja': noMeja,
@@ -304,12 +306,13 @@ class DataService {
         'menu': menu,
         'catatan': catatan,
         'total_harga': totalHarga,
+        'user_id': userId, // TAMBAHKAN: user_id untuk filter data per user
       });
 
       print('📊 Stok keluar response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        print('✅ Stok keluar berhasil disimpan');
+        print('✅ Stok keluar berhasil disimpan untuk user: $userId');
         return response.body;
       } else {
         // RETURN seperti method insertKedai
@@ -593,6 +596,16 @@ class DataService {
     String uri = 'https://api.247go.app/v5/update_id/';
 
     try {
+      if (kDebugMode) {
+        print('--- updateId API Call ---');
+        print('URI: $uri');
+        print('update_field: $update_field');
+        print('update_value: $update_value');
+        print('collection: $collection');
+        print('appid: $appid');
+        print('id: $id');
+      }
+
       final response = await http.post(Uri.parse(uri),body: {
         'update_field': update_field,
         'update_value': update_value,
@@ -603,13 +616,21 @@ class DataService {
         'id': id
       });
 
+      if (kDebugMode) {
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+
       if (response.statusCode == 200) {
-        return true;
+        return response.body;
       } else {
-        return false;
+        return 'Error: ${response.statusCode}';
       }
     } catch (e) {
-      return false;
+      if (kDebugMode) {
+        print('Exception in updateId: $e');
+      }
+      return 'Exception: $e';
     }
   }
 
@@ -617,6 +638,17 @@ class DataService {
     String uri = 'https://api.247go.app/v5/update_where/';
 
     try {
+      if (kDebugMode) {
+        print('--- updateWhere API Call ---');
+        print('URI: $uri');
+        print('where_field: $where_field');
+        print('where_value: $where_value');
+        print('update_field: $update_field');
+        print('update_value: $update_value');
+        print('collection: $collection');
+        print('appid: $appid');
+      }
+
       final response = await http.post(Uri.parse(uri),body: {
         'where_field': where_field,
         'where_value': where_value,
@@ -628,13 +660,21 @@ class DataService {
         'appid': appid
       });
 
+      if (kDebugMode) {
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+
       if (response.statusCode == 200) {
-        return true;
+        return response.body;
       } else {
-        return false;
+        return 'Error: ${response.statusCode}';
       }
     } catch (e) {
-      return false;
+      if (kDebugMode) {
+        print('Exception in updateWhere: $e');
+      }
+      return 'Exception: $e';
     }
   }
 

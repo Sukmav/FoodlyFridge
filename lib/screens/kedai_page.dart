@@ -362,10 +362,10 @@ class _KedaiPageState extends State<KedaiPage> {
   }
 
   Widget _buildImageButton(
-    String label,
-    IconData icon,
-    VoidCallback onPressed,
-  ) {
+      String label,
+      IconData icon,
+      VoidCallback onPressed,
+      ) {
     return SizedBox(
       width: 150,
       child: ElevatedButton(
@@ -492,347 +492,347 @@ class _KedaiPageState extends State<KedaiPage> {
       ),
       body: _isLoading
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppColors.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Memuat data kedai...',
-                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            )
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Memuat data kedai...',
+              style: GoogleFonts.poppins(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      )
           : Stack(
-              children: [
-                SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Section
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        // Header Section
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primary.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: AppColors.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Lengkapi informasi kedai Anda untuk pengalaman yang lebih baik',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        Icon(
+                          Icons.info_outline,
+                          color: AppColors.primary,
+                          size: 20,
                         ),
-                        const SizedBox(height: 24),
-
-                        // Logo & Identitas Kedai
-                        Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Logo & Identitas Kedai',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Logo Section - Di Tengah
-                                Center(
-                                  child: Column(
-                                    children: [
-                                      _buildLogoKedai(),
-                                      const SizedBox(height: 20),
-                                      Text(
-                                        'Logo Kedai',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Ukuran optimal:  400x400px',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 13,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Upload Buttons - Horizontal
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Expanded(
-                                      child: _buildImageButton(
-                                        'Kamera',
-                                        Icons.camera_alt,
-                                        _pickImageFromCamera, // UBAH:  Gunakan method baru
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: _buildImageButton(
-                                        'Galeri',
-                                        Icons.photo_library,
-                                        _pickImageFromGallery, // UBAH: Gunakan method baru
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 32),
-
-                                // Nama dan Alamat Section
-                                Column(
-                                  children: [
-                                    _buildTextField(
-                                      controller: _namaKedaiController,
-                                      label: 'Nama Kedai',
-                                      hint: 'Contoh: Kedai Makan Padang',
-                                      prefixIcon: Icons.storefront,
-                                    ),
-                                    const SizedBox(height: 20),
-                                    _buildTextField(
-                                      controller: _alamatKedaiController,
-                                      label: 'Alamat Kedai',
-                                      hint: 'Jl. Contoh No. 123, Kota',
-                                      prefixIcon: Icons.location_on,
-                                      maxLines: 3,
-                                    ),
-                                  ],
-                                ),
-                              ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Lengkapi informasi kedai Anda untuk pengalaman yang lebih baik',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
-
-                        // Contact Information Section
-                        Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Informasi Kontak',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                _buildTextField(
-                                  controller: _nomorTeleponController,
-                                  label: 'Nomor Telepon',
-                                  hint: '081234xxxxx',
-                                  prefixIcon: Icons.phone,
-                                  keyboardType: TextInputType.phone,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Catatan Struk Section
-                        Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Catatan Struk',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Pesan ini akan muncul di bagian bawah struk pembelian',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTextField(
-                                  controller: _catatanStrukController,
-                                  label: '',
-                                  hint:
-                                      'Contoh: Terima kasih sudah memesan, silakan ditunggu',
-                                  prefixIcon: Icons.note,
-                                  maxLines: 4,
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _lihatStruk,
-                                    icon: const Icon(
-                                      Icons.preview,
-                                      color: Colors.white,
-                                    ),
-                                    label: Text(
-                                      'Lihat Pratinjau Struk',
-                                      style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Save Button
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _isSaving ? null : _simpanKedai,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 18,
-                                ),
-                                child: Center(
-                                  child: _isSaving
-                                      ? const SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.save_alt,
-                                              color: Colors.white,
-                                              size: 22,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Text(
-                                              'Simpan Data Kedai',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 24),
 
-                // Loading Overlay
-                if (_isSaving)
-                  Container(
-                    color: Colors.black.withOpacity(0.3),
-                    child: Center(
+                  // Logo & Identitas Kedai
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(
-                              AppColors.primary,
+                          Text(
+                            'Logo & Identitas Kedai',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Logo Section - Di Tengah
+                          Center(
+                            child: Column(
+                              children: [
+                                _buildLogoKedai(),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Logo Kedai',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Ukuran optimal:  400x400px',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Upload Buttons - Horizontal
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _buildImageButton(
+                                  'Kamera',
+                                  Icons.camera_alt,
+                                  _pickImageFromCamera, // UBAH:  Gunakan method baru
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildImageButton(
+                                  'Galeri',
+                                  Icons.photo_library,
+                                  _pickImageFromGallery, // UBAH: Gunakan method baru
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Nama dan Alamat Section
+                          Column(
+                            children: [
+                              _buildTextField(
+                                controller: _namaKedaiController,
+                                label: 'Nama Kedai',
+                                hint: 'Contoh: Kedai Makan Padang',
+                                prefixIcon: Icons.storefront,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildTextField(
+                                controller: _alamatKedaiController,
+                                label: 'Alamat Kedai',
+                                hint: 'Jl. Contoh No. 123, Kota',
+                                prefixIcon: Icons.location_on,
+                                maxLines: 3,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Contact Information Section
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informasi Kontak',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextField(
+                            controller: _nomorTeleponController,
+                            label: 'Nomor Telepon',
+                            hint: '081234xxxxx',
+                            prefixIcon: Icons.phone,
+                            keyboardType: TextInputType.phone,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Catatan Struk Section
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Catatan Struk',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Pesan ini akan muncul di bagian bawah struk pembelian',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Menyimpan data...',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                          _buildTextField(
+                            controller: _catatanStrukController,
+                            label: '',
+                            hint:
+                            'Contoh: Terima kasih sudah memesan, silakan ditunggu',
+                            prefixIcon: Icons.note,
+                            maxLines: 4,
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _lihatStruk,
+                              icon: const Icon(
+                                Icons.preview,
+                                color: Colors.white,
+                              ),
+                              label: Text(
+                                'Lihat Pratinjau Struk',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-              ],
+                  const SizedBox(height: 24),
+
+                  // Save Button
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _isSaving ? null : _simpanKedai,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                          ),
+                          child: Center(
+                            child: _isSaving
+                                ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                                : Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.save_alt,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Simpan Data Kedai',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
+          ),
+
+          // Loading Overlay
+          if (_isSaving)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(
+                        AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Menyimpan data...',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -30,7 +30,6 @@ class _StrukPageState extends State<StrukPage> {
   Map<String, String> _kedaiData = {};
   bool _isLoading = true;
 
-  // TAMBAHKAN KEDAI SERVICE
   final KedaiService _kedaiService = KedaiService();
 
   // State untuk save/export
@@ -43,146 +42,152 @@ class _StrukPageState extends State<StrukPage> {
     _loadKedaiData();
   }
 
-  Future<void> _loadKedaiData() async {
-    try {
-      print('=== LOADING KEDAI DATA FOR STRUK ===');
-      print('User ID: ${widget.userId}');
+Future<void> _loadKedaiData() async {
+  try {
+    print('=== LOADING KEDAI DATA FOR STRUK PAGE (KASIR) ===');
+    print('User ID: ${widget.userId}');
 
-      // **PRIORITAS 1: Ambil dari database via KedaiService**
-      final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
+    // **PRIORITAS 1: Load dari KedaiService**
+    print('Attempting to load from KedaiService...');
+    final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
 
-      if (kedai != null) {
-        print('✅ Data found in database/cache via KedaiService');
-        print('Nama Kedai: ${kedai.nama_kedai}');
-        print('Alamat: ${kedai.alamat_kedai}');
-        print('Telepon: ${kedai.nomor_telepon}');
-
-        setState(() {
-          _kedaiData = {
-            'nama_kedai': kedai.nama_kedai,
-            'alamat_kedai': kedai.alamat_kedai,
-            'nomor_telepon': kedai.nomor_telepon,
-            'catatan_struk': kedai.catatan_struk,
-            'logo_kedai': kedai.logo_kedai,
-          };
-          _isLoading = false;
-        });
-
-        // **SIMPAN JUGA KE SHAREDPREFERENCES dengan format yang mudah diakses**
-        await _saveToSimpleSharedPreferences(kedai);
-        return;
-      }
-
-      print('⚠️ No data from KedaiService, checking SharedPreferences...');
-
-      // **PRIORITAS 2: Cek SharedPreferences secara manual**
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      // Debug: Lihat semua key yang ada
-      print('=== ALL KEYS IN SHAREDPREFERENCES ===');
-      final allKeys = prefs.getKeys();
-      for (var key in allKeys) {
-        if (key.contains('kedai') || key.contains('cached') || key.contains('logo') || key.contains('nama')) {
-          final value = prefs.getString(key);
-          print('$key: ${value?.substring(0, value.length > 30 ? 30 : value.length)}...');
-        }
-      }
-
-      // **Coba baca dari cached data format KedaiService**
-      final cachedKey = 'cached_kedai_${widget.userId}';
-      final cachedData = prefs.getString(cachedKey);
-
-      if (cachedData != null) {
-        try {
-          final data = json.decode(cachedData);
-          print('✅ Found cached data in KedaiService format');
-
-          setState(() {
-            _kedaiData = {
-              'nama_kedai': data['nama_kedai'] ?? 'KEDAI ANDA',
-              'alamat_kedai': data['alamat_kedai'] ?? 'Alamat belum diisi',
-              'nomor_telepon': data['nomor_telepon'] ?? '08xxxxxxxxxx',
-              'catatan_struk': data['catatan_struk'] ?? 'Terima kasih atas kunjungannya',
-              'logo_kedai': data['logo_kedai'] ?? '',
-            };
-            _isLoading = false;
-          });
-          return;
-        } catch (e) {
-          print('❌ Error parsing cached data: $e');
-        }
-      }
-
-      // **PRIORITAS 3: Cari dengan berbagai kemungkinan key**
-      String? findData(String dataType) {
-        // Coba beberapa format
-        final possibleKeys = [
-          '${dataType}_${widget.userId}',
-          '${dataType}_default_owner_id',
-          '${dataType}_default',
-          dataType,
-        ];
-
-        for (var key in possibleKeys) {
-          final value = prefs.getString(key);
-          if (value != null && value.isNotEmpty) {
-            print('📌 Found $dataType with key: $key');
-            return value;
-          }
-        }
-
-        print('❌ No $dataType found');
-        return null;
-      }
-
-      final namaKedai = findData('nama_kedai') ?? 'KEDAI ANDA';
-      final alamatKedai = findData('alamat_kedai') ?? 'Alamat belum diisi';
-      final nomorTelepon = findData('nomor_telepon') ?? '08xxxxxxxxxx';
-      final catatanStruk = findData('catatan_struk') ?? 'Terima kasih atas kunjungannya';
-      final logoKedai = findData('logo_kedai') ?? '';
-
+    if (kedai != null) {
+      print('✅ Data found from KedaiService');
       setState(() {
         _kedaiData = {
-          'nama_kedai': namaKedai,
-          'alamat_kedai': alamatKedai,
-          'nomor_telepon': nomorTelepon,
-          'catatan_struk': catatanStruk,
-          'logo_kedai': logoKedai,
+          'nama_kedai': kedai.nama_kedai,
+          'alamat_kedai': kedai.alamat_kedai,
+          'nomor_telepon': kedai.nomor_telepon,
+          'catatan_struk': kedai.catatan_struk,
+          'logo_kedai': kedai.logo_kedai,
         };
         _isLoading = false;
       });
-
-      print('=== FINAL LOADED DATA ===');
-      print('Nama Kedai: $namaKedai');
-      print('Alamat: $alamatKedai');
-      print('=========================');
-
-    } catch (e) {
-      print('❌ Error loading kedai data: $e');
-      _loadDefaultData();
+      return;
     }
+
+    print('⚠️ No data from KedaiService, checking SharedPreferences...');
+
+    // **PRIORITAS 2: Load dari SharedPreferences - DENGAN TIPE DATA YANG AMAN**
+    final prefs = await SharedPreferences.getInstance();
+    
+    // **PERBAIKAN: Handle berbagai tipe data**
+    String? getSafeString(String key) {
+      final dynamic value = prefs.get(key);
+      if (value == null) return null;
+      
+      if (value is String) {
+        return value;
+      } else if (value is bool) {
+        return value.toString(); // Convert bool to string
+      } else if (value is int) {
+        return value.toString(); // Convert int to string
+      } else if (value is double) {
+        return value.toString(); // Convert double to string
+      }
+      return null;
+    }
+
+    // **DEBUG: Print semua nilai yang ada di SharedPreferences**
+    print('🔍 Scanning SharedPreferences for kedai data...');
+    final allKeys = prefs.getKeys();
+    for (var key in allKeys) {
+      final value = prefs.get(key);
+      print('  $key = ${value} (type: ${value.runtimeType})');
+    }
+
+    // **AMBIL DATA DENGAN FUNGSI AMAN**
+    String? namaKedai = getSafeString('nama_kedai_${widget.userId}') ??
+                        getSafeString('nama_kedai');
+                        
+    String? alamatKedai = getSafeString('alamat_kedai_${widget.userId}') ??
+                          getSafeString('alamat_kedai');
+                          
+    String? nomorTelepon = getSafeString('nomor_telepon_${widget.userId}') ??
+                          getSafeString('nomor_telepon');
+                          
+    String? catatanStruk = getSafeString('catatan_struk_${widget.userId}') ??
+                          getSafeString('catatan_struk');
+                          
+    String? logoKedai = getSafeString('logo_kedai_${widget.userId}') ??
+                        getSafeString('logo_kedai');
+
+    print('📊 Found in SharedPreferences:');
+    print('  namaKedai: $namaKedai');
+    print('  alamatKedai: $alamatKedai');
+    print('  nomorTelepon: $nomorTelepon');
+    print('  catatanStruk: $catatanStruk');
+    print('  logoKedai: ${logoKedai?.length ?? 0} chars');
+
+    // **VALIDASI DATA**
+    if (namaKedai != null && 
+        namaKedai.isNotEmpty && 
+        namaKedai != 'KEDAI ANDA' && 
+        namaKedai != 'default_owner_id') {
+      
+      print('✅ Valid data found in SharedPreferences');
+      
+      setState(() {
+        _kedaiData = {
+          'nama_kedai': namaKedai!,
+          'alamat_kedai': alamatKedai?.isNotEmpty == true ? alamatKedai! : 'Alamat belum diisi',
+          'nomor_telepon': nomorTelepon?.isNotEmpty == true ? nomorTelepon! : '08xxxxxxxxxx',
+          'catatan_struk': catatanStruk?.isNotEmpty == true ? catatanStruk! : 'Terima kasih atas kunjungannya',
+          'logo_kedai': logoKedai?.isNotEmpty == true ? logoKedai! : '',
+        };
+        _isLoading = false;
+      });
+      return;
+    }
+
+    print('⚠️ No valid kedai data found in SharedPreferences');
+    
+    // **PERBAIKAN 3: Coba cari data dari user lain (fallback)**
+    final allUserKeys = prefs.getKeys().where((key) => key.startsWith('nama_kedai_')).toList();
+    if (allUserKeys.isNotEmpty) {
+      print('🔍 Found multiple user kedai data: $allUserKeys');
+      
+      // Ambil data dari user pertama yang ditemukan
+      final firstKey = allUserKeys.first;
+      final userIdFromKey = firstKey.replaceAll('nama_kedai_', '');
+      
+      namaKedai = getSafeString('nama_kedai_$userIdFromKey');
+      alamatKedai = getSafeString('alamat_kedai_$userIdFromKey');
+      nomorTelepon = getSafeString('nomor_telepon_$userIdFromKey');
+      catatanStruk = getSafeString('catatan_struk_$userIdFromKey');
+      logoKedai = getSafeString('logo_kedai_$userIdFromKey');
+      
+      if (namaKedai != null && namaKedai.isNotEmpty) {
+        print('✅ Using data from user $userIdFromKey as fallback');
+        
+        setState(() {
+          _kedaiData = {
+            'nama_kedai': namaKedai!,
+            'alamat_kedai': alamatKedai ?? 'Alamat belum diisi',
+            'nomor_telepon': nomorTelepon ?? '08xxxxxxxxxx',
+            'catatan_struk': catatanStruk ?? 'Terima kasih atas kunjungannya',
+            'logo_kedai': logoKedai ?? '',
+          };
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    print('⚠️ No kedai data found anywhere, using defaults');
+    _loadDefaultData();
+
+  } catch (e, stackTrace) {
+    print('❌ Error loading kedai data: $e');
+    print('Stack trace: $stackTrace');
+    _loadDefaultData();
   }
+}
 
-  // **Fungsi untuk menyimpan data ke SharedPreferences dengan format sederhana**
-  Future<void> _saveToSimpleSharedPreferences(KedaiModel kedai) async {
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      // Simpan dalam format sederhana (selain format cache KedaiService)
-      await prefs.setString('nama_kedai', kedai.nama_kedai);
-      await prefs.setString('alamat_kedai', kedai.alamat_kedai);
-      await prefs.setString('nomor_telepon', kedai.nomor_telepon);
-      await prefs.setString('catatan_struk', kedai.catatan_struk);
-      await prefs.setString('logo_kedai', kedai.logo_kedai);
-
-      // Simpan juga dengan userId
-      await prefs.setString('nama_kedai_${widget.userId}', kedai.nama_kedai);
-      await prefs.setString('alamat_kedai_${widget.userId}', kedai.alamat_kedai);
-
-      print('✅ Simple data saved to SharedPreferences');
-    } catch (e) {
-      print('⚠️ Error saving to SharedPreferences: $e');
-    }
+  // Tambahkan helper function
+  int min(int a, int? b) {
+    if (b == null) return a;
+    return a < b ? a : b;
   }
 
   void _loadDefaultData() {
@@ -224,13 +229,13 @@ class _StrukPageState extends State<StrukPage> {
       if (await _requestStoragePermission()) {
         final pdfBytes = await _generatePdfBytes();
         await _savePdfToGallery(pdfBytes);
-        _showSnackBar('Struk berhasil disimpan ke galeri!');
+        _showSnackBar('Struk berhasil disimpan ke galeri! ');
       } else {
         _showSnackBar('Izin penyimpanan ditolak');
       }
     } catch (e) {
       print('Error saving image: $e');
-      _showSnackBar('Error: $e');
+      _showSnackBar('Error:  $e');
     } finally {
       setState(() {
         _isSavingImage = false;
@@ -273,8 +278,8 @@ class _StrukPageState extends State<StrukPage> {
     final pdf = pw.Document();
 
     pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, double.infinity, marginAll: 5),
+      pw. Page(
+        pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, double. infinity, marginAll: 5),
         build: (pw.Context context) {
           return _buildPdfContent();
         },
@@ -299,7 +304,7 @@ class _StrukPageState extends State<StrukPage> {
       }
 
     } catch (e) {
-      print('Error saving to gallery: $e');
+      print('Error saving to gallery:  $e');
       rethrow;
     }
   }
@@ -309,7 +314,7 @@ class _StrukPageState extends State<StrukPage> {
       return true;
     }
 
-    final status = await Permission.storage.request();
+    final status = await Permission. storage.request();
     return status.isGranted;
   }
 
@@ -318,16 +323,16 @@ class _StrukPageState extends State<StrukPage> {
       crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
         // Logo Kedai
-        if (_kedaiData['logo_kedai']?.isNotEmpty == true)
+        if (_kedaiData['logo_kedai']?. isNotEmpty == true)
           pw.Container(
             width: 40,
             height: 40,
             child: pw.ClipOval(
-              child: pw.Image(
-                pw.MemoryImage(
+              child: pw. Image(
+                pw. MemoryImage(
                   base64Decode(
-                    _kedaiData['logo_kedai']!.contains(',')
-                        ? _kedaiData['logo_kedai']!.split(',').last
+                    _kedaiData['logo_kedai']!. contains(',')
+                        ? _kedaiData['logo_kedai']!. split(',').last
                         : _kedaiData['logo_kedai']!,
                   ),
                 ),
@@ -339,12 +344,12 @@ class _StrukPageState extends State<StrukPage> {
 
         // Nama Kedai
         pw.Text(
-          _kedaiData['nama_kedai']!.toUpperCase(),
+          _kedaiData['nama_kedai']!. toUpperCase(),
           style: pw.TextStyle(
             fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
+            fontWeight: pw. FontWeight.bold,
           ),
-          textAlign: pw.TextAlign.center,
+          textAlign: pw.TextAlign. center,
         ),
 
         pw.SizedBox(height: 4),
@@ -364,15 +369,15 @@ class _StrukPageState extends State<StrukPage> {
         ),
 
         pw.SizedBox(height: 8),
-        pw.Divider(thickness: 0.5),
+        pw. Divider(thickness: 0.5),
         pw.SizedBox(height: 8),
 
         // Info Transaksi
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
+          children:  [
             pw.Text(
-              'No: ${widget.transaksi['no_transaksi'] ?? 'INV-${DateTime.now().millisecondsSinceEpoch}'}',
+              'No:  ${widget.transaksi['no_transaksi'] ?? 'INV-${DateTime.now().millisecondsSinceEpoch}'}',
               style: const pw.TextStyle(fontSize: 9),
             ),
             pw.Text(
@@ -388,8 +393,8 @@ class _StrukPageState extends State<StrukPage> {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              'Nama: ${widget.transaksi['nama_pemesan'] ?? 'Pelanggan'}',
-              style: const pw.TextStyle(fontSize: 9),
+              'Nama:  ${widget.transaksi['nama_pemesan'] ?? 'Pelanggan'}',
+              style:  const pw.TextStyle(fontSize: 9),
             ),
             pw.Text(
               'Meja: ${widget.transaksi['no_meja'] ?? '-'}',
@@ -406,24 +411,24 @@ class _StrukPageState extends State<StrukPage> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Expanded(
+            pw. Expanded(
               flex: 3,
-              child: pw.Text('ITEM', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('ITEM', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight. bold)),
             ),
             pw.Expanded(
               flex: 1,
-              child: pw.Text('QTY', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              child: pw.Text('QTY', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight. bold), textAlign: pw.TextAlign. center),
             ),
             pw.Expanded(
               flex: 2,
-              child: pw.Text('HARGA', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
+              child: pw.Text('HARGA', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign. right),
             ),
           ],
         ),
 
         pw.SizedBox(height: 4),
 
-        // Items dari transaksi - PERBAIKI BAGIAN INI
+        // Items dari transaksi
         if (widget.transaksi['items'] != null && (widget.transaksi['items'] as List).isNotEmpty)
           for (var item in (widget.transaksi['items'] as List<dynamic>))
             pw.Column(
@@ -431,10 +436,10 @@ class _StrukPageState extends State<StrukPage> {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Expanded(
+                    pw. Expanded(
                       flex: 3,
-                      child: pw.Text(
-                        item['nama_menu']?.toString() ?? 'Item',
+                      child: pw. Text(
+                        item['nama_menu']?. toString() ?? 'Item',
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -443,14 +448,14 @@ class _StrukPageState extends State<StrukPage> {
                       child: pw.Text(
                         '${item['quantity'] ?? 1}',
                         style: const pw.TextStyle(fontSize: 9),
-                        textAlign: pw.TextAlign.center,
+                        textAlign: pw.TextAlign. center,
                       ),
                     ),
-                    pw.Expanded(
+                    pw. Expanded(
                       flex: 2,
                       child: pw.Text(
                         'Rp ${_formatNumber(item['subtotal'] ?? 0)}',
-                        style: const pw.TextStyle(fontSize: 9),
+                        style:  const pw.TextStyle(fontSize: 9),
                         textAlign: pw.TextAlign.right,
                       ),
                     ),
@@ -463,7 +468,7 @@ class _StrukPageState extends State<StrukPage> {
           pw.Text(
             'Tidak ada items',
             style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
-            textAlign: pw.TextAlign.center,
+            textAlign: pw.TextAlign. center,
           ),
 
         pw.SizedBox(height: 8),
@@ -475,7 +480,7 @@ class _StrukPageState extends State<StrukPage> {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              'TOTAL:',
+              'TOTAL: ',
               style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
@@ -489,15 +494,15 @@ class _StrukPageState extends State<StrukPage> {
 
         // Catatan Struk
         pw.Container(
-          padding: const pw.EdgeInsets.all(8),
+          padding: const pw. EdgeInsets.all(8),
           decoration: pw.BoxDecoration(
             color: PdfColors.grey100,
-            borderRadius: pw.BorderRadius.circular(4),
+            borderRadius: pw. BorderRadius.circular(4),
           ),
           child: pw.Text(
             widget.transaksi['catatan'] ?? _kedaiData['catatan_struk']!,
-            style:  pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
-            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
+            textAlign: pw.TextAlign. center,
           ),
         ),
       ],
@@ -505,7 +510,7 @@ class _StrukPageState extends State<StrukPage> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    return '${date.day. toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatNumber(dynamic number) {
@@ -529,7 +534,7 @@ class _StrukPageState extends State<StrukPage> {
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content:  Text(message),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -542,7 +547,7 @@ class _StrukPageState extends State<StrukPage> {
     required bool isLoading,
     required VoidCallback onPressed,
   }) {
-    return ElevatedButton.icon(
+    return ElevatedButton. icon(
       onPressed: isLoading ? null : onPressed,
       icon: isLoading
           ? SizedBox(
@@ -569,11 +574,11 @@ class _StrukPageState extends State<StrukPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar:  AppBar(
         backgroundColor: Colors.blue[800],
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon:  const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -597,7 +602,7 @@ class _StrukPageState extends State<StrukPage> {
                 value: 'image',
                 child: Row(
                   children: const [
-                    Icon(Icons.image, color: Colors.blue),
+                    Icon(Icons. image, color: Colors.blue),
                     SizedBox(width: 8),
                     Text('Save as Image'),
                   ],
@@ -631,7 +636,7 @@ class _StrukPageState extends State<StrukPage> {
           ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
         child: Column(
-          children: [
+          children:  [
             // Panel Kontrol
             Container(
               padding: const EdgeInsets.all(16),
@@ -651,7 +656,7 @@ class _StrukPageState extends State<StrukPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:  CrossAxisAlignment.start,
                               children: [
                                 const Text(
                                   'Struk Transaksi',
@@ -689,7 +694,7 @@ class _StrukPageState extends State<StrukPage> {
                         child: _buildActionButton(
                           icon: Icons.image,
                           label: 'Save Image',
-                          color: Colors.blue,
+                          color: Colors. blue,
                           isLoading: _isSavingImage,
                           onPressed: _saveAsImage,
                         ),
@@ -701,7 +706,7 @@ class _StrukPageState extends State<StrukPage> {
                         child: _buildActionButton(
                           icon: Icons.picture_as_pdf,
                           label: 'Export PDF',
-                          color: Colors.red,
+                          color: Colors. red,
                           isLoading: _isGeneratingPdf,
                           onPressed: _exportAsPdf,
                         ),
@@ -711,10 +716,10 @@ class _StrukPageState extends State<StrukPage> {
                       // Print PDF
                       Expanded(
                         child: _buildActionButton(
-                          icon: Icons.print,
+                          icon:  Icons.print,
                           label: 'Print',
                           color: Colors.green,
-                          isLoading: _isGeneratingPdf,
+                          isLoading:  _isGeneratingPdf,
                           onPressed: _cetakStruk,
                         ),
                       ),
@@ -733,10 +738,10 @@ class _StrukPageState extends State<StrukPage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Padding(
+                child:  Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment:  CrossAxisAlignment.center,
                     children: [
                       // Logo Kedai
                       _buildLogoPreview(),
@@ -746,9 +751,9 @@ class _StrukPageState extends State<StrukPage> {
                       // Nama Kedai
                       Text(
                         _kedaiData['nama_kedai']!.toUpperCase(),
-                        style: TextStyle(
+                        style:  TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:  FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -783,7 +788,7 @@ class _StrukPageState extends State<StrukPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'No: ${widget.transaksi['no_transaksi'] ?? 'INV-${DateTime.now().millisecondsSinceEpoch}'}',
+                            'No:  ${widget.transaksi['no_transaksi'] ?? 'INV-${DateTime.now().millisecondsSinceEpoch}'}',
                             style: TextStyle(
                               fontSize: 11,
                             ),
@@ -791,7 +796,7 @@ class _StrukPageState extends State<StrukPage> {
                           Text(
                             _formatDate(DateTime.now()),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize:  11,
                             ),
                           ),
                         ],
@@ -799,7 +804,7 @@ class _StrukPageState extends State<StrukPage> {
                       const SizedBox(height: 6),
 
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:  MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Nama: ${widget.transaksi['nama_pemesan'] ?? 'Pelanggan'}',
@@ -815,7 +820,7 @@ class _StrukPageState extends State<StrukPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height:  12),
 
                       // Garis tipis
                       const Divider(thickness: 0.5, color: Colors.grey),
@@ -869,9 +874,9 @@ class _StrukPageState extends State<StrukPage> {
                               children: [
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
+                                  children:  [
                                     Expanded(
-                                      flex: 3,
+                                      flex:  3,
                                       child: Text(
                                         item['nama_menu']?.toString() ?? 'Item',
                                         style: TextStyle(
@@ -886,7 +891,7 @@ class _StrukPageState extends State<StrukPage> {
                                         style: TextStyle(
                                           fontSize: 11,
                                         ),
-                                        textAlign: TextAlign.center,
+                                        textAlign:  TextAlign.center,
                                       ),
                                     ),
                                     Expanded(
@@ -928,7 +933,7 @@ class _StrukPageState extends State<StrukPage> {
                       // Total
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+                        children:  [
                           Text(
                             'TOTAL:',
                             style: TextStyle(
@@ -976,7 +981,7 @@ class _StrukPageState extends State<StrukPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Fitur Ekspor:',
+                    'Fitur Ekspor: ',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -986,9 +991,9 @@ class _StrukPageState extends State<StrukPage> {
                   const SizedBox(height: 12),
 
                   _buildInfoItem(
-                    icon: Icons.image,
+                    icon: Icons. image,
                     title: 'Save as Image',
-                    description: 'Simpan struk sebagai PDF ke galeri foto',
+                    description:  'Simpan struk sebagai PDF ke galeri foto',
                   ),
 
                   _buildInfoItem(
@@ -1018,7 +1023,7 @@ class _StrukPageState extends State<StrukPage> {
         height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: Colors.grey[300]! ),
           color: Colors.grey[100],
         ),
         child: const Icon(Icons.store, size: 30, color: Colors.grey),
@@ -1037,7 +1042,7 @@ class _StrukPageState extends State<StrukPage> {
             border: Border.all(color: Colors.grey[300]!),
             color: Colors.grey[100],
           ),
-          child: const Icon(Icons.photo, size: 30, color: Colors.grey),
+          child: const Icon(Icons.photo, size: 30, color:  Colors.grey),
         );
       }
 
@@ -1067,22 +1072,22 @@ class _StrukPageState extends State<StrukPage> {
           border: Border.all(color: Colors.grey[300]!),
         ),
         child: ClipOval(
-          child: Image.memory(
+          child: Image. memory(
             bytes,
-            fit: BoxFit.cover,
+            fit: BoxFit. cover,
           ),
         ),
       );
     } catch (e) {
       return Container(
-        width: 60,
+        width:  60,
         height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: Colors.grey[300]!),
           color: Colors.grey[100],
         ),
-        child: const Icon(Icons.error, size: 30, color: Colors.grey),
+        child: const Icon(Icons.error, size: 30, color:  Colors.grey),
       );
     }
   }
@@ -1111,7 +1116,7 @@ class _StrukPageState extends State<StrukPage> {
                   description,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[700],
+                    color: Colors. grey[700],
                   ),
                 ),
               ],

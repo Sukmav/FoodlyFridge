@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../theme/text_styles.dart';
@@ -75,6 +74,30 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        backgroundColor: isError ? AppColors.danger : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   Future<void> _register() async {
     setState(() {
       _usernameError = _validateUsername(_usernameController.text);
@@ -103,13 +126,7 @@ class _RegisterPageState extends State<RegisterPage> {
           .get();
 
       if (usernameCheck.docs.isNotEmpty) {
-        Fluttertoast.showToast(
-          msg: "Username sudah digunakan",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: AppColors.danger,
-          textColor: AppColors.textWhite,
-        );
+        _showMessage("Username sudah digunakan", isError: true);
         setState(() {
           _isLoading = false;
         });
@@ -118,33 +135,33 @@ class _RegisterPageState extends State<RegisterPage> {
 
       final UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-      await FirebaseFirestore.instance
-          .collection('user')
-          .doc(userCredential.user!.uid)
-          .set({
-            'username': _usernameController.text.trim(),
-            'email': _emailController.text.trim(),
-            'createdAt': FieldValue.serverTimestamp(),
-            'lastLogin': FieldValue.serverTimestamp(),
-          });
-
+      // Update display name di Firebase Auth
       await userCredential.user!.updateDisplayName(
         _usernameController.text.trim(),
       );
 
-      Fluttertoast.showToast(
-        msg: "Registrasi berhasil! Silakan login.",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: AppColors.success,
-        textColor: AppColors.textWhite,
-      );
+      // Simpan data user ke Firestore dengan field lengkap
+      await FirebaseFirestore.instance
+          .collection('user')
+          .doc(userCredential.user!.uid)
+          .set({
+        'username': _usernameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'uid': userCredential.user!.uid,
+        'role': 'admin', // Set role default sebagai admin untuk user yang register
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+
+
+      _showMessage("Registrasi berhasil! Silakan login.");
 
       if (mounted) {
+        await Future.delayed(const Duration(seconds: 1));
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
@@ -167,21 +184,9 @@ class _RegisterPageState extends State<RegisterPage> {
           errorMessage = 'Error: ${e.message}';
       }
 
-      Fluttertoast.showToast(
-        msg: errorMessage,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: AppColors.danger,
-        textColor: AppColors.textWhite,
-      );
+      _showMessage(errorMessage, isError: true);
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: "Error: ${e.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: AppColors.danger,
-        textColor: AppColors.textWhite,
-      );
+      _showMessage("Error: ${e.toString()}", isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -655,7 +660,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     onPressed: () {
                                       setState(() {
                                         _obscureConfirmPassword =
-                                            !_obscureConfirmPassword;
+                                        !_obscureConfirmPassword;
                                       });
                                     },
                                   ),
@@ -718,37 +723,37 @@ class _RegisterPageState extends State<RegisterPage> {
                               child: Center(
                                 child: _isLoading
                                     ? const SizedBox(
-                                        height: 22,
-                                        width: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                    AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
                                     : Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            'Daftar Sekarang',
-                                            style: AppTextStyles.buttonMedium
-                                                .copyWith(
-                                                  fontSize: 17,
-                                                  fontWeight: FontWeight.w700,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          const Icon(
-                                            Icons.check_circle_rounded,
-                                            size: 20,
-                                            color: Colors.white,
-                                          ),
-                                        ],
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Daftar Sekarang',
+                                      style: AppTextStyles.buttonMedium
+                                          .copyWith(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.5,
                                       ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

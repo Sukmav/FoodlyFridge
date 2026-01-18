@@ -1,3 +1,4 @@
+//lib/screens/menu_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:barcode_widget/barcode_widget.dart';
@@ -109,17 +110,17 @@ class _MenuPageState extends State<MenuPage> {
     return _menuList.where((menu) {
       final matchesSearch =
           _searchQuery.isEmpty ||
-          (menu['nama_menu']?.toString().toLowerCase() ?? '').contains(
-            _searchQuery.toLowerCase(),
-          ) ||
-          (menu['id_menu']?.toString().toLowerCase() ?? '').contains(
-            _searchQuery.toLowerCase(),
-          );
+              (menu['nama_menu']?.toString().toLowerCase() ?? '').contains(
+                _searchQuery.toLowerCase(),
+              ) ||
+              (menu['id_menu']?.toString().toLowerCase() ?? '').contains(
+                _searchQuery.toLowerCase(),
+              );
 
       final matchesCategory =
           _selectedCategory == null ||
-          (menu['kategori']?.toString().toLowerCase() ?? '') ==
-              _selectedCategory!.toLowerCase();
+              (menu['kategori']?.toString().toLowerCase() ?? '') ==
+                  _selectedCategory!.toLowerCase();
 
       return matchesSearch && matchesCategory;
     }).toList();
@@ -171,7 +172,7 @@ class _MenuPageState extends State<MenuPage> {
             child: CircularProgressIndicator(
               value: loadingProgress.expectedTotalBytes != null
                   ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
+                  loadingProgress.expectedTotalBytes!
                   : null,
               color: Colors.white,
             ),
@@ -338,17 +339,17 @@ class _MenuPageState extends State<MenuPage> {
                               ),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(
-                                      icon: Icon(
-                                        Icons.clear_rounded,
-                                        color: AppColors.textSecondary,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _searchQuery = '';
-                                        });
-                                      },
-                                    )
+                                icon: Icon(
+                                  Icons.clear_rounded,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
                                   : null,
                             ),
                           ),
@@ -405,8 +406,8 @@ class _MenuPageState extends State<MenuPage> {
                                         'Semua',
                                         style: AppTextStyles.bodyMedium
                                             .copyWith(
-                                              color: AppColors.textPrimary,
-                                            ),
+                                          color: AppColors.textPrimary,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -430,8 +431,8 @@ class _MenuPageState extends State<MenuPage> {
                                           category,
                                           style: AppTextStyles.bodyMedium
                                               .copyWith(
-                                                color: AppColors.textPrimary,
-                                              ),
+                                            color: AppColors.textPrimary,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -501,128 +502,128 @@ class _MenuPageState extends State<MenuPage> {
             Expanded(
               child: _isLoading
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                color: AppColors.primary.withOpacity(0.2),
-                                width: 2,
-                              ),
-                            ),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 4,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primary,
-                              ),
-                              backgroundColor: AppColors.primary.withOpacity(
-                                0.1,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Memuat menu...',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _filteredMenuList.isEmpty
-                  ? SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 40),
-                            Container(
-                              width: 150,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.08),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.primary.withOpacity(0.15),
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.restaurant_menu_outlined,
-                                size: 70,
-                                color: AppColors.primary.withOpacity(0.6),
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            Text(
-                              _searchQuery.isEmpty && _selectedCategory == null
-                                  ? 'Belum Ada Menu'
-                                  : 'Menu Tidak Ditemukan',
-                              style: AppTextStyles.headlineMedium.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 22,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                              child: Text(
-                                _searchQuery.isEmpty &&
-                                        _selectedCategory == null
-                                    ? 'Tambahkan menu pertama Anda untuk memulai'
-                                    : 'Coba cari dengan kata kunci lain atau pilih kategori berbeda',
-                                style: AppTextStyles.bodyMedium.copyWith(
-                                  color: AppColors.textSecondary,
-                                  height: 1.5,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 32),
-                          ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.2),
+                          width: 2,
                         ),
                       ),
-                    )
-                  : SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 20,
-                                    childAspectRatio: 0.75,
-                                  ),
-                              itemCount: _filteredMenuList.length,
-                              itemBuilder: (context, index) {
-                                final menu = _filteredMenuList[index];
-                                return _buildMenuCard(menu);
-                              },
-                            ),
-                            const SizedBox(height: 100),
-                          ],
+                      child: CircularProgressIndicator(
+                        strokeWidth: 4,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                        backgroundColor: AppColors.primary.withOpacity(
+                          0.1,
                         ),
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Memuat menu...',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  : _filteredMenuList.isEmpty
+                  ? SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.15),
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.restaurant_menu_outlined,
+                          size: 70,
+                          color: AppColors.primary.withOpacity(0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      Text(
+                        _searchQuery.isEmpty && _selectedCategory == null
+                            ? 'Belum Ada Menu'
+                            : 'Menu Tidak Ditemukan',
+                        style: AppTextStyles.headlineMedium.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 22,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                        ),
+                        child: Text(
+                          _searchQuery.isEmpty &&
+                              _selectedCategory == null
+                              ? 'Tambahkan menu pertama Anda untuk memulai'
+                              : 'Coba cari dengan kata kunci lain atau pilih kategori berbeda',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              )
+                  : SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 20,
+                          childAspectRatio: 0.75,
+                        ),
+                        itemCount: _filteredMenuList.length,
+                        itemBuilder: (context, index) {
+                          final menu = _filteredMenuList[index];
+                          return _buildMenuCard(menu);
+                        },
+                      ),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -691,7 +692,7 @@ class _MenuPageState extends State<MenuPage> {
         onTap: () => _showDetailMenu(menu),
         child: SizedBox(
           width: double.infinity,
-          height: 265,
+          height: 270,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Column(
@@ -789,7 +790,7 @@ class _MenuPageState extends State<MenuPage> {
                           style: AppTextStyles.bodyMedium.copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
-                            fontSize: 14,
+                            fontSize: 12,
                             height: 1.3,
                           ),
                           maxLines: 2,

@@ -85,20 +85,20 @@ class SimpleRiwayatService {
               'action': 'create',
               'title': 'Waste Food: ${wasteData['nama_bahan'] ?? 'Bahan'}',
               'description':
-                  'Jenis: ${wasteData['jenis_waste'] ?? ''} - Jumlah: ${wasteData['jumlah_terbuang'] ?? ''} ${wasteData['unit'] ?? 'gr'} | Kerugian: ${_formatCurrency(wasteData['total_kerugian'] ?? '0')}',
+              'Jenis: ${wasteData['jenis_waste'] ?? ''} - Jumlah: ${wasteData['jumlah_terbuang'] ?? ''} ${wasteData['unit'] ?? 'gr'} | Kerugian: ${_formatCurrency(wasteData['total_kerugian'] ?? '0')}',
               'user_name': wasteData['user_name'] ?? 'User',
               'user_id': wasteData['user_id'] ?? userId,
               'timestamp':
-                  wasteData['tanggal'] ?? DateTime.now().toIso8601String(),
+              wasteData['tanggal'] ?? DateTime.now().toIso8601String(),
               'jumlah':
-                  double.tryParse(
-                    wasteData['jumlah_terbuang']?.toString() ?? '0',
-                  ) ??
+              double.tryParse(
+                wasteData['jumlah_terbuang']?.toString() ?? '0',
+              ) ??
                   0,
               'kerugian':
-                  double.tryParse(
-                    wasteData['total_kerugian']?.toString() ?? '0',
-                  ) ??
+              double.tryParse(
+                wasteData['total_kerugian']?.toString() ?? '0',
+              ) ??
                   0,
               'color': '#f83600',
               'icon': 'delete',
@@ -118,8 +118,8 @@ class SimpleRiwayatService {
 
   // TAMBAHKAN: Method khusus untuk stok_keluar
   Future<List<Map<String, dynamic>>> getStokKeluarByUserId(
-    String userId,
-  ) async {
+      String userId,
+      ) async {
     try {
       final response = await http.post(
         Uri.parse(_getUrl('select/')),
@@ -155,13 +155,13 @@ class SimpleRiwayatService {
               'action': 'create',
               'title': 'Stok Keluar: ${stokData['invoice'] ?? 'Transaksi'}',
               'description':
-                  'Invoice: ${stokData['invoice'] ?? ''} - Total: ${_formatCurrency(stokData['total_harga'] ?? '0')}',
+              'Invoice: ${stokData['invoice'] ?? ''} - Total: ${_formatCurrency(stokData['total_harga'] ?? '0')}',
               'user_name': stokData['nama_kasir'] ?? 'Kasir',
               'user_id': stokData['user_id'] ?? userId,
               'timestamp':
-                  stokData['tanggal'] ?? DateTime.now().toIso8601String(),
+              stokData['tanggal'] ?? DateTime.now().toIso8601String(),
               'total':
-                  double.tryParse(stokData['total_harga']?.toString() ?? '0') ??
+              double.tryParse(stokData['total_harga']?.toString() ?? '0') ??
                   0,
               'color': '#f093fb',
               'icon': 'upload',
@@ -213,13 +213,13 @@ class SimpleRiwayatService {
               'action': 'create',
               'title': 'Stok Masuk dari ${stokData['nama_vendor'] ?? 'Vendor'}',
               'description':
-                  'Qty: ${stokData['qty_pembelian'] ?? ''} - Harga: ${_formatCurrency(stokData['total_harga'] ?? '0')}',
+              'Qty: ${stokData['qty_pembelian'] ?? ''} - Harga: ${_formatCurrency(stokData['total_harga'] ?? '0')}',
               'user_name': stokData['user_name'] ?? 'User',
               'user_id': stokData['user_id'] ?? userId,
               'timestamp':
-                  stokData['tanggal_masuk'] ?? DateTime.now().toIso8601String(),
+              stokData['tanggal_masuk'] ?? DateTime.now().toIso8601String(),
               'total':
-                  double.tryParse(stokData['total_harga']?.toString() ?? '0') ??
+              double.tryParse(stokData['total_harga']?.toString() ?? '0') ??
                   0,
               'color': '#667eea',
               'icon': 'download',
@@ -356,15 +356,15 @@ class SimpleRiwayatService {
               'action': 'create',
               'title': 'Bahan Baku: ${bahanData['nama_bahan'] ?? 'Bahan'}',
               'description':
-                  'Stok: ${bahanData['stok_tersedia'] ?? ''} - Harga: ${_formatCurrency(bahanData['harga_per_unit'] ?? '0')}',
+              'Stok: ${bahanData['stok_tersedia'] ?? ''} - Harga: ${_formatCurrency(bahanData['harga_per_unit'] ?? '0')}',
               'user_name': 'User',
               'user_id': userId,
               'timestamp':
-                  bahanData['created_at'] ?? DateTime.now().toIso8601String(),
+              bahanData['created_at'] ?? DateTime.now().toIso8601String(),
               'total':
-                  double.tryParse(
-                    bahanData['harga_per_unit']?.toString() ?? '0',
-                  ) ??
+              double.tryParse(
+                bahanData['harga_per_unit']?.toString() ?? '0',
+              ) ??
                   0,
               'color': '#4facfe',
               'icon': 'shopping_basket',
@@ -470,8 +470,8 @@ class SimpleRiwayatService {
 
   // Ambil riwayat spesifik menu
   static Future<List<Map<String, dynamic>>> getMenuHistory(
-    String menuId,
-  ) async {
+      String menuId,
+      ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = 'menu_history_$menuId';
@@ -516,10 +516,10 @@ class SimpleRiwayatService {
   }
 
   static String _getMenuActivityDescription(
-    String type,
-    String menuName,
-    Map<String, dynamic>? metadata,
-  ) {
+      String type,
+      String menuName,
+      Map<String, dynamic>? metadata,
+      ) {
     switch (type) {
       case 'menu_update':
         return 'Menu "$menuName" telah diperbarui';

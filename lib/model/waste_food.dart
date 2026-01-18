@@ -1,3 +1,4 @@
+//lib/model/waste_food.dart
 class WasteFoodModel {
   final String id;
   final String nama_bahan;

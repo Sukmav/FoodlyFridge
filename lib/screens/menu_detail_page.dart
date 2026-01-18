@@ -38,9 +38,9 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
     return number
         .toStringAsFixed(0)
         .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]}.',
-        );
+    );
   }
 
   List<Map<String, dynamic>> _parseBahanBaku() {
@@ -52,9 +52,9 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
           for (var it in rawStructured) {
             result.add({
               'nama':
-                  it['nama_bahan']?.toString() ?? it['nama']?.toString() ?? '',
+              it['nama_bahan']?.toString() ?? it['nama']?.toString() ?? '',
               'jumlah':
-                  it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0',
+              it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0',
               'satuan': it['unit']?.toString() ?? '',
               'biaya': it['biaya']?.toString() ?? '0',
             });
@@ -67,11 +67,11 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               for (var it in decoded) {
                 result.add({
                   'nama':
-                      it['nama_bahan']?.toString() ??
+                  it['nama_bahan']?.toString() ??
                       it['nama']?.toString() ??
                       '',
                   'jumlah':
-                      it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0',
+                  it['jumlah']?.toString() ?? it['qty']?.toString() ?? '0',
                   'satuan': it['unit']?.toString() ?? '',
                   'biaya': it['biaya']?.toString() ?? '0',
                 });
@@ -121,7 +121,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               widget.menu['harga']?.toString() ??
               '0',
         ) ??
-        0.0;
+            0.0;
     final totalRecipe = _calculateTotalRecipeCost();
     if (hargaJual > 0 && totalRecipe > 0) {
       return (totalRecipe / hargaJual) * 100;
@@ -290,7 +290,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             child: CircularProgressIndicator(
               value: loadingProgress.expectedTotalBytes != null
                   ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
+                  loadingProgress.expectedTotalBytes!
                   : null,
             ),
           );
@@ -373,7 +373,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               widget.menu['harga']?.toString() ??
               '0',
         ) ??
-        0.0;
+            0.0;
     final fotoMenu = widget.menu['foto_menu']?.toString();
 
     return Scaffold(
@@ -397,347 +397,347 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image Section
-                  Container(
-                    width: double.infinity,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: _buildMenuImage(fotoMenu),
-                    ),
-                  ),
-                  SizedBox(height: 20),
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Section
+            Container(
+              width: double.infinity,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildMenuImage(fotoMenu),
+              ),
+            ),
+            SizedBox(height: 20),
 
-                  // Informasi Menu Card
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            // Informasi Menu Card
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Informasi Menu',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: priceTagGradient,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          child: Text(
+                            'Rp ${_formatNumber(hargaJual)}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    SizedBox(height: 16),
+                    _buildInfoRow(
+                      'Kode Menu',
+                      widget.menu['id_menu'] ?? '-',
+                    ),
+                    _buildInfoRow(
+                      'Nama Menu',
+                      widget.menu['nama_menu'] ?? '-',
+                    ),
+                    _buildInfoRow(
+                      'Kategori',
+                      widget.menu['kategori'] ?? '-',
+                    ),
+                    Divider(height: 32),
+
+                    // Cost Summary
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
                             children: [
                               Text(
-                                'Informasi Menu',
+                                'Total Recipe Cost',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Rp ${_formatNumber(totalRecipe)}',
+                                style: TextStyle(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  gradient: priceTagGradient,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  'Rp ${_formatNumber(hargaJual)}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                                  color: Colors.blue[800],
                                 ),
                               ),
                             ],
                           ),
-                          SizedBox(height: 16),
-                          _buildInfoRow(
-                            'Kode Menu',
-                            widget.menu['id_menu'] ?? '-',
-                          ),
-                          _buildInfoRow(
-                            'Nama Menu',
-                            widget.menu['nama_menu'] ?? '-',
-                          ),
-                          _buildInfoRow(
-                            'Kategori',
-                            widget.menu['kategori'] ?? '-',
-                          ),
-                          Divider(height: 32),
-
-                          // Cost Summary
-                          Row(
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.grey[300],
+                        ),
+                        Expanded(
+                          child: Column(
                             children: [
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Total Recipe Cost',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Rp ${_formatNumber(totalRecipe)}',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue[800],
-                                      ),
-                                    ),
-                                  ],
+                              Text(
+                                'Food Cost',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
                                 ),
                               ),
-                              Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.grey[300],
-                              ),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Food Cost',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      '${foodCost.toStringAsFixed(1)}%',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: foodCost > 50
-                                            ? Colors.red
-                                            : Colors.green,
-                                      ),
-                                    ),
-                                  ],
+                              SizedBox(height: 4),
+                              Text(
+                                '${foodCost.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: foodCost > 50
+                                      ? Colors.red
+                                      : Colors.green,
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
 
-                  // Barcode Section
-                  if (widget.menu['barcode'] != null &&
-                      widget.menu['barcode'].toString().isNotEmpty)
-                    Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+            // Barcode Section
+            if (widget.menu['barcode'] != null &&
+                widget.menu['barcode'].toString().isNotEmpty)
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Barcode',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
+                      SizedBox(height: 12),
+                      Center(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Barcode',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.grey[300]!,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: BarcodeWidget(
+                                barcode: Barcode.code128(),
+                                data: widget.menu['barcode'],
+                                width: 250,
+                                height: 80,
+                                drawText: false,
                               ),
                             ),
-                            SizedBox(height: 12),
-                            Center(
-                              child: Column(
-                                children: [
-                                  Container(
-                                    padding: EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.grey[300]!,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: BarcodeWidget(
-                                      barcode: Barcode.code128(),
-                                      data: widget.menu['barcode'],
-                                      width: 250,
-                                      height: 80,
-                                      drawText: false,
-                                    ),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    widget.menu['barcode'],
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                ],
+                            SizedBox(height: 8),
+                            Text(
+                              widget.menu['barcode'],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1.5,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
 
-                  SizedBox(height: 16),
+            SizedBox(height: 16),
 
-                  // Bahan Baku Section
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.shopping_basket_rounded,
-                                color: Colors.orange[700],
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Daftar Bahan Baku',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+            // Bahan Baku Section
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.shopping_basket_rounded,
+                          color: Colors.orange[700],
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Daftar Bahan Baku',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                          SizedBox(height: 12),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
 
-                          if (bahanList.isEmpty)
-                            Container(
-                              padding: EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Tidak ada bahan baku',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                              ),
-                            )
-                          else
-                            Column(
+                    if (bahanList.isEmpty)
+                      Container(
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Tidak ada bahan baku',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.orange[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 8,
+                            ),
+                            child: Row(
                               children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange[50],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: 10,
-                                    horizontal: 8,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'Nama Bahan',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          'Jumlah',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          'Biaya',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                Expanded(
+                                  child: Text(
+                                    'Nama Bahan',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                                SizedBox(height: 8),
-                                ...bahanList.asMap().entries.map((e) {
-                                  final idx = e.key;
-                                  final item = e.value;
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      border: idx < bahanList.length - 1
-                                          ? Border(
-                                              bottom: BorderSide(
-                                                color: Colors.grey[200]!,
-                                              ),
-                                            )
-                                          : null,
+                                Expanded(
+                                  child: Text(
+                                    'Jumlah',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    padding: EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 8,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    'Biaya',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            '${idx + 1}. ${item['nama']}',
-                                            maxLines: 2,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            '${item['jumlah']} ${item['satuan']}',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'Rp${_formatNumber(double.tryParse(item['biaya']?.toString() ?? '0') ?? 0)}',
-                                            textAlign: TextAlign.right,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.green[700],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
+                                  ),
+                                ),
                               ],
                             ),
+                          ),
+                          SizedBox(height: 8),
+                          ...bahanList.asMap().entries.map((e) {
+                            final idx = e.key;
+                            final item = e.value;
+                            return Container(
+                              decoration: BoxDecoration(
+                                border: idx < bahanList.length - 1
+                                    ? Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[200]!,
+                                  ),
+                                )
+                                    : null,
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 8,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${idx + 1}. ${item['nama']}',
+                                      maxLines: 2,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      '${item['jumlah']} ${item['satuan']}',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      'Rp${_formatNumber(double.tryParse(item['biaya']?.toString() ?? '0') ?? 0)}',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green[700],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
                         ],
                       ),
-                    ),
-                  ),
-                  SizedBox(height: 80), // Spacer untuk floating buttons
-                ],
+                  ],
+                ),
               ),
             ),
+            SizedBox(height: 80), // Spacer untuk floating buttons
+          ],
+        ),
+      ),
       bottomNavigationBar: Container(
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(

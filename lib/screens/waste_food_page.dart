@@ -413,9 +413,9 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
   final DataService _dataService = DataService();
 
   final TextEditingController _jumlahTerbuangController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _totalKerugianController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _catatanController = TextEditingController();
 
   BahanBakuModel? _selectedBahanBaku;
@@ -562,7 +562,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
 
         setState(() {
           _totalKerugianController.text =
-              'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
+          'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
         });
       } catch (e) {
         setState(() {
@@ -674,10 +674,22 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
     setState(() => _isLoading = true);
 
     try {
-      final jumlahTerbuang = double.parse(_jumlahTerbuangController.text);
-      final hargaPerUnit = double.parse(_selectedBahanBaku!.harga_per_unit);
-      final totalKerugian = jumlahTerbuang * hargaPerUnit;
+      // Jumlah terbuang dalam gram
+      final jumlahTerbuangGram = double.parse(_jumlahTerbuangController.text);
 
+      // Harga per unit (diasumsikan per gram berdasarkan harga_per_unit)
+      final hargaPerGram = double.parse(_selectedBahanBaku!.harga_per_unit);
+
+      // Total kerugian = jumlah gram × harga per gram
+      final totalKerugian = jumlahTerbuangGram * hargaPerGram;
+
+      print('=== PERHITUNGAN WASTE FOOD ===');
+      print('Nama Bahan: ${_selectedBahanBaku!.nama_bahan}');
+      print('Jumlah Terbuang: $jumlahTerbuangGram gr');
+      print('Harga per gram: Rp $hargaPerGram');
+      print('Total Kerugian: Rp ${totalKerugian.toStringAsFixed(0)}');
+
+      // 1. Simpan data waste food
       final response = await http.post(
         Uri.parse('$fileUri/insert/'),
         body: {
@@ -689,7 +701,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
           'nama_bahan': _selectedBahanBaku!.nama_bahan,
           'jenis_waste': _selectedJenisWaste!,
           'jumlah_terbuang':
-              '${_jumlahTerbuangController.text} ${_selectedBahanBaku!.unit}',
+          '${_jumlahTerbuangController.text} gr',
           'tanggal': DateFormat('yyyy-MM-dd').format(_selectedDate),
           'catatan': _catatanController.text.isEmpty
               ? '-'
@@ -702,9 +714,82 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
 
       if (mounted) {
         if (response.statusCode == 200) {
+          print('✅ Data waste food berhasil disimpan ke database');
+
+          // 2. Update stok bahan baku - kurangi sesuai jumlah terbuang
+          try {
+            // Parse stok tersedia saat ini dari bahan baku
+            final stokParts = _selectedBahanBaku!.stok_tersedia.split(' ');
+            double stokSekarangKg = 0;
+            String unitStok = _selectedBahanBaku!.unit;
+
+            if (stokParts.isNotEmpty) {
+              stokSekarangKg = double.tryParse(stokParts[0]) ?? 0;
+              if (stokParts.length > 1) {
+                unitStok = stokParts[1];
+              }
+            }
+
+            // Konversi jumlah terbuang dari gram ke kg
+            double penguranganKg = jumlahTerbuangGram / 1000;
+
+            // Hitung stok baru setelah dikurangi
+            double stokBaruKg = stokSekarangKg - penguranganKg;
+
+            // Pastikan stok tidak negatif
+            if (stokBaruKg < 0) {
+              print('⚠️ WARNING: Stok akan negatif, set ke 0');
+              stokBaruKg = 0;
+            }
+
+            String stokBaruFormatted = '${stokBaruKg.toStringAsFixed(2)} $unitStok';
+
+            print('=== UPDATE STOK BAHAN BAKU ===');
+            print('Stok Lama: $stokSekarangKg $unitStok');
+            print('Pengurangan: $jumlahTerbuangGram gr = $penguranganKg kg');
+            print('Stok Baru: $stokBaruKg $unitStok');
+
+            // Update stok di database
+            bool updateSuccess = false;
+
+            if (_selectedBahanBaku!.id.isNotEmpty && _selectedBahanBaku!.id != '') {
+              await _dataService.updateId(
+                'stok_tersedia',
+                stokBaruFormatted,
+                token,
+                project,
+                'bahan_baku',
+                appid,
+                _selectedBahanBaku!.id,
+              );
+              print('✅ Update stok menggunakan ID: ${_selectedBahanBaku!.id}');
+              updateSuccess = true;
+            } else {
+              await _dataService.updateWhere(
+                'nama_bahan',
+                _selectedBahanBaku!.nama_bahan,
+                'stok_tersedia',
+                stokBaruFormatted,
+                token,
+                project,
+                'bahan_baku',
+                appid,
+              );
+              print('✅ Update stok menggunakan nama_bahan: ${_selectedBahanBaku!.nama_bahan}');
+              updateSuccess = true;
+            }
+
+            if (updateSuccess) {
+              print('✅ Stok bahan baku berhasil diupdate di database');
+            }
+          } catch (e) {
+            print('❌ ERROR update stok: $e');
+            print('⚠️ Waste food sudah tersimpan, tapi stok bahan baku gagal diupdate');
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Data waste food berhasil ditambahkan'),
+              content: Text('Data waste food berhasil ditambahkan dan stok bahan baku diperbarui'),
               backgroundColor: Colors.green,
             ),
           );
@@ -782,81 +867,81 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
             const SizedBox(height: 8),
             _isLoading
                 ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey[100],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Loading...',
-                          style: GoogleFonts.poppins(color: Colors.grey),
-                        ),
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ],
-                    ),
-                  )
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey[100],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Loading...',
+                    style: GoogleFonts.poppins(color: Colors.grey),
+                  ),
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ],
+              ),
+            )
                 : Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFD4A373)),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.white,
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<BahanBakuModel>(
-                        value: _selectedBahanBaku,
-                        isExpanded: true,
-                        hint: Text(
-                          _bahanBakuList.isEmpty
-                              ? 'Tidak ada data bahan baku'
-                              : 'Pilih Bahan Baku',
-                          style: GoogleFonts.poppins(
-                            color: _bahanBakuList.isEmpty
-                                ? Colors.red
-                                : const Color(0xFFD4A373),
-                          ),
-                        ),
-                        icon: Icon(
-                          Icons.keyboard_arrow_down,
-                          color: _bahanBakuList.isEmpty
-                              ? Colors.grey
-                              : const Color(0xFFD4A373),
-                        ),
-                        style: GoogleFonts.poppins(
-                          color: Colors.black87,
-                          fontSize: 14,
-                        ),
-                        items: _bahanBakuList.isEmpty
-                            ? null
-                            : _bahanBakuList.map((BahanBakuModel bahanBaku) {
-                                return DropdownMenuItem<BahanBakuModel>(
-                                  value: bahanBaku,
-                                  child: Text(
-                                    bahanBaku.nama_bahan,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                        onChanged: _bahanBakuList.isEmpty
-                            ? null
-                            : _onBahanBakuSelected,
-                      ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFD4A373)),
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.white,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<BahanBakuModel>(
+                  value: _selectedBahanBaku,
+                  isExpanded: true,
+                  hint: Text(
+                    _bahanBakuList.isEmpty
+                        ? 'Tidak ada data bahan baku'
+                        : 'Pilih Bahan Baku',
+                    style: GoogleFonts.poppins(
+                      color: _bahanBakuList.isEmpty
+                          ? Colors.red
+                          : const Color(0xFFD4A373),
                     ),
                   ),
+                  icon: Icon(
+                    Icons.keyboard_arrow_down,
+                    color: _bahanBakuList.isEmpty
+                        ? Colors.grey
+                        : const Color(0xFFD4A373),
+                  ),
+                  style: GoogleFonts.poppins(
+                    color: Colors.black87,
+                    fontSize: 14,
+                  ),
+                  items: _bahanBakuList.isEmpty
+                      ? null
+                      : _bahanBakuList.map((BahanBakuModel bahanBaku) {
+                    return DropdownMenuItem<BahanBakuModel>(
+                      value: bahanBaku,
+                      child: Text(
+                        bahanBaku.nama_bahan,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: _bahanBakuList.isEmpty
+                      ? null
+                      : _onBahanBakuSelected,
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
 
             Text(
@@ -906,7 +991,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
             const SizedBox(height: 16),
 
             Text(
-              'Jumlah Terbuang${_selectedBahanBaku != null ? ' (${_selectedBahanBaku!.unit})' : ''}',
+              'Jumlah Terbuang (gr)',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -921,7 +1006,7 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
               enabled: _selectedBahanBaku != null,
               decoration: InputDecoration(
                 hintText: _selectedBahanBaku != null
-                    ? 'Masukkan jumlah (${_selectedBahanBaku!.unit})'
+                    ? 'Masukkan jumlah dalam gram (gr)'
                     : 'Pilih bahan baku terlebih dahulu',
                 hintStyle: GoogleFonts.poppins(color: Colors.grey),
                 suffixText: _selectedBahanBaku?.unit,
@@ -1107,19 +1192,19 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
                   ),
                   child: _selectedImage != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                        )
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                  )
                       : Center(
-                          child: Text(
-                            'Foto Bukti',
-                            style: GoogleFonts.poppins(
-                              color: const Color(0xFFD4A373),
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    child: Text(
+                      'Foto Bukti',
+                      style: GoogleFonts.poppins(
+                        color: const Color(0xFFD4A373),
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Column(
@@ -1212,21 +1297,21 @@ class _TambahWasteFoodPageState extends State<TambahWasteFoodPage> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
                     : Text(
-                        'Simpan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                  'Simpan',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1365,20 +1450,20 @@ class _WasteFoodDetailPageState extends State<WasteFoodDetailPage> {
                     ),
                     child: _isLoadingFoto
                         ? const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                         : ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: _fotoBahanBaku.isNotEmpty
-                                ? _buildImageWidget(
-                                    _fotoBahanBaku,
-                                  ) // FOTO DARI BAHAN BAKU
-                                : Icon(
-                                    Icons.inventory_2,
-                                    size: 40,
-                                    color: Colors.orange[700],
-                                  ),
-                          ),
+                      borderRadius: BorderRadius.circular(10),
+                      child: _fotoBahanBaku.isNotEmpty
+                          ? _buildImageWidget(
+                        _fotoBahanBaku,
+                      ) // FOTO DARI BAHAN BAKU
+                          : Icon(
+                        Icons.inventory_2,
+                        size: 40,
+                        color: Colors.orange[700],
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1536,7 +1621,7 @@ class _WasteFoodDetailPageState extends State<WasteFoodDetailPage> {
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color:
-                    widget.waste.catatan.isEmpty || widget.waste.catatan == '-'
+                widget.waste.catatan.isEmpty || widget.waste.catatan == '-'
                     ? Colors.grey[400]
                     : Colors.black87,
               ),
@@ -1557,21 +1642,21 @@ class _WasteFoodDetailPageState extends State<WasteFoodDetailPage> {
                 ),
                 child: widget.waste.foto.isNotEmpty
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: _buildImageWidget(
-                          widget.waste.foto,
-                        ), // FOTO WASTE (FOTO BUKTI)
-                      )
+                  borderRadius: BorderRadius.circular(6),
+                  child: _buildImageWidget(
+                    widget.waste.foto,
+                  ), // FOTO WASTE (FOTO BUKTI)
+                )
                     : Center(
-                        child: Text(
-                          'Foto Bukti',
-                          style: GoogleFonts.poppins(
-                            color: const Color(0xFFD4A373),
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                  child: Text(
+                    'Foto Bukti',
+                    style: GoogleFonts.poppins(
+                      color: const Color(0xFFD4A373),
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
             ],
           ),
@@ -1936,9 +2021,9 @@ class _WasteFoodEditPageState extends State<WasteFoodEditPage> {
   final DataService _dataService = DataService();
 
   final TextEditingController _jumlahTerbuangController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _totalKerugianController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _catatanController = TextEditingController();
 
   bool _isLoading = false;
@@ -2077,7 +2162,7 @@ class _WasteFoodEditPageState extends State<WasteFoodEditPage> {
 
       // Cari bahan baku yang sesuai dengan waste ini
       final matchingBahan = bahanBakuList.firstWhere(
-        (bahan) => bahan.nama_bahan == widget.waste.nama_bahan,
+            (bahan) => bahan.nama_bahan == widget.waste.nama_bahan,
         orElse: () => BahanBakuModel(
           id: '',
           nama_bahan: '',
@@ -2125,7 +2210,7 @@ class _WasteFoodEditPageState extends State<WasteFoodEditPage> {
 
         setState(() {
           _totalKerugianController.text =
-              'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
+          'Rp ${NumberFormat('#,###', 'id_ID').format(totalKerugian)}';
         });
       } catch (e) {
         setState(() {
@@ -2340,18 +2425,18 @@ class _WasteFoodEditPageState extends State<WasteFoodEditPage> {
                   ),
                   child: _isLoadingFoto
                       ? const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                       : ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: _fotoBahanBaku.isNotEmpty
-                              ? _buildImageWidget(_fotoBahanBaku)
-                              : Icon(
-                                  Icons.inventory_2,
-                                  size: 30,
-                                  color: Colors.orange[700],
-                                ),
-                        ),
+                    borderRadius: BorderRadius.circular(6),
+                    child: _fotoBahanBaku.isNotEmpty
+                        ? _buildImageWidget(_fotoBahanBaku)
+                        : Icon(
+                      Icons.inventory_2,
+                      size: 30,
+                      color: Colors.orange[700],
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -2616,27 +2701,27 @@ class _WasteFoodEditPageState extends State<WasteFoodEditPage> {
               ),
               child: widget.waste.foto.isNotEmpty
                   ? ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: _buildImageWidget(
-                        widget.waste.foto,
-                      ), // FOTO WASTE (FOTO BUKTI)
-                    )
+                borderRadius: BorderRadius.circular(6),
+                child: _buildImageWidget(
+                  widget.waste.foto,
+                ), // FOTO WASTE (FOTO BUKTI)
+              )
                   : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.image, size: 40, color: Colors.grey[400]),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tidak ada foto',
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image, size: 40, color: Colors.grey[400]),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tidak ada foto',
+                      style: GoogleFonts.poppins(
+                        color: Colors.grey[400],
+                        fontSize: 12,
                       ),
                     ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -2664,21 +2749,21 @@ class _WasteFoodEditPageState extends State<WasteFoodEditPage> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
                     : Text(
-                        'Simpan Perubahan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                  'Simpan Perubahan',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 20),

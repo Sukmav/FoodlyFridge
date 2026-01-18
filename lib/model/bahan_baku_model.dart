@@ -1,3 +1,4 @@
+//lib/model/bahan_baku_model.dart
 class BahanBakuModel {
   final String id;
   final String foto_bahan;

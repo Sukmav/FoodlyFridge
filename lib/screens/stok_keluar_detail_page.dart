@@ -471,9 +471,9 @@ class _StokKeluarDetailPageState extends State<StokKeluarDetailPage> {
   }
 
   Widget _buildMenuItemCard(
-    MenuDetail menuDetail,
-    List<BahanBakuItem> bahanBakuList,
-  ) {
+      MenuDetail menuDetail,
+      List<BahanBakuItem> bahanBakuList,
+      ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 3,
@@ -556,7 +556,7 @@ class _StokKeluarDetailPageState extends State<StokKeluarDetailPage> {
                             // MENGGUNAKAN TEXT STYLES
                             fontWeight: FontWeight.w700,
                             color:
-                                AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
+                            AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
                           ),
                         ),
                       ),
@@ -568,7 +568,7 @@ class _StokKeluarDetailPageState extends State<StokKeluarDetailPage> {
                             // MENGGUNAKAN TEXT STYLES
                             fontWeight: FontWeight.w700,
                             color:
-                                AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
+                            AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -581,7 +581,7 @@ class _StokKeluarDetailPageState extends State<StokKeluarDetailPage> {
                             // MENGGUNAKAN TEXT STYLES
                             fontWeight: FontWeight.w700,
                             color:
-                                AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
+                            AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -611,7 +611,7 @@ class _StokKeluarDetailPageState extends State<StokKeluarDetailPage> {
                             // MENGGUNAKAN TEXT STYLES
                             fontWeight: FontWeight.w500,
                             color:
-                                AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
+                            AppColors.textPrimary, // MENGGUNAKAN APPCOLORS
                           ),
                         ),
                       ),

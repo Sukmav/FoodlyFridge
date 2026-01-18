@@ -98,21 +98,25 @@ class _RiwayatPageState extends State<RiwayatPage> {
     final lowercaseQuery = query.toLowerCase();
     setState(() {
       _filteredActivities = _activities.where((activity) {
-        return activity['title']?.toString().toLowerCase().contains(
-              lowercaseQuery,
-            ) ??
-            activity['description']?.toString().toLowerCase().contains(
-              lowercaseQuery,
-            ) ??
-            false;
+        final title = activity['title']?.toString().toLowerCase() ?? '';
+        final desc = activity['description']?.toString().toLowerCase() ?? '';
+        final userName = activity['user_name']?.toString().toLowerCase() ?? '';
+        return title.contains(lowercaseQuery) ||
+            desc.contains(lowercaseQuery) ||
+            userName.contains(lowercaseQuery);
       }).toList();
     });
   }
 
   Widget _buildActivityItem(Map<String, dynamic> activity) {
-    Color color = Color(
-      int.parse(activity['color']?.replaceAll('#', '0xff') ?? '0xff667eea'),
-    );
+    Color color;
+    try {
+      color = Color(
+        int.parse(activity['color']?.replaceAll('#', '0xff') ?? '0xff667eea'),
+      );
+    } catch (e) {
+      color = const Color(0xff667eea);
+    }
     IconData icon = _getIconData(activity['icon'] ?? 'history');
 
     return Container(
@@ -154,6 +158,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title + small badge
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -168,6 +173,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -205,52 +211,61 @@ class _RiwayatPageState extends State<RiwayatPage> {
                   // Metadata and Time
                   Row(
                     children: [
-                      // User
-                      if (activity['user_name'] != null)
-                        Row(
+                      // Left flexible area contains user and time (so badge won't cause overflow)
+                      Expanded(
+                        child: Row(
                           children: [
-                            Icon(
-                              Icons.person_outline,
-                              size: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              activity['user_name']?.toString() ?? '',
-                              style: AppTextStyles.labelSmall.copyWith(
+                            // User
+                            if (activity['user_name'] != null) ...[
+                              Icon(
+                                Icons.person_outline,
+                                size: 14,
                                 color: AppColors.textSecondary,
                               ),
-                            ),
-                          ],
-                        ),
-
-                      if (activity['user_name'] != null)
-                        const SizedBox(width: 12),
-
-                      // Time
-                      if (activity['timestamp'] != null)
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_outlined,
-                              size: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatDate(
-                                activity['timestamp']?.toString() ?? '',
+                              const SizedBox(width: 4),
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: Text(
+                                  activity['user_name']?.toString() ?? '',
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              style: AppTextStyles.labelSmall.copyWith(
+                              const SizedBox(width: 12),
+                            ],
+
+                            // Time
+                            if (activity['timestamp'] != null) ...[
+                              Icon(
+                                Icons.access_time_outlined,
+                                size: 14,
                                 color: AppColors.textSecondary,
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: Text(
+                                  _formatDate(
+                                    activity['timestamp']?.toString() ?? '',
+                                  ),
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
+                      ),
 
-                      const Spacer(),
+                      const SizedBox(width: 8),
 
-                      // Type badge
+                      // Type badge (fixed at end)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -262,7 +277,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
                         ),
                         child: Text(
                           _typeLabels[activity['type']] ??
-                              activity['type'] ??
+                              activity['type']?.toString() ??
                               '',
                           style: AppTextStyles.labelSmall.copyWith(
                             color: color,
@@ -376,15 +391,15 @@ class _RiwayatPageState extends State<RiwayatPage> {
                     ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _searchActivities('');
-                            },
-                            icon: Icon(
-                              Icons.clear,
-                              color: AppColors.textSecondary.withOpacity(0.5),
-                            ),
-                          )
+                      onPressed: () {
+                        _searchController.clear();
+                        _searchActivities('');
+                      },
+                      icon: Icon(
+                        Icons.clear,
+                        color: AppColors.textSecondary.withOpacity(0.5),
+                      ),
+                    )
                         : null,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
@@ -448,22 +463,22 @@ class _RiwayatPageState extends State<RiwayatPage> {
             Expanded(
               child: _isLoading
                   ? Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    )
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              )
                   : _filteredActivities.isEmpty
                   ? _buildEmptyState()
                   : RefreshIndicator(
-                      onRefresh: _loadActivities,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredActivities.length,
-                        itemBuilder: (context, index) {
-                          return _buildActivityItem(_filteredActivities[index]);
-                        },
-                      ),
-                    ),
+                onRefresh: _loadActivities,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _filteredActivities.length,
+                  itemBuilder: (context, index) {
+                    return _buildActivityItem(_filteredActivities[index]);
+                  },
+                ),
+              ),
             ),
           ],
         ),

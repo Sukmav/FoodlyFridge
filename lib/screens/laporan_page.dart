@@ -1,90 +1,128 @@
 import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../theme/app_colors.dart';
-import '../theme/text_styles.dart';
-import '../helpers/riwayat_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
+import '../helpers/report_service.dart';
+import '../model/daily_data_model.dart';
 
 class LaporanPage extends StatefulWidget {
-  final String userId;
-  final String userName;
+  // Opsional parameter untuk fallback
+  final String? userId;
+  final String? userName;
 
-  const LaporanPage({super.key, required this.userId, required this.userName});
+  const LaporanPage({
+    super.key,
+    this.userId,
+    this.userName,
+  });
 
   @override
-  State<LaporanPage> createState() => _LaporanPageState();
+  _LaporanPageState createState() => _LaporanPageState();
 }
 
-class _LaporanPageState extends State<LaporanPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final SimpleRiwayatService _riwayatService = SimpleRiwayatService();
-  List<Map<String, dynamic>> _allActivities = [];
+class _LaporanPageState extends State<LaporanPage> {
+  final ReportService _reportService = ReportService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  Map<String, dynamic> _dailyChartData = {};
+  
+  Map<String, dynamic> _overviewStats = {};
+  List<Map<String, dynamic>> _recentActivities = [];
+  Map<String, dynamic> _analysisData = {};
+  Map<String, dynamic> _chartData = {};
+  
   bool _isLoading = true;
-  String _timeFilter = 'Hari Ini';
-  DateTime _selectedDate = DateTime.now();
-
-  // Data untuk charts
-  List<FlSpot> _penjualanData = [];
-  List<FlSpot> _wasteData = [];
-  List<FlSpot> _stokMasukData = [];
-
-  Map<String, double> _penjualanMap = {};
-  Map<String, double> _wasteMap = {};
-  Map<String, double> _stokMasukMap = {};
-
-  // Statistik
-  double _totalPenjualan = 0;
-  double _totalWaste = 0;
-  double _totalStokMasuk = 0;
-  int _totalTransaksi = 0;
-  double _averageTransactionValue = 0;
+  bool _exporting = false;
+  late String _currentUserId;
+  late String _currentUserName;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _loadLaporanData();
+    _initializeUserData();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Future<void> _initializeUserData() async {
+    try {
+      // Coba dapatkan user dari Firebase Auth
+      final user = _auth.currentUser;
+      
+      if (user != null) {
+        _currentUserId = user.uid;
+        _currentUserName = user.displayName ?? 
+                          user.email?.split('@')[0] ?? 
+                          widget.userName ?? 
+                          'User';
+      } else {
+        // Fallback ke parameter widget jika ada
+        _currentUserId = widget.userId ?? '';
+        _currentUserName = widget.userName ?? 'User';
+        
+        // Jika masih kosong, coba dari SharedPreferences
+        if (_currentUserId.isEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          _currentUserId = prefs.getString('current_user_id') ?? '';
+          _currentUserName = prefs.getString('current_user_name') ?? 'User';
+        }
+      }
+      
+      // Load data setelah userId didapatkan
+      await _loadData();
+    } catch (e) {
+      print('Error initializing user data: $e');
+      // Set default values
+      _currentUserId = '';
+      _currentUserName = 'User';
+      await _loadData();
+    }
   }
 
-  Future<void> _loadLaporanData() async {
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 1. Load semua aktivitas
-      final activities = await _riwayatService.getAllUserActivities(
-        widget.userId,
-      );
-
-      // 2. Filter berdasarkan tanggal yang dipilih
-      final filteredActivities = _filterActivitiesByDate(activities);
-
-      // 3. Hitung statistik
-      await _calculateStatistics(filteredActivities);
-
-      // 4. Generate chart data
-      await _generateChartData(filteredActivities);
-
-      if (mounted) {
-        setState(() {
-          _allActivities = filteredActivities;
-          _isLoading = false;
-        });
+      if (_currentUserId.isNotEmpty) {
+        final stats = await _reportService.getOverviewStats(_currentUserId);
+        final activities = await _reportService.getRecentActivities(_currentUserId);
+        final analysis = await _reportService.getAnalysisData(_currentUserId);
+        final charts = await _reportService.getChartData(_currentUserId);
+        final dailyCharts = await _reportService.getDailyChartData(_currentUserId);
+        
+        if (mounted) {
+          setState(() {
+            _overviewStats = stats;
+            _recentActivities = activities;
+            _analysisData = analysis;
+            _chartData = charts;
+            _dailyChartData = dailyCharts;
+          });
+        }
+      } else {
+        print('Warning: userId is empty, showing empty report');
+        if (mounted) {
+          setState(() {
+            _overviewStats = {};
+            _recentActivities = [];
+            _analysisData = {};
+            _chartData = {};
+          });
+        }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error loading laporan data: $e');
+      print('Error loading report data: $e');
+      if (mounted) {
+        setState(() {
+          _overviewStats = {};
+          _recentActivities = [];
+          _analysisData = {};
+          _chartData = {};
+        });
       }
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -93,585 +131,232 @@ class _LaporanPageState extends State<LaporanPage>
     }
   }
 
-  List<Map<String, dynamic>> _filterActivitiesByDate(
-    List<Map<String, dynamic>> activities,
-  ) {
-    DateTime startDate;
-    DateTime endDate = DateTime.now();
-
-    switch (_timeFilter) {
-      case 'Hari Ini':
-        startDate = DateTime(endDate.year, endDate.month, endDate.day);
-        break;
-      case 'Minggu Ini':
-        startDate = endDate.subtract(const Duration(days: 7));
-        break;
-      case 'Bulan Ini':
-        startDate = DateTime(endDate.year, endDate.month, 1);
-        break;
-      case 'Tahun Ini':
-        startDate = DateTime(endDate.year, 1, 1);
-        break;
-      default:
-        startDate = DateTime(endDate.year, endDate.month, endDate.day);
-    }
-
-    return activities.where((activity) {
-      try {
-        final timestamp = DateTime.parse(activity['timestamp']);
-        return timestamp.isAfter(startDate) && timestamp.isBefore(endDate);
-      } catch (e) {
-        return false;
-      }
-    }).toList();
+  Future<void> _refreshData() async {
+    await _loadData();
   }
 
-  Future<void> _calculateStatistics(
-    List<Map<String, dynamic>> activities,
-  ) async {
-    double penjualan = 0;
-    double waste = 0;
-    double stokMasuk = 0;
-    int transaksi = 0;
-
-    for (var activity in activities) {
-      double? extractedValue = _extractNumericValue(
-        activity['description'] ?? '',
-      );
-
-      if (extractedValue != null) {
-        switch (activity['type']) {
-          case 'stok_keluar':
-            transaksi++;
-            penjualan += extractedValue;
-            break;
-          case 'waste_food':
-            waste += extractedValue;
-            break;
-          case 'stok_masuk':
-            stokMasuk += extractedValue;
-            break;
-        }
-      }
-    }
-
+  Future<void> _exportReport() async {
     setState(() {
-      _totalPenjualan = penjualan;
-      _totalWaste = waste;
-      _totalStokMasuk = stokMasuk;
-      _totalTransaksi = transaksi;
-      _averageTransactionValue = transaksi > 0 ? penjualan / transaksi : 0;
+      _exporting = true;
     });
-  }
 
-  double? _extractNumericValue(String description) {
-    // Cari angka dengan format currency atau angka biasa
-    final patterns = [
-      RegExp(r'Total:\s*Rp?\s*([\d.,]+)'),
-      RegExp(r'Harga:\s*([\d.,]+)'),
-      RegExp(r'Jumlah:\s*([\d.,]+)'),
-      RegExp(r'Stok:\s*([\d.,]+)'),
-      RegExp(r'([\d.,]+)\s*(?:Rp|IDR|rb|ribu|jt|juta)', caseSensitive: false),
-      RegExp(r'([\d.,]+)'), // Fallback: ambil angka apa saja
-    ];
-
-    for (var pattern in patterns) {
-      final match = pattern.firstMatch(description);
-      if (match != null) {
-        try {
-          final numberStr = match.group(1) ?? match.group(0) ?? '0';
-          // Bersihkan dari titik dan koma
-          final cleanStr = numberStr
-              .replaceAll('.', '')
-              .replaceAll(',', '.')
-              .replaceAll(RegExp(r'[^0-9.]'), '');
-
-          final value = double.tryParse(cleanStr);
-          if (value != null) return value;
-        } catch (e) {
-          continue;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  Future<void> _generateChartData(List<Map<String, dynamic>> activities) async {
-    // Group activities by time period
-    Map<String, double> penjualanMap = {};
-    Map<String, double> wasteMap = {};
-    Map<String, double> stokMasukMap = {};
-
-    // Tentukan format berdasarkan filter waktu
-    DateFormat dateFormat;
-    Duration interval;
-
-    switch (_timeFilter) {
-      case 'Hari Ini':
-        dateFormat = DateFormat('HH:00');
-        interval = const Duration(hours: 1);
-        break;
-      case 'Minggu Ini':
-        dateFormat = DateFormat('EEE');
-        interval = const Duration(days: 1);
-        break;
-      case 'Bulan Ini':
-        dateFormat = DateFormat('dd/MM');
-        interval = const Duration(days: 1);
-        break;
-      case 'Tahun Ini':
-        dateFormat = DateFormat('MMM');
-        interval = const Duration(days: 30);
-        break;
-      default:
-        dateFormat = DateFormat('dd/MM');
-        interval = const Duration(days: 1);
-    }
-
-    for (var activity in activities) {
-      try {
-        final timestamp = DateTime.parse(activity['timestamp']);
-        final timeKey = dateFormat.format(timestamp);
-        final extractedValue = _extractNumericValue(
-          activity['description'] ?? '',
+    try {
+      final success = await _reportService.exportReport(_currentUserId, 'pdf');
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Laporan berhasil diexport'),
+            backgroundColor: Colors.green,
+          ),
         );
-
-        if (extractedValue != null) {
-          switch (activity['type']) {
-            case 'stok_keluar':
-              penjualanMap.update(
-                timeKey,
-                (v) => v + extractedValue,
-                ifAbsent: () => extractedValue,
-              );
-              break;
-            case 'waste_food':
-              wasteMap.update(
-                timeKey,
-                (v) => v + extractedValue,
-                ifAbsent: () => extractedValue,
-              );
-              break;
-            case 'stok_masuk':
-              stokMasukMap.update(
-                timeKey,
-                (v) => v + extractedValue,
-                ifAbsent: () => extractedValue,
-              );
-              break;
-          }
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error processing activity: $e');
-        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengexport laporan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+        });
       }
     }
-
-    setState(() {
-      _penjualanMap = penjualanMap;
-      _wasteMap = wasteMap;
-      _stokMasukMap = stokMasukMap;
-      _penjualanData = _convertMapToChartData(penjualanMap);
-      _wasteData = _convertMapToChartData(wasteMap);
-      _stokMasukData = _convertMapToChartData(stokMasukMap);
-    });
   }
 
-  // Future<void> _generateDummyChartData(DateFormat dateFormat) async {
-  //   // Generate data dummy untuk demo
-  //   final now = DateTime.now();
-  //   List<String> labels = [];
-
-  //   // Buat label berdasarkan periode
-  //   switch (_timeFilter) {
-  //     case 'Hari Ini':
-  //       for (int i = 0; i < 12; i++) {
-  //         final time = now.subtract(Duration(hours: 11 - i));
-  //         labels.add(dateFormat.format(time));
-  //       }
-  //       break;
-  //     case 'Minggu Ini':
-  //       final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  //       labels = days;
-  //       break;
-  //     case 'Bulan Ini':
-  //       for (int i = 0; i < 7; i++) {
-  //         final date = now.subtract(Duration(days: 6 - i));
-  //         labels.add(dateFormat.format(date));
-  //       }
-  //       break;
-  //     case 'Tahun Ini':
-  //       final months = [
-  //         'Jan',
-  //         'Feb',
-  //         'Mar',
-  //         'Apr',
-  //         'May',
-  //         'Jun',
-  //         'Jul',
-  //         'Aug',
-  //         'Sep',
-  //         'Oct',
-  //         'Nov',
-  //         'Dec',
-  //       ];
-  //       labels = months;
-  //       break;
-  //   }
-
-  //   // Generate data dummy dengan pola random
-  //   final random = Random();
-  //   List<FlSpot> penjualan = [];
-  //   List<FlSpot> waste = [];
-  //   List<FlSpot> stokMasuk = [];
-
-  //   for (int i = 0; i < labels.length; i++) {
-  //     final x = i.toDouble();
-  //     penjualan.add(FlSpot(x, random.nextDouble() * 1000000 + 500000));
-  //     waste.add(FlSpot(x, random.nextDouble() * 200000 + 50000));
-  //     stokMasuk.add(FlSpot(x, random.nextDouble() * 800000 + 300000));
-  //   }
-
-  //   setState(() {
-  //     _penjualanData = penjualan;
-  //     _wasteData = waste;
-  //     _stokMasukData = stokMasuk;
-  //   });
-  // }
-
-  List<FlSpot> _convertMapToChartData(Map<String, double> dataMap) {
-    final sortedKeys = dataMap.keys.toList()..sort((a, b) => a.compareTo(b));
-
-    return sortedKeys.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), dataMap[entry.value]!);
-    }).toList();
-  }
-
-  Future<void> _showDatePicker() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+  Widget _buildOverviewCards() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 1.3, // Sesuaikan aspect ratio
+      padding: EdgeInsets.all(8),
+      mainAxisSpacing: 8, // Tambah spacing
+      crossAxisSpacing: 8,
+      children: [
+        _buildStatCard(
+          title: 'Total Penjualan',
+          value: _overviewStats['totalPenjualanFormatted'] ?? 'Rp 0',
+          icon: Icons.attach_money,
+          color: Colors.green,
+        ),
+        _buildStatCard(
+          title: 'Total Transaksi',
+          value: _overviewStats['totalTransaksiFormatted'] ?? '0',
+          icon: Icons.receipt,
+          color: Colors.blue,
+        ),
+        _buildStatCard(
+          title: 'Total Waste',
+          value: _overviewStats['totalWasteFormatted'] ?? 'Rp 0',
+          icon: Icons.warning,
+          color: Colors.orange,
+        ),
+        _buildStatCard(
+          title: 'Total Stok Masuk',
+          value: _overviewStats['totalStokMasukFormatted'] ?? 'Rp 0',
+          icon: Icons.inventory,
+          color: Colors.purple,
+        ),
+      ],
     );
-
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _timeFilter = 'Kustom';
-      });
-      await _loadLaporanData();
-    }
   }
 
   Widget _buildStatCard({
     required String title,
     required String value,
-    required Color color,
     required IconData icon,
-    required bool isCurrency,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, size: 20, color: color),
-              ),
-              const Spacer(),
-              if (isCurrency)
-                Text(
-                  'IDR',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            isCurrency
-                ? NumberFormat.currency(
-                    locale: 'id_ID',
-                    symbol: 'Rp ',
-                    decimalDigits: 0,
-                  ).format(double.parse(value))
-                : value,
-            style: AppTextStyles.headlineSmall.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChartCard({
-    required String title,
-    required List<FlSpot> data,
     required Color color,
-    required Map<String, double>? dataMap, // Tambahkan parameter dataMap
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 24),
+            SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
               ),
-              Text(
-                dataMap != null && dataMap.isNotEmpty
-                    ? '${dataMap.length} data points'
-                    : 'Data dummy',
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 200,
-            child: data.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.bar_chart_rounded,
-                          size: 48,
-                          color: AppColors.textSecondary.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Tidak ada data',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawHorizontalLine: true,
-                        horizontalInterval: _calculateInterval(data),
-                      ),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 30,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              if (dataMap != null) {
-                                final keys = dataMap.keys.toList();
-                                final index = value.toInt();
-                                if (index >= 0 && index < keys.length) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      keys[index],
-                                      style: AppTextStyles.labelSmall.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 40,
-                            interval: _calculateInterval(data),
-                            getTitlesWidget: (value, meta) {
-                              return Text(
-                                NumberFormat.compactCurrency(
-                                  locale: 'id_ID',
-                                  symbol: 'Rp',
-                                  decimalDigits: 0,
-                                ).format(value),
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                      ),
-                      borderData: FlBorderData(
-                        show: true,
-                        border: Border.all(color: AppColors.border, width: 1),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: data,
-                          isCurved: true,
-                          color: color,
-                          barWidth: 3,
-                          isStrokeCapRound: true,
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color: color.withOpacity(0.1),
-                          ),
-                          dotData: FlDotData(show: false),
-                        ),
-                      ],
-                      minX: 0,
-                      maxX: data.length > 1 ? data.length - 1 : 1,
-                      minY: 0,
-                      maxY: data.isNotEmpty
-                          ? data
-                                    .map((e) => e.y)
-                                    .reduce((a, b) => a > b ? a : b) *
-                                1.2
-                          : 100,
-                    ),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  double _calculateInterval(List<FlSpot> data) {
-    if (data.isEmpty) return 100;
-    final maxY = data.map((e) => e.y).reduce((a, b) => a > b ? a : b);
-    return maxY / 5;
+  Widget _buildRecentActivities() {
+    if (_recentActivities.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              Icon(Icons.history, size: 48, color: Colors.grey[300]),
+              SizedBox(height: 16),
+              Text(
+                'Belum ada aktivitas',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.history, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  'Aktivitas Terbaru',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            ..._recentActivities.map((activity) => _buildActivityItem(activity)).toList(),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildActivityItem(Map<String, dynamic> activity) {
-    final icon = activity['icon'] ?? 'history';
-    final color = Color(
-      int.parse((activity['color'] ?? '#667eea').replaceFirst('#', '0xff')),
-    );
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+          CircleAvatar(
+            backgroundColor: _parseColor(activity['color'] ?? '#667EEA'),
+            child: Icon(
+              _getActivityIcon(activity['icon']?.toString() ?? ''),
+              color: Colors.white,
+              size: 16,
             ),
-            child: Icon(_getIconData(icon), size: 24, color: color),
+            radius: 16,
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  activity['title'] ?? 'Aktivitas',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
+                  activity['title']?.toString() ?? 'Aktivitas',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
-                  activity['description'] ?? '',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
+                  activity['description']?.toString() ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(
-                      Icons.person_outline,
-                      size: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
+                    Icon(Icons.person, size: 12, color: Colors.grey[500]),
+                    SizedBox(width: 4),
                     Text(
-                      activity['user_name'] ?? 'User',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
+                      activity['user_name']?.toString() ?? 'User',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
                       ),
                     ),
-                    const Spacer(),
+                    Spacer(),
                     Text(
-                      _formatTimestamp(activity['timestamp']),
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
+                      _formatDate(activity['timestamp']?.toString() ?? ''),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
                       ),
                     ),
                   ],
@@ -684,18 +369,628 @@ class _LaporanPageState extends State<LaporanPage>
     );
   }
 
-  IconData _getIconData(String iconName) {
+Widget _buildAnalysisSection() {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.analytics, color: Colors.purple),
+              SizedBox(width: 8),
+              Text(
+                'Analisis Ringkasan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          GridView.count(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            childAspectRatio: 2,
+            children: [
+              _buildAnalysisItem(
+                'Margin Keuntungan',
+                '${_analysisData['marginKeuntungan']?.toStringAsFixed(1) ?? '0'}%',
+                Icons.trending_up,
+                Colors.green,
+              ),
+              _buildAnalysisItem(
+                'Persentase Waste',
+                '${_analysisData['wastePercentage']?.toStringAsFixed(1) ?? '0'}%',
+                Icons.trending_down,
+                Colors.orange,
+              ),
+              // _buildAnalysisItem(
+              //   'Total Menu Tersedia',
+              //   '${_analysisData['totalMenu'] ?? '0'}',
+              //   Icons.restaurant_menu,
+              //   Colors.blue,
+              // ),
+              _buildAnalysisItem(
+                'Menu Terjual',
+                '${_analysisData['uniqueMenusSold'] ?? '0'}',
+                Icons.shopping_basket,
+                Colors.purple,
+              ),
+              _buildAnalysisItem(
+                'Rata-rata Transaksi',
+                NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+                    .format(_analysisData['avgTransaksi'] ?? 0),
+                Icons.monetization_on,
+                Colors.teal,
+              ),
+              _buildAnalysisItem(
+                'Total Transaksi',
+                '${_analysisData['totalTransaksi'] ?? '0'}',
+                Icons.receipt,
+                Colors.indigo,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildAnalysisItem(String title, String value, IconData icon, Color color) {
+    // Handle value yang mengandung "U" atau format tidak valid
+    String displayValue = value;
+    if (value.contains('U') || value.contains('NaN') || value.contains('null')) {
+      displayValue = '0'; // Default ke 0
+    }
+    
+    return Container(
+      margin: EdgeInsets.all(4),
+      padding: EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: color),
+              SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[600],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 2),
+          Text(
+            displayValue, // Gunakan displayValue yang sudah difilter
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget _buildDailyChartSection() {
+  // Cek apakah data ada
+  if (_dailyChartData.isEmpty || !_dailyChartData.containsKey('dailyData')) {
+    return _buildEmptyChart();
+  }
+
+  try {
+    // Konversi data
+    final List<DailyData> dailyDataList = _convertToDailyDataList(_dailyChartData);
+    
+    if (dailyDataList.isEmpty) {
+      return _buildEmptyDataChart();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            _buildChartHeader(),
+            SizedBox(height: 8),
+            Text(
+              'Grafik harian penjualan dan aktivitas',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: 16),
+            
+            // Tabs dengan Expanded untuk mencegah overflow
+            Container(
+              height: 400, // 3. Berikan tinggi tetap yang cukup
+              child: DefaultTabController(
+                length: 3,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min, // 4. Column anak juga gunakan .min
+                  children: [
+                    TabBar(
+                      labelColor: Colors.teal,
+                      unselectedLabelColor: Colors.grey,
+                      indicatorColor: Colors.teal,
+                      tabs: [
+                        Tab(text: 'Penjualan'),
+                        Tab(text: 'Transaksi'),
+                        Tab(text: 'Waste'),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    // 5. Expanded di dalam Container dengan tinggi tetap AMAN
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _buildSalesChart(dailyDataList),
+                          _buildTransactionsChart(dailyDataList),
+                          _buildWasteChart(dailyDataList),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+          ],
+        ),
+      ),
+    );
+  } catch (e) {
+    print('Error building daily chart: $e');
+    return _buildErrorChart(e);
+  }
+}
+  
+  // HELPER METHODS untuk chart section
+Widget _buildEmptyChart() {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(Icons.bar_chart, size: 48, color: Colors.grey[300]),
+          SizedBox(height: 16),
+          Text(
+            'Data grafik harian belum tersedia',
+            style: TextStyle(color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildEmptyDataChart() {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(Icons.bar_chart, size: 48, color: Colors.grey[300]),
+          SizedBox(height: 16),
+          Text(
+            'Belum ada data untuk 7 hari terakhir',
+            style: TextStyle(color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildErrorChart(dynamic error) {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.red),
+          SizedBox(height: 16),
+          Text(
+            'Error menampilkan grafik harian',
+            style: TextStyle(color: Colors.red),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Detail: $error',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildChartHeader() {
+  return Row(
+    children: [
+      Icon(Icons.timeline, color: Colors.teal),
+      SizedBox(width: 8),
+      Text(
+        'Aktivitas 7 Hari Terakhir',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ],
+  );
+}
+
+List<DailyData> _convertToDailyDataList(Map<String, dynamic> chartData) {
+  List<DailyData> result = [];
+  
+  if (chartData.containsKey('dailyData')) {
+    final dynamic dailyDataDynamic = chartData['dailyData'];
+    
+    if (dailyDataDynamic is List) {
+      for (var item in dailyDataDynamic) {
+        if (item is DailyData) {
+          result.add(item);
+        } else if (item is Map<String, dynamic>) {
+          try {
+            result.add(DailyData.fromJson(item));
+          } catch (e) {
+            print('Error converting item: $e');
+          }
+        }
+      }
+    }
+  }
+  
+  // Jika kosong, buat default
+  if (result.isEmpty) {
+    final now = DateTime.now();
+    for (int i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      result.add(DailyData(
+        day: _formatDayLabel(date),
+        penjualan: 0.0,
+        transaksi: 0.0,
+        waste: 0.0,
+        date: date,
+      ));
+    }
+  }
+  
+  return result;
+}
+
+// PERBAIKI chart widgets dengan axis yang benar
+Widget _buildSalesChart(List<DailyData> dailyDataList) {
+  // Cari nilai maksimum untuk set axis
+  double maxValue = 0;
+  for (var data in dailyDataList) {
+    if (data.penjualan > maxValue) maxValue = data.penjualan;
+  }
+  
+  // Tambah 10% untuk padding
+  if (maxValue > 0) maxValue = maxValue * 1.1;
+  
+  return Container(
+    padding: EdgeInsets.all(8),
+    child: SfCartesianChart(
+      primaryXAxis: CategoryAxis(
+        labelRotation: 0,
+        labelStyle: TextStyle(fontSize: 12),
+      ),
+      primaryYAxis: NumericAxis(
+        title: AxisTitle(text: 'Penjualan (Rp)'),
+        numberFormat: NumberFormat.compactCurrency(
+          locale: 'id_ID',
+          symbol: 'Rp ',
+          decimalDigits: 0,
+        ),
+        minimum: 0,
+        maximum: maxValue > 0 ? maxValue : null,
+        labelStyle: TextStyle(fontSize: 10),
+      ),
+      tooltipBehavior: TooltipBehavior(
+        enable: true,
+        format: 'point.x : point.y',
+        builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+          if (data is DailyData) {
+            final currencyFormat = NumberFormat.currency(
+              locale: 'id_ID',
+              symbol: 'Rp ',
+              decimalDigits: 0,
+            );
+            return Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(color: Colors.black12, blurRadius: 4),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(data.day, style: TextStyle(fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Penjualan: ${currencyFormat.format(data.penjualan)}'),
+                ],
+              ),
+            );
+          }
+          return Container();
+        },
+      ),
+      series: <CartesianSeries>[
+        ColumnSeries<DailyData, String>(
+          dataSource: dailyDataList,
+          xValueMapper: (DailyData data, _) => data.day,
+          yValueMapper: (DailyData data, _) => data.penjualan,
+          name: 'Penjualan Harian',
+          color: Colors.green,
+          dataLabelSettings: DataLabelSettings(
+            isVisible: dailyDataList.any((d) => d.penjualan > 0),
+            labelAlignment: ChartDataLabelAlignment.top,
+            labelPosition: ChartDataLabelPosition.outside,
+            textStyle: TextStyle(fontSize: 10),
+            builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+              if (data is DailyData && data.penjualan > 0) {
+                final formatter = NumberFormat.compact(locale: 'id_ID');
+                final labelText = formatter.format(data.penjualan);
+                
+                // PERBAIKAN: Return Widget, bukan String
+                return Container(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    labelText,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
+                    ),
+                  ),
+                );
+              }
+              // PERBAIKAN: Return Widget kosong
+              return Container();
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// BUAT juga _buildTransactionsChart dan _buildWasteChart dengan pola yang sama
+Widget _buildTransactionsChart(List<DailyData> dailyDataList) {
+  double maxValue = 0;
+  for (var data in dailyDataList) {
+    if (data.transaksi > maxValue) maxValue = data.transaksi;
+  }
+  maxValue = maxValue * 1.1;
+  
+  return Container(
+    padding: EdgeInsets.all(8),
+    child: SfCartesianChart(
+      primaryXAxis: CategoryAxis(
+        labelRotation: 0,
+        labelStyle: TextStyle(fontSize: 12),
+      ),
+      primaryYAxis: NumericAxis(
+        title: AxisTitle(text: 'Jumlah Transaksi'),
+        minimum: 0,
+        maximum: maxValue > 0 ? maxValue : null,
+        interval: 1,
+        labelStyle: TextStyle(fontSize: 10),
+      ),
+      tooltipBehavior: TooltipBehavior(enable: true),
+      series: <CartesianSeries>[
+        ColumnSeries<DailyData, String>(
+          dataSource: dailyDataList,
+          xValueMapper: (DailyData data, _) => data.day,
+          yValueMapper: (DailyData data, _) => data.transaksi,
+          name: 'Transaksi Harian',
+          color: Colors.blue,
+          dataLabelSettings: DataLabelSettings(
+            isVisible: dailyDataList.any((d) => d.transaksi > 0),
+            labelAlignment: ChartDataLabelAlignment.top,
+            labelPosition: ChartDataLabelPosition.outside,
+            textStyle: TextStyle(fontSize: 10),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildWasteChart(List<DailyData> dailyDataList) {
+  double maxValue = 0;
+  for (var data in dailyDataList) {
+    if (data.waste > maxValue) maxValue = data.waste;
+  }
+  maxValue = maxValue * 1.1;
+  
+  return Container(
+    padding: EdgeInsets.all(8),
+    child: SfCartesianChart(
+      primaryXAxis: CategoryAxis(
+        labelRotation: 0,
+        labelStyle: TextStyle(fontSize: 12),
+      ),
+      primaryYAxis: NumericAxis(
+        title: AxisTitle(text: 'Kerugian (Rp)'),
+        numberFormat: NumberFormat.compactCurrency(
+          locale: 'id_ID',
+          symbol: 'Rp ',
+          decimalDigits: 0,
+        ),
+        minimum: 0,
+        maximum: maxValue > 0 ? maxValue : null,
+        labelStyle: TextStyle(fontSize: 10),
+      ),
+      tooltipBehavior: TooltipBehavior(enable: true),
+      series: <CartesianSeries>[
+        LineSeries<DailyData, String>(
+          dataSource: dailyDataList,
+          xValueMapper: (DailyData data, _) => data.day,
+          yValueMapper: (DailyData data, _) => data.waste,
+          name: 'Waste Harian',
+          color: Colors.orange,
+          markerSettings: MarkerSettings(isVisible: true),
+          dataLabelSettings: DataLabelSettings(
+            isVisible: dailyDataList.any((d) => d.waste > 0),
+            labelAlignment: ChartDataLabelAlignment.top,
+            labelPosition: ChartDataLabelPosition.outside,
+            textStyle: TextStyle(fontSize: 10),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+  // Helper untuk format label hari
+  String _formatDayLabel(DateTime date) {
+    final now = DateTime.now();
+    final yesterday = now.subtract(Duration(days: 1));
+    
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      return 'Hari Ini';
+    } else if (date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day) {
+      return 'Kemarin';
+    } else {
+      final daysOfWeek = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+      return daysOfWeek[date.weekday % 7];
+    }
+  }
+
+  Widget _buildDailySummaryItem(String title, double value, Color color, IconData icon) {
+    final currencyFormat = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    
+    String formattedValue;
+    if (title.contains('Transaksi')) {
+      formattedValue = value.toInt().toString();
+    } else {
+      formattedValue = currencyFormat.format(value);
+    }
+    
+    return Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+          ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          formattedValue,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+      
+      if (difference.inDays > 0) {
+        return '${difference.inDays} hari yang lalu';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} jam yang lalu';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} menit yang lalu';
+      } else {
+        return 'Baru saja';
+      }
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  Color _parseColor(String colorString) {
+    try {
+      String color = colorString;
+      if (color.startsWith('#')) {
+        color = color.substring(1);
+      }
+      if (color.length == 6) {
+        color = 'FF$color';
+      }
+      return Color(int.parse(color, radix: 16));
+    } catch (e) {
+      return Color(0xFF667EEA);
+    }
+  }
+
+  IconData _getActivityIcon(String iconName) {
     switch (iconName) {
+      case 'delete':
+        return Icons.delete;
       case 'upload':
         return Icons.upload;
       case 'download':
         return Icons.download;
-      case 'restaurant_menu':
-        return Icons.restaurant_menu;
+      case 'edit':
+        return Icons.edit;
+      case 'add_circle':
+        return Icons.add_circle;
       case 'shopping_basket':
         return Icons.shopping_basket;
-      case 'delete':
-        return Icons.delete;
+      case 'restaurant_menu':
+        return Icons.restaurant_menu;
       case 'people':
         return Icons.people;
       case 'business':
@@ -705,446 +1000,187 @@ class _LaporanPageState extends State<LaporanPage>
     }
   }
 
-  String _formatTimestamp(String timestamp) {
-    try {
-      final date = DateTime.parse(timestamp);
-      return DateFormat('dd/MM/yy HH:mm').format(date);
-    } catch (e) {
-      return timestamp;
-    }
-  }
-
-  Widget _buildOverviewTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Filter Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Periode Laporan',
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildFilterChip('Hari Ini'),
-                    _buildFilterChip('Minggu Ini'),
-                    _buildFilterChip('Bulan Ini'),
-                    _buildFilterChip('Tahun Ini'),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _showDatePicker,
-                    icon: const Icon(Icons.calendar_today, size: 16),
-                    label: Text(
-                      _timeFilter == 'Kustom'
-                          ? DateFormat('dd MMMM yyyy').format(_selectedDate)
-                          : 'Pilih Tanggal Kustom',
-                      style: AppTextStyles.bodyMedium,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Stats Grid
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.2,
-            children: [
-              _buildStatCard(
-                title: 'Total Penjualan',
-                value: _totalPenjualan.toString(),
-                color: AppColors.success,
-                icon: Icons.attach_money_rounded,
-                isCurrency: true,
-              ),
-              _buildStatCard(
-                title: 'Total Transaksi',
-                value: _totalTransaksi.toString(),
-                color: AppColors.primary,
-                icon: Icons.receipt_long_rounded,
-                isCurrency: false,
-              ),
-              _buildStatCard(
-                title: 'Total Waste',
-                value: _totalWaste.toString(),
-                color: AppColors.danger,
-                icon: Icons.delete_outline_rounded,
-                isCurrency: true,
-              ),
-              _buildStatCard(
-                title: 'Total Stok Masuk',
-                value: _totalStokMasuk.toString(),
-                color: AppColors.stockIn,
-                icon: Icons.inventory_2_rounded,
-                isCurrency: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-
-          // Charts Section
-          _buildChartCard(
-            title: 'Grafik Penjualan',
-            data: _penjualanData,
-            color: AppColors.success,
-            dataMap: _penjualanMap, // Tambahkan ini
-          ),
-          const SizedBox(height: 16),
-          _buildChartCard(
-            title: 'Grafik Waste',
-            data: _wasteData,
-            color: AppColors.danger,
-            dataMap: _wasteMap, // Tambahkan ini
-          ),
-          const SizedBox(height: 16),
-          _buildChartCard(
-            title: 'Grafik Stok Masuk',
-            data: _stokMasukData,
-            color: AppColors.stockIn,
-            dataMap: _stokMasukMap, // Tambahkan ini
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label) {
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: AppTextStyles.labelMedium.copyWith(
-          color: _timeFilter == label ? Colors.white : AppColors.textPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      selected: _timeFilter == label,
-      onSelected: (selected) async {
-        if (selected) {
-          setState(() {
-            _timeFilter = label;
-          });
-          await _loadLaporanData();
-        }
-      },
-      backgroundColor: AppColors.surface,
-      selectedColor: AppColors.primary,
-      side: BorderSide(color: AppColors.border),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    );
-  }
-
-  Widget _buildActivitiesTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          if (_allActivities.isEmpty && !_isLoading)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 100),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.history_rounded,
-                      size: 64,
-                      color: AppColors.textSecondary.withOpacity(0.3),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Tidak ada aktivitas',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Belum ada aktivitas yang tercatat dalam periode ini',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Column(
-              children: [
-                ..._allActivities.map(
-                  (activity) => _buildActivityItem(activity),
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalyticsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Ringkasan Analisis
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ringkasan Analisis',
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildAnalysisRow(
-                  'Rata-rata Nilai Transaksi',
-                  NumberFormat.currency(
-                    locale: 'id_ID',
-                    symbol: 'Rp ',
-                    decimalDigits: 0,
-                  ).format(_averageTransactionValue),
-                  AppColors.success,
-                ),
-                _buildAnalysisRow(
-                  'Efisiensi Stok',
-                  '${_totalTransaksi > 0 ? ((_totalPenjualan / (_totalStokMasuk + _totalPenjualan)) * 100).toStringAsFixed(1) : '0.0'}%',
-                  AppColors.info,
-                ),
-                _buildAnalysisRow(
-                  'Rasio Waste',
-                  '${_totalPenjualan > 0 ? ((_totalWaste / _totalPenjualan) * 100).toStringAsFixed(1) : '0.0'}%',
-                  AppColors.danger,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Rekomendasi
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline_rounded,
-                      color: AppColors.warning,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Rekomendasi',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildRecommendationItem(
-                  'Tingkatkan Penjualan',
-                  'Fokus pada menu dengan margin tinggi',
-                  Icons.trending_up_rounded,
-                  AppColors.success,
-                ),
-                _buildRecommendationItem(
-                  'Kurangi Waste',
-                  'Pantau stok bahan baku lebih ketat',
-                  Icons.warning_amber_rounded,
-                  AppColors.danger,
-                ),
-                _buildRecommendationItem(
-                  'Optimalkan Stok',
-                  'Sesuaikan pembelian dengan pola penjualan',
-                  Icons.timeline_rounded,
-                  AppColors.info,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalysisRow(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withOpacity(0.3)),
-            ),
-            child: Text(
-              value,
-              style: AppTextStyles.labelMedium.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecommendationItem(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(48), // Hanya tinggi TabBar
-          child: AppBar(
-            backgroundColor: AppColors.surface,
-            elevation: 1,
-            automaticallyImplyLeading: false,
-            titleSpacing: 0,
-            title: TabBar(
-              controller: _tabController,
-              indicatorColor: AppColors.primary,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: AppColors.textSecondary,
-              labelStyle: AppTextStyles.labelLarge.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              tabs: const [
-                Tab(text: 'Overview'),
-                Tab(text: 'Aktivitas'),
-                Tab(text: 'Analisis'),
-              ],
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Laporan'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _refreshData,
           ),
-        ),
-        body: _isLoading
+          IconButton(
+            icon: _exporting 
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(Icons.download),
+            onPressed: _exporting ? null : _exportReport,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Memuat laporan...'),
+                ],
+              ),
+            )
+          : _currentUserId.isEmpty
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: AppColors.primary),
-                    const SizedBox(height: 16),
-                    Text('Memuat laporan...', style: AppTextStyles.bodyMedium),
+                    Icon(Icons.error, size: 60, color: Colors.orange),
+                    SizedBox(height: 16),
+                    Text(
+                      'Tidak dapat memuat laporan',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'User ID tidak ditemukan',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _refreshData,
+                      child: Text('Coba Lagi'),
+                    ),
                   ],
                 ),
               )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildOverviewTab(),
-                  _buildActivitiesTab(),
-                  _buildAnalyticsTab(),
-                ],
+            : RefreshIndicator(
+                onRefresh: _refreshData,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // User Info Card
+                      Container(
+                        padding: EdgeInsets.all(16),
+                        margin: EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.blue[50]!, Colors.blue[100]!],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _currentUserName,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.blue[900],
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    _currentUserId.length > 8 
+                                      ? 'ID: ${_currentUserId.substring(0, 8)}...'
+                                      : 'ID: $_currentUserId',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Overview Section
+                      Text(
+                        'Overview',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      _buildOverviewCards(),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Analysis Section
+                      _buildAnalysisSection(),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Chart Section
+                      _buildDailyChartSection(),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Recent Activities
+                      _buildRecentActivities(),
+                      
+                      SizedBox(height: 16),
+                      
+                      // Last Updated
+                      Align(
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Terakhir diperbarui: ${DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now())}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 32),
+                    ],
+                  ),
+                ),
               ),
-      ),
     );
   }
+}
+
+class SalesData {
+  SalesData({
+    required this.month,
+    required this.penjualan,
+    required this.pembelian,
+    required this.waste,
+  });
+  
+  final String month;
+  final double penjualan;
+  final double pembelian;
+  final double waste;
 }

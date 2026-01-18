@@ -1,3 +1,4 @@
+//lib/model/stok_keluar.dart
 class StokKeluarModel {
   final String id;
   final String invoice;
@@ -5,6 +6,8 @@ class StokKeluarModel {
   final String no_meja;
   final String tanggal;
   final String menu;
+  final String? catatan;
+  final String? total_harga;
 
   StokKeluarModel({
     required this.id,
@@ -12,7 +15,9 @@ class StokKeluarModel {
     required this.nama_pemesanan,
     required this.no_meja,
     required this.tanggal,
-    required this.menu
+    required this.menu,
+    this.catatan,
+    this.total_harga,
   });
 
   factory StokKeluarModel.fromJson(Map data) {
@@ -22,7 +27,9 @@ class StokKeluarModel {
         nama_pemesanan: data['nama_pemesanan'],
         no_meja: data['no_meja'],
         tanggal: data['tanggal'],
-        menu: data['menu']
+        menu: data['menu'],
+        catatan: data['catatan'],
+        total_harga: data['total_harga'],
     );
   }
 }

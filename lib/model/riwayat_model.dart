@@ -1,4 +1,4 @@
-// model/history_model.dart
+//lib/model/riwayat_model.dart
 import 'package:intl/intl.dart';
 
 class HistoryModel {

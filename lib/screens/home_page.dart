@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:foodlyfridge/screens/stok_keluar.dart';
 import 'package:foodlyfridge/screens/vendor_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart'; // Untuk Clipboard
 
 // Import constants
 import '../theme/app_colors.dart';
 import '../theme/text_styles.dart';
+import '../restapi.dart';
+import '../config.dart';
+import '../model/bahan_baku_model.dart';
 
 import 'login_page.dart';
 import 'pengaturan.dart';
@@ -20,6 +24,7 @@ import 'menu_page.dart';
 import 'staff_page.dart';
 import 'waste_food_page.dart';
 import 'stok_masuk_page.dart';
+import 'stok_keluar.dart';
 import 'kasir_page.dart';
 import 'laporan_page.dart';
 import 'riwayat.dart';
@@ -30,11 +35,11 @@ class HomePage extends StatefulWidget {
   final String username;
   final String email;
   final String userId;
-  final String? role;
+  final String?  role;
 
   const HomePage({
     super.key,
-    required this.username,
+    required this. username,
     required this.email,
     required this.userId,
     this.role,
@@ -60,11 +65,18 @@ class _HomePageState extends State<HomePage> {
   bool _showStokMasukNotification = false;
   List<Map<String, dynamic>> _stokMasukItems = [];
   String _stokMasukVendor = '';
+  String _stokMasukVendorId = '';
   double _stokMasukTotalHarga = 0;
 
-  final TextEditingController _namaKedaiPopupController =
-      TextEditingController();
+  // Stats untuk kedaluwarsa dan hampir habis
+  int _kedaluwarsaCount = 0;
+  int _hampirHabisCount = 0;
+  List<BahanBakuModel> _kedaluwarsaItems = [];
+  List<BahanBakuModel> _hampirHabisItems = [];
+
+  final TextEditingController _namaKedaiPopupController = TextEditingController();
   final KedaiService _kedaiService = KedaiService();
+  final DataService _dataService = DataService();
 
   // ...  (semua final List<Map<String, dynamic>> tetap sama)
   // Copy dari kode asli untuk _menuItems dan _dashboardMenuItems
@@ -73,23 +85,23 @@ class _HomePageState extends State<HomePage> {
     {'icon': Icons.dashboard_outlined, 'label': 'Beranda', 'route': -1},
     {'icon': Icons.restaurant_menu_outlined, 'label': 'Menu', 'route': 0},
     {'icon': Icons.upload_outlined, 'label': 'Stok Keluar', 'route': 3},
-    {'icon': Icons.download_outlined, 'label': 'Stok Masuk', 'route': 2},
-    {'icon': Icons.shopping_basket_outlined, 'label': 'Bahan Baku', 'route': 1},
+    {'icon': Icons. download_outlined, 'label': 'Stok Masuk', 'route': 2},
+    {'icon': Icons. shopping_basket_outlined, 'label': 'Bahan Baku', 'route': 1},
     {'icon': Icons.delete_outline, 'label': 'Sampah Bahan Baku', 'route': 5},
-    {'icon': Icons.people_outline, 'label': 'Staff', 'route': 7},
-    {'icon': Icons.business_outlined, 'label': 'Vendor', 'route': 4},
-    {'icon': Icons.history_outlined, 'label': 'Riwayat', 'route': 8},
-    {'icon': Icons.point_of_sale_outlined, 'label': 'Kasir', 'route': 9},
-    {'icon': Icons.video_library_outlined, 'label': 'Tutorial', 'route': 11},
-    {'icon': Icons.analytics_outlined, 'label': 'Laporan', 'route': 6},
-    {'icon': Icons.settings_outlined, 'label': 'Pengaturan', 'route': 10},
+    {'icon': Icons. people_outline, 'label': 'Staff', 'route': 7},
+    {'icon': Icons. business_outlined, 'label': 'Vendor', 'route': 4},
+    {'icon': Icons. history_outlined, 'label': 'Riwayat', 'route': 8},
+    {'icon': Icons. point_of_sale_outlined, 'label': 'Kasir', 'route': 9},
+    {'icon': Icons. video_library_outlined, 'label': 'Tutorial', 'route': 11},
+    {'icon': Icons. analytics_outlined, 'label': 'Laporan', 'route': 6},
+    {'icon': Icons.settings_outlined, 'label': 'Pengaturan', 'route':  10},
   ];
 
   final List<Map<String, dynamic>> _dashboardMenuItems = [
     {
       'icon': Icons.download_for_offline_outlined,
       'label': 'Stok Masuk',
-      'route': 2,
+      'route':  2,
       'color': AppColors.stockIn,
       'gradient': LinearGradient(
         colors: [Color(0xFF667eea), Color(0xFF764ba2)],
@@ -99,7 +111,7 @@ class _HomePageState extends State<HomePage> {
     },
     {
       'icon': Icons.upload_outlined,
-      'label': 'Stok Keluar',
+      'label':  'Stok Keluar',
       'route': 3,
       'color': AppColors.stockOut,
       'gradient': LinearGradient(
@@ -122,8 +134,8 @@ class _HomePageState extends State<HomePage> {
     {
       'icon': Icons.delete_forever_outlined,
       'label': 'Sampah Bahan Baku',
-      'route': 5,
-      'color': AppColors.danger,
+      'route':  5,
+      'color':  AppColors.danger,
       'gradient': LinearGradient(
         colors: [Color(0xFFf83600), Color(0xFFf9d423)],
         begin: Alignment.topLeft,
@@ -132,7 +144,7 @@ class _HomePageState extends State<HomePage> {
     },
     {
       'icon': Icons.restaurant_menu,
-      'label': 'Menu',
+      'label':  'Menu',
       'route': 0,
       'color': AppColors.menu,
       'gradient': LinearGradient(
@@ -157,7 +169,7 @@ class _HomePageState extends State<HomePage> {
       'label': 'Staff',
       'route': 7,
       'color': AppColors.staff,
-      'gradient': LinearGradient(
+      'gradient':  LinearGradient(
         colors: [Color(0xFFa8edea), Color(0xFFfed6e3)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -166,8 +178,8 @@ class _HomePageState extends State<HomePage> {
     {
       'icon': Icons.business,
       'label': 'Vendor',
-      'route': 4,
-      'color': AppColors.vendor,
+      'route':  4,
+      'color':  AppColors.vendor,
       'gradient': LinearGradient(
         colors: [Color(0xFFcd9cf2), Color(0xFFf6f3ff)],
         begin: Alignment.topLeft,
@@ -175,7 +187,7 @@ class _HomePageState extends State<HomePage> {
       ),
     },
     {
-      'icon': Icons.history,
+      'icon': Icons. history,
       'label': 'Riwayat',
       'route': 8,
       'color': AppColors.history,
@@ -186,7 +198,7 @@ class _HomePageState extends State<HomePage> {
       ),
     },
     {
-      'icon': Icons.point_of_sale,
+      'icon': Icons. point_of_sale,
       'label': 'Kasir',
       'route': 9,
       'color': AppColors.cashier,
@@ -208,8 +220,8 @@ class _HomePageState extends State<HomePage> {
       ),
     },
     {
-      'icon': Icons.video_library,
-      'label': 'Tutorial',
+      'icon': Icons. video_library,
+      'label':  'Tutorial',
       'route': 11,
       'color': AppColors.tutorial,
       'gradient': LinearGradient(
@@ -222,10 +234,10 @@ class _HomePageState extends State<HomePage> {
 
   // Get filtered menu items based on role
   List<Map<String, dynamic>> get _filteredMenuItems {
-    final role = widget.role?.toLowerCase() ?? 'admin';
+    final role = widget.role?. toLowerCase() ?? 'admin';
 
     if (role == 'kasir') {
-      return _menuItems.where((item) {
+      return _menuItems. where((item) {
         final route = item['route'];
         return route == -1 || route == 0 || route == 9;
       }).toList();
@@ -240,7 +252,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Map<String, dynamic>> get _filteredDashboardMenuItems {
-    final role = widget.role?.toLowerCase() ?? 'admin';
+    final role = widget.role?. toLowerCase() ?? 'admin';
 
     if (role == 'kasir') {
       return _dashboardMenuItems.where((item) {
@@ -264,6 +276,7 @@ class _HomePageState extends State<HomePage> {
     Navigator.pop(context);
     if (index == -1) {
       _checkStokMasukNotification();
+      _loadBahanBakuStats(); // Reload stats saat kembali ke beranda
     }
   }
 
@@ -273,6 +286,7 @@ class _HomePageState extends State<HomePage> {
     });
     if (route == -1) {
       _checkStokMasukNotification();
+      _loadBahanBakuStats(); // Reload stats saat kembali ke beranda
     }
   }
 
@@ -285,7 +299,9 @@ class _HomePageState extends State<HomePage> {
 
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => KedaiPage(userId: widget.userId)),
+      MaterialPageRoute(
+        builder: (context) => KedaiPage(userId: widget.userId),
+      ),
     );
 
     if (kDebugMode) {
@@ -322,9 +338,7 @@ class _HomePageState extends State<HomePage> {
 
       if (savedLogo != null && savedLogo.isNotEmpty) {
         if (kDebugMode) {
-          print(
-            '✅ Logo loaded from SharedPreferences, length: ${savedLogo.length}',
-          );
+          print('✅ Logo loaded from SharedPreferences, length: ${savedLogo.length}');
         }
 
         if (mounted) {
@@ -337,11 +351,9 @@ class _HomePageState extends State<HomePage> {
 
       // 2. Coba dari database via KedaiService
       final kedai = await _kedaiService.getKedaiByUserId(widget.userId);
-      if (kedai != null && kedai.logo_kedai.isNotEmpty) {
+      if (kedai != null && kedai.logo_kedai. isNotEmpty) {
         if (kDebugMode) {
-          print(
-            '✅ Logo loaded from database, length: ${kedai.logo_kedai.length}',
-          );
+          print('✅ Logo loaded from database, length: ${kedai.logo_kedai.length}');
         }
 
         if (mounted) {
@@ -378,20 +390,34 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Method untuk load username dari SharedPreferences/Firebase (TETAP SAMA)
+  // Method untuk load username - extract dari email jika perlu
   Future<void> _loadUserName() async {
     try {
       if (kDebugMode) {
         print('========== LOADING USERNAME ==========');
         print('User ID: ${widget.userId}');
+        print('Email: ${widget.email}');
+        print('Initial username: ${widget.username}');
+      }
+
+      // Extract username dari email sebagai fallback
+      String usernameFromEmail = widget.email.split('@')[0];
+
+      if (kDebugMode) {
+        print('Username extracted from email: $usernameFromEmail');
       }
 
       final prefs = await SharedPreferences.getInstance();
       final savedName = prefs.getString('user_name_${widget.userId}');
 
-      if (savedName != null && savedName.isNotEmpty) {
+      // Jika ada saved name dan bukan generic/placeholder, gunakan itu
+      if (savedName != null &&
+          savedName.isNotEmpty &&
+          savedName.toLowerCase() != 'user' &&
+          savedName.toLowerCase() != 'staff' &&
+          savedName.toLowerCase() != 'sukma') {
         if (kDebugMode) {
-          print('✅ Username loaded from SharedPreferences:  $savedName');
+          print('✅ Username loaded from SharedPreferences: $savedName');
         }
 
         if (mounted) {
@@ -402,10 +428,13 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
+      // Cek Firebase displayName
       final user = FirebaseAuth.instance.currentUser;
       if (user != null &&
           user.displayName != null &&
-          user.displayName!.isNotEmpty) {
+          user.displayName!.isNotEmpty &&
+          user.displayName!.toLowerCase() != 'user' &&
+          user.displayName!.toLowerCase() != 'sukma') {
         if (kDebugMode) {
           print('✅ Username loaded from Firebase: ${user.displayName}');
         }
@@ -420,25 +449,40 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
+      // Gunakan username dari widget parameter (sudah di-extract dari email di login)
+      String finalUsername = widget.username;
+
+      // Double-check: jika widget.username masih generic atau "Sukma", gunakan extract dari email
+      if (finalUsername.toLowerCase() == 'user' ||
+          finalUsername.toLowerCase() == 'sukma' ||
+          finalUsername.isEmpty) {
+        finalUsername = usernameFromEmail;
+        if (kDebugMode) {
+          print('⚠️ Widget username was generic/Sukma, using email extract: $finalUsername');
+        }
+      }
+
       if (kDebugMode) {
-        print('✅ Using initial username: ${widget.username}');
+        print('✅ Using username: $finalUsername');
       }
 
       if (mounted) {
         setState(() {
-          _currentUserName = widget.username;
+          _currentUserName = finalUsername;
         });
       }
 
-      await prefs.setString('user_name_${widget.userId}', widget.username);
+      await prefs.setString('user_name_${widget.userId}', finalUsername);
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error loading username: $e');
       }
 
+      // Fallback ke extract dari email
+      String usernameFromEmail = widget.email.split('@')[0];
       if (mounted) {
         setState(() {
-          _currentUserName = widget.username;
+          _currentUserName = usernameFromEmail;
         });
       }
     }
@@ -450,7 +494,7 @@ class _HomePageState extends State<HomePage> {
       try {
         // Handle base64
         String base64String = _logoKedai;
-        if (base64String.contains(',')) {
+        if (base64String. contains(',')) {
           base64String = base64String.split(',').last;
         }
 
@@ -480,21 +524,21 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildLogoPlaceholder(double size) {
     return Container(
-      width: size,
+      width:  size,
       height: size,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Colors.white.withOpacity(0.3),
-            Colors.white.withOpacity(0.1),
+            Colors.white.withOpacity(0.1)
           ],
-          begin: Alignment.topLeft,
+          begin:  Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         shape: BoxShape.circle,
       ),
       child: Icon(
-        Icons.storefront_rounded,
+        Icons. storefront_rounded,
         size: size * 0.5,
         color: Colors.white,
       ),
@@ -509,12 +553,12 @@ class _HomePageState extends State<HomePage> {
         return Dialog(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius:  BorderRadius.circular(24),
           ),
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize. min,
               children: [
                 Container(
                   width: 80,
@@ -525,12 +569,12 @@ class _HomePageState extends State<HomePage> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    shape: BoxShape.circle,
+                    shape: BoxShape. circle,
                   ),
                   child: Icon(
                     Icons.logout_rounded,
                     size: 40,
-                    color: Colors.white,
+                    color: Colors. white,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -545,8 +589,8 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   'Apakah Anda yakin ingin keluar dari Foodify?',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles. bodyMedium.copyWith(
+                    color: AppColors. textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -581,12 +625,11 @@ class _HomePageState extends State<HomePage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
+                                  builder: (context) => const LoginPage()),
                             );
                           }
                         },
-                        style: ElevatedButton.styleFrom(
+                        style: ElevatedButton. styleFrom(
                           backgroundColor: AppColors.danger,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -612,13 +655,11 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-
   Widget _buildHomeContent() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final shouldNavigate =
-            prefs.getBool('navigate_to_beranda_after_profile') ?? false;
+        final prefs = await SharedPreferences. getInstance();
+        final shouldNavigate = prefs.getBool('navigate_to_beranda_after_profile') ?? false;
 
         if (shouldNavigate) {
           await prefs.remove('navigate_to_beranda_after_profile');
@@ -641,7 +682,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     return SingleChildScrollView(
-      child: Column(
+      child:  Column(
         children: [
           // Header Section dengan glassmorphism
           Container(
@@ -660,13 +701,13 @@ class _HomePageState extends State<HomePage> {
               boxShadow: [
                 BoxShadow(
                   color: Color(0xFF764ba2).withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: Offset(0, 10),
+                  blurRadius:  20,
+                  offset:  Offset(0, 10),
                 ),
               ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment. start,
               children: [
                 SizedBox(height: 8),
 
@@ -674,18 +715,18 @@ class _HomePageState extends State<HomePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:  CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Selamat Datang,',
                           style: AppTextStyles.labelLarge.copyWith(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white. withOpacity(0.9),
                             fontSize: 14,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _currentUserName.isNotEmpty
+                          _currentUserName. isNotEmpty
                               ? _currentUserName
                               : widget.username,
                           style: AppTextStyles.displaySmall.copyWith(
@@ -706,95 +747,107 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.white.withOpacity(0.2),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.4),
-                            width: 2,
-                          ),
+                              color: Colors.white.withOpacity(0.4), width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
+                              blurRadius:  10,
                               offset: Offset(0, 4),
                             ),
                           ],
                         ),
                         child: ClipOval(
-                          child: _buildLogoKedai(
-                            size: 48,
-                          ), // UBAH:  Gunakan logo kedai
+                          child: _buildLogoKedai(size:  48), // UBAH:  Gunakan logo kedai
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height:  20),
 
-                // Store info card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
+                // Store info card - Clickable
+                InkWell(
+                  onTap: () {
+                    // Navigate ke KedaiPage
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => KedaiPage(userId: widget.userId),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withOpacity(0.3),
-                              Colors.white.withOpacity(0.1),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                    ).then((_) {
+                      // Refresh data setelah kembali dari KedaiPage
+                      _loadStoreName();
+                      _loadLogoKedai();
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius:  10,
+                          offset:  Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.3),
+                                Colors. white.withOpacity(0.1)
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          borderRadius: BorderRadius.circular(14),
+                          child: Icon(
+                            Icons.storefront_rounded,
+                            size: 24,
+                            color: Colors. white,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.storefront_rounded,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kedai Anda',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: Colors.white. withOpacity(0.8),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _storeName,
+                                style: AppTextStyles.headlineSmall. copyWith(
+                                  color:  Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white.withOpacity(0.7),
                           size: 24,
-                          color: Colors.white,
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Kedai Anda',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _storeName,
-                              style: AppTextStyles.headlineSmall.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white.withOpacity(0.7),
-                        size: 24,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -804,7 +857,7 @@ class _HomePageState extends State<HomePage> {
           // Stats Cards Section
           Transform.translate(
             offset: Offset(0, -20),
-            child: Padding(
+            child:  Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
@@ -812,22 +865,23 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Expanded(
                         child: _buildStatCard(
-                          title: 'Kadaluarsa',
-                          value: '0',
+                          title: 'Kedaluwarsa',
+                          value: _kedaluwarsaCount.toString(),
                           unit: 'Item',
                           icon: Icons.warning_amber_rounded,
                           gradient: LinearGradient(
                             colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-                            begin: Alignment.topLeft,
+                            begin:  Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
+                          onTap: _showKedaluwarsaDialog,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildStatCard(
                           title: 'Hampir Habis',
-                          value: '0',
+                          value: _hampirHabisCount.toString(),
                           unit: 'Item',
                           icon: Icons.inventory_2_rounded,
                           gradient: LinearGradient(
@@ -835,6 +889,7 @@ class _HomePageState extends State<HomePage> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
+                          onTap: _showHampirHabisDialog,
                         ),
                       ),
                     ],
@@ -856,8 +911,8 @@ class _HomePageState extends State<HomePage> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.orange.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            blurRadius:  10,
+                            offset:  const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -884,15 +939,15 @@ class _HomePageState extends State<HomePage> {
                                   'Stok Masuk! ',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight:  FontWeight.bold,
                                     color: Colors.black87,
                                   ),
                                 ),
                                 if (_stokMasukItems.isNotEmpty)
                                   Text(
                                     '${_stokMasukItems.length} item dari $_stokMasukVendor',
-                                    style: TextStyle(
-                                      fontSize: 12,
+                                    style:  TextStyle(
+                                      fontSize:  12,
                                       color: Colors.grey[700],
                                     ),
                                   ),
@@ -901,8 +956,8 @@ class _HomePageState extends State<HomePage> {
                           ),
                           ElevatedButton(
                             onPressed: _confirmStokMasuk,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7A9B3B),
+                            style: ElevatedButton. styleFrom(
+                              backgroundColor:  const Color(0xFF7A9B3B),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 10,
@@ -913,7 +968,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             child: const Text(
                               'Konfirmasi',
-                              style: TextStyle(
+                              style:  TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -936,36 +991,33 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment:  MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Dashboard Menu',
                       style: AppTextStyles.headlineMedium.copyWith(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight. w700,
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
                             Color(0xFF667eea).withOpacity(0.1),
-                            Color(0xFF764ba2).withOpacity(0.1),
+                            Color(0xFF764ba2).withOpacity(0.1)
                           ],
                           begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                          end:  Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Color(0xFF667eea).withOpacity(0.2),
-                        ),
+                        border: Border. all(
+                            color: Color(0xFF667eea).withOpacity(0.2)),
                       ),
                       child: Row(
-                        children: [
+                        children:  [
                           Icon(
                             Icons.widgets_rounded,
                             size: 16,
@@ -1010,7 +1062,8 @@ class _HomePageState extends State<HomePage> {
                       label: item['label'] as String,
                       gradient: item['gradient'] as LinearGradient,
                       color: item['color'] as Color,
-                      onTap: () => _onDashboardMenuTapped(item['route'] as int),
+                      onTap: () =>
+                          _onDashboardMenuTapped(item['route'] as int),
                     );
                   },
                 ),
@@ -1033,77 +1086,87 @@ class _HomePageState extends State<HomePage> {
     required String unit,
     required IconData icon,
     required Gradient gradient,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: gradient,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: gradient.colors.last.withOpacity(0.3),
-            blurRadius: 15,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, size: 20, color: Colors.white),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius:  BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color:  gradient.colors.last. withOpacity(0.3),
+                blurRadius: 15,
+                offset:  Offset(0, 6),
               ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  unit,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors. white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child:  Icon(
+                      icon,
+                      size: 20,
+                      color: Colors. white,
+                    ),
                   ),
-                ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                    const EdgeInsets. symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius. circular(12),
+                    ),
+                    child: Text(
+                      unit,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight. w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: Colors.white.withOpacity(0.9),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
+              const SizedBox(height: 20),
               Text(
-                value,
-                style: AppTextStyles.displaySmall.copyWith(
-                  fontSize: 32,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+                title,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: Colors.white. withOpacity(0.9),
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(height:  4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    value,
+                    style: AppTextStyles.displaySmall.copyWith(
+                      fontSize: 32,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width:  4),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1126,13 +1189,13 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color:  Colors.black.withOpacity(0.05),
                 blurRadius: 12,
                 offset: Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: AppColors.border.withOpacity(0.2),
+              color: AppColors.border. withOpacity(0.2),
               width: 1,
             ),
           ),
@@ -1141,9 +1204,9 @@ class _HomePageState extends State<HomePage> {
             children: [
               Container(
                 width: 56,
-                height: 56,
+                height:  56,
                 decoration: BoxDecoration(
-                  gradient: gradient,
+                  gradient:  gradient,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -1153,15 +1216,19 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                child: Icon(icon, size: 28, color: Colors.white),
+                child: Icon(
+                  icon,
+                  size: 28,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  label.replaceAll('\n', ' '),
+                  label. replaceAll('\n', ' '),
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.labelMedium.copyWith(
+                  style: AppTextStyles. labelMedium.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 11,
@@ -1207,7 +1274,7 @@ class _HomePageState extends State<HomePage> {
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height:  32),
           Text(
             title,
             style: AppTextStyles.headlineMedium.copyWith(
@@ -1278,27 +1345,24 @@ class _HomePageState extends State<HomePage> {
         return const VendorPage();
       case 5:
         return WasteFoodPage(
-          userId: widget.userId,
-          userName: _currentUserName.isNotEmpty
-              ? _currentUserName
-              : widget.username,
-        );
+            userId: widget.userId,
+            userName: _currentUserName. isNotEmpty
+                ? _currentUserName
+                : widget.username);
       case 6:
         return LaporanPage(
-          userId: widget.userId,
-          userName: _currentUserName.isNotEmpty
-              ? _currentUserName
-              : widget.username,
-        );
+            userId: widget.userId,
+            userName: _currentUserName.isNotEmpty
+                ? _currentUserName
+                : widget.username);
       case 7:
         return StaffPage(userId: widget.userId);
       case 8:
         return RiwayatPage(
-          userId: widget.userId,
-          userName: _currentUserName.isNotEmpty
-              ? _currentUserName
-              : widget.username,
-        );
+            userId: widget.userId,
+            userName: _currentUserName. isNotEmpty
+                ? _currentUserName
+                : widget.username);
       case 9:
         return KasirPage();
       case 10:
@@ -1313,11 +1377,81 @@ class _HomePageState extends State<HomePage> {
           },
         );
       case 11:
-        return _buildComingSoonContent('Tutorial');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openYouTubePlaylist();
+        // Kembali ke beranda setelah 1 detik
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            setState(() {
+              _selectedIndex = -1;
+            });
+          }
+        });
+      });
+      return _buildHomeContent(); 
       default:
-        return _buildHomeContent();
+      return _buildHomeContent();
     }
   }
+
+Future<void> _openYouTubePlaylist() async {
+  const url = 'https://www.youtube.com/playlist?list=PLaEhEkE8Vqlw91YyhUzH0IQ-pN55HVSxk';
+  
+  try {
+    // Pakai method lama yang lebih kompatibel
+    if (await canLaunch(url)) {
+      await launch(url, forceSafariVC: false, forceWebView: false);
+    } else {
+      // Fallback langsung launch
+      await launch(url);
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error opening YouTube: $e');
+    }
+    
+    // Tampilkan dialog dengan link
+    _showYouTubeLinkDialog();
+  }
+}
+
+void _showYouTubeLinkDialog() {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Buka Tutorial'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Salin link berikut ke browser:'),
+            SizedBox(height: 10),
+            SelectableText(
+              'https://www.youtube.com/playlist?list=PLaEhEkE8Vqlw91YyhUzH0IQ-pN55HVSxk',
+              style: TextStyle(color: Colors.blue),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Tutup'),
+          ),
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(
+                text: 'https://www.youtube.com/playlist?list=PLaEhEkE8Vqlw91YyhUzH0IQ-pN55HVSxk'
+              ));
+              Fluttertoast.showToast(msg: 'Link disalin!');
+              Navigator.pop(context);
+            },
+            child: Text('Salin Link'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   String _getPageTitle() {
     switch (_selectedIndex) {
@@ -1358,10 +1492,571 @@ class _HomePageState extends State<HomePage> {
     _checkNavigateToBeranda();
     _loadUserName();
     _loadLogoKedai(); // TAMBAHKAN:  Load logo kedai saat init
+    _loadBahanBakuStats(); // Load statistics untuk kedaluwarsa dan hampir habis
   }
 
+  // Method untuk load dan hitung statistik bahan baku
+  Future<void> _loadBahanBakuStats() async {
+    try {
+      // Load data bahan baku dari API
+      final response = await _dataService.selectAll(
+        token,
+        project,
+        'bahan_baku',
+        appid,
+      );
+
+      if (response == '[]' || response.isEmpty || response == 'null') {
+        setState(() {
+          _kedaluwarsaCount = 0;
+          _hampirHabisCount = 0;
+        });
+        return;
+      }
+
+      final dynamic decodedData = json.decode(response);
+      List<dynamic> dataList;
+
+      if (decodedData is Map) {
+        if (decodedData.containsKey('data')) {
+          dataList = decodedData['data'] as List<dynamic>;
+        } else {
+          dataList = [decodedData];
+        }
+      } else if (decodedData is List) {
+        dataList = decodedData;
+      } else {
+        dataList = [];
+      }
+
+      List<BahanBakuModel> bahanBakuList = dataList
+          .map((json) => BahanBakuModel.fromJson(json))
+          .toList();
+
+      // Hitung kedaluwarsa dan hampir habis
+      int expiredCount = 0;
+      int lowStockCount = 0;
+      List<BahanBakuModel> expiredItems = [];
+      List<BahanBakuModel> lowStockItems = [];
+
+      // Dapatkan tanggal sekarang di Jakarta (UTC+7)
+      DateTime nowJakarta = DateTime.now().toUtc().add(Duration(hours: 7));
+      DateTime todayJakarta = DateTime(nowJakarta.year, nowJakarta.month, nowJakarta.day);
+
+      for (var bahan in bahanBakuList) {
+        // Cek kedaluwarsa
+        if (bahan.tanggal_kadaluarsa.isNotEmpty) {
+          try {
+            DateTime? expiryDate = DateTime.tryParse(bahan.tanggal_kadaluarsa);
+            if (expiryDate != null) {
+              // Normalize ke tanggal saja tanpa waktu
+              DateTime expiryDateOnly = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
+
+              // Item dihitung kedaluwarsa jika tanggal kadaluarsa <= hari ini
+              if (expiryDateOnly.isBefore(todayJakarta) || expiryDateOnly.isAtSameMomentAs(todayJakarta)) {
+                expiredCount++;
+                expiredItems.add(bahan);
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error parsing expiry date for ${bahan.nama_bahan}: $e');
+            }
+          }
+        }
+
+        // Cek hampir habis (stok tersedia <= stok minimal)
+        if (bahan.stok_tersedia.isNotEmpty && bahan.stok_minimal.isNotEmpty) {
+          try {
+            // Parse value dengan unit
+            double stokTersedia = _parseStokValue(bahan.stok_tersedia);
+            double stokMinimal = _parseStokValue(bahan.stok_minimal);
+
+            // Item dihitung hampir habis jika stok tersedia <= stok minimal
+            if (stokTersedia <= stokMinimal) {
+              lowStockCount++;
+              lowStockItems.add(bahan);
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error parsing stock for ${bahan.nama_bahan}: $e');
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _kedaluwarsaCount = expiredCount;
+          _hampirHabisCount = lowStockCount;
+          _kedaluwarsaItems = expiredItems;
+          _hampirHabisItems = lowStockItems;
+        });
+      }
+
+      if (kDebugMode) {
+        print('✅ Stats loaded - Expired: $expiredCount, Low Stock: $lowStockCount');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error loading bahan baku stats: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _kedaluwarsaCount = 0;
+          _hampirHabisCount = 0;
+          _kedaluwarsaItems = [];
+          _hampirHabisItems = [];
+        });
+      }
+    }
+  }
+
+  // Helper method untuk parse nilai stok (menghilangkan unit)
+  double _parseStokValue(String value) {
+    if (value.isEmpty) return 0;
+
+    // Split by space to separate number from unit
+    String numericPart = value.trim().split(' ')[0];
+
+    // Remove any non-numeric characters except decimal point
+    numericPart = numericPart.replaceAll(RegExp(r'[^\d.]'), '');
+
+    return double.tryParse(numericPart) ?? 0;
+  }
+
+  // Method untuk format tanggal
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '-';
+    try {
+      DateTime date = DateTime.parse(dateStr);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // Method untuk menampilkan dialog bahan baku kedaluwarsa
+  void _showKedaluwarsaDialog() {
+    if (_kedaluwarsaItems.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "Tidak ada bahan baku yang kedaluwarsa",
+        backgroundColor: Colors.green,
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bahan Baku Kedaluwarsa',
+                              style: AppTextStyles.headlineSmall.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              '${_kedaluwarsaItems.length} item',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // List items
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.all(16),
+                    itemCount: _kedaluwarsaItems.length,
+                    itemBuilder: (context, index) {
+                      final item = _kedaluwarsaItems[index];
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Color(0xFFf5576c).withValues(alpha: 0.3),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Gambar
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFf093fb).withValues(alpha: 0.2),
+                                    Color(0xFFf5576c).withValues(alpha: 0.1),
+                                  ],
+                                ),
+                              ),
+                              child: item.foto_bahan.isNotEmpty
+                                  ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.memory(
+                                  base64Decode(item.foto_bahan.contains(',')
+                                      ? item.foto_bahan.split(',').last
+                                      : item.foto_bahan),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.inventory_2,
+                                      color: Color(0xFFf5576c),
+                                      size: 30,
+                                    );
+                                  },
+                                ),
+                              )
+                                  : Icon(
+                                Icons.inventory_2,
+                                color: Color(0xFFf5576c),
+                                size: 30,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.nama_bahan,
+                                    style: AppTextStyles.titleMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today,
+                                        size: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Kedaluwarsa: ${_formatDate(item.tanggal_kadaluarsa)}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.inventory,
+                                        size: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Stok: ${item.stok_tersedia}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Method untuk menampilkan dialog bahan baku hampir habis
+  void _showHampirHabisDialog() {
+    if (_hampirHabisItems.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "Tidak ada bahan baku yang hampir habis",
+        backgroundColor: Colors.green,
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.inventory_2_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bahan Baku Hampir Habis',
+                              style: AppTextStyles.headlineSmall.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              '${_hampirHabisItems.length} item',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // List items
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.all(16),
+                    itemCount: _hampirHabisItems.length,
+                    itemBuilder: (context, index) {
+                      final item = _hampirHabisItems[index];
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Color(0xFF00f2fe).withValues(alpha: 0.3),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Gambar
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF4facfe).withValues(alpha: 0.2),
+                                    Color(0xFF00f2fe).withValues(alpha: 0.1),
+                                  ],
+                                ),
+                              ),
+                              child: item.foto_bahan.isNotEmpty
+                                  ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.memory(
+                                  base64Decode(item.foto_bahan.contains(',')
+                                      ? item.foto_bahan.split(',').last
+                                      : item.foto_bahan),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.inventory_2,
+                                      color: Color(0xFF00f2fe),
+                                      size: 30,
+                                    );
+                                  },
+                                ),
+                              )
+                                  : Icon(
+                                Icons.inventory_2,
+                                color: Color(0xFF00f2fe),
+                                size: 30,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.nama_bahan,
+                                    style: AppTextStyles.titleMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.inventory,
+                                        size: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Tersedia: ${item.stok_tersedia}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.warning_amber,
+                                        size: 14,
+                                        color: Colors.orange,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Minimal: ${item.stok_minimal}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
   Future<void> _checkNavigateToBeranda() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences. getInstance();
     final shouldNavigate = prefs.getBool('navigate_to_beranda') ?? false;
 
     if (shouldNavigate) {
@@ -1382,21 +2077,19 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _showStokMasukNotification = true;
-        _stokMasukItems = itemsList
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        _stokMasukItems =
+            itemsList.map((item) => Map<String, dynamic>.from(item)).toList();
         _stokMasukVendor = prefs.getString('stok_masuk_vendor') ?? '';
-        _stokMasukTotalHarga = prefs.getDouble('stok_masuk_total_harga') ?? 0;
+        _stokMasukVendorId = prefs.getString('stok_masuk_vendor_id') ?? '';
+        _stokMasukTotalHarga =
+            prefs.getDouble('stok_masuk_total_harga') ?? 0;
       });
     }
   }
 
   Future<void> _confirmStokMasuk() async {
     final formatCurrency = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
+        locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     await showDialog(
       context: context,
@@ -1406,7 +2099,7 @@ class _HomePageState extends State<HomePage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Padding(
+          child:  Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1426,18 +2119,18 @@ class _HomePageState extends State<HomePage> {
 
                 for (var item in _stokMasukItems)
                   _buildItemRow(
-                    item['nama'] ?? '',
+                    item['nama'] ??  '',
                     '${item['qty']} ${item['unit']}',
                     formatCurrency.format(item['harga_per_gross'] ?? 0),
                   ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height:  16),
                 const Divider(thickness: 1),
                 const SizedBox(height: 16),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+                  children:  [
                     const Text(
                       'Total',
                       style: TextStyle(
@@ -1450,27 +2143,24 @@ class _HomePageState extends State<HomePage> {
                       formatCurrency.format(_stokMasukTotalHarga),
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight:  FontWeight.bold,
                         color: Color(0xFF7A9B3B),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height:  24),
 
                 SizedBox(
-                  width: double.infinity,
+                  width:  double.infinity,
                   child: OutlinedButton(
                     onPressed: () async {
                       Navigator.of(context).pop();
                       await _acceptStokMasuk();
                     },
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                        color: Color(0xFF8B4513),
-                        width: 2,
-                      ),
+                      side: const BorderSide(color: Color(0xFF8B4513), width: 2),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1504,7 +2194,7 @@ class _HomePageState extends State<HomePage> {
             flex: 3,
             child: Text(
               itemName,
-              style: const TextStyle(
+              style:  const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF7A9B3B),
@@ -1516,14 +2206,17 @@ class _HomePageState extends State<HomePage> {
             child: Text(
               quantity,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
               price,
-              textAlign: TextAlign.right,
+              textAlign: TextAlign. right,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1537,6 +2230,145 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _acceptStokMasuk() async {
+    // Save transactions and update stock for each item FIRST
+    bool updateSuccess = false;
+    try {
+      DateTime now = DateTime.now();
+      String tanggalMasukStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      if (kDebugMode) {
+        print('========================================');
+        print('STARTING STOK MASUK ACCEPTANCE PROCESS');
+        print('Total items: ${_stokMasukItems.length}');
+        print('Vendor ID: $_stokMasukVendorId');
+        print('========================================');
+      }
+
+      for (var item in _stokMasukItems) {
+        String bahanBakuId = item['id'] ?? '';
+        String namaBahan = item['nama'] ?? '';
+        int qty = item['qty'] ?? 0;
+        String grossQtyStr = item['gross_qty'] ?? '1';
+        String stokTersediaStr = item['stok_tersedia'] ?? '0';
+        String unitDasar = item['unit_dasar'] ?? '';
+        double hargaPerGross = (item['harga_per_gross'] ?? 0).toDouble();
+        double subtotal = (item['subtotal'] ?? 0).toDouble();
+
+        if (kDebugMode) {
+          print('\n=== PROCESSING ITEM ===');
+          print('Bahan Baku ID: $bahanBakuId');
+          print('Nama Bahan: $namaBahan');
+          print('Qty Pembelian: $qty');
+          print('Gross Qty String: $grossQtyStr');
+          print('Stok Tersedia String: $stokTersediaStr');
+          print('Unit Dasar: $unitDasar');
+        }
+
+        // Validasi: harus ada nama_bahan
+        if (namaBahan.isEmpty) {
+          if (kDebugMode) {
+            print('ERROR: Nama bahan kosong, skipping item');
+          }
+          continue;
+        }
+
+        // Parse gross_qty - extract only the numeric value
+        String grossQtyNumericStr = grossQtyStr.trim().isEmpty ? '1' : grossQtyStr.trim().split(' ')[0];
+        double grossQty = double.tryParse(grossQtyNumericStr) ?? 1;
+        double totalQty = qty * grossQty;
+
+        if (kDebugMode) {
+          print('Gross Qty Numeric: $grossQty');
+          print('Total Qty: $totalQty');
+          print('Harga Per Gross: $hargaPerGross');
+          print('Subtotal: $subtotal');
+        }
+
+        // Insert to stok_masuk table
+        // Gunakan nama_bahan jika ID kosong
+        String kodeBahan = bahanBakuId.isNotEmpty ? bahanBakuId : namaBahan;
+
+        if (kDebugMode) {
+          print('\n--- Inserting to stok_masuk table ---');
+          print('Kode Bahan (untuk insert): $kodeBahan');
+        }
+
+        final insertResult = await _dataService.insertStokMasuk(
+          appid,
+          kodeBahan,
+          tanggalMasukStr,
+          qty.toString(),
+          totalQty.toStringAsFixed(2),
+          hargaPerGross.toStringAsFixed(0),
+          subtotal.toStringAsFixed(0),
+          _stokMasukVendorId,
+        );
+
+        if (kDebugMode) {
+          print('Insert Result: $insertResult');
+        }
+
+        // Parse stok tersedia - extract only the numeric value
+        double stokSebelumnya = 0;
+        String unit = unitDasar;
+
+        if (stokTersediaStr.trim().isNotEmpty) {
+          List<String> stokParts = stokTersediaStr.trim().split(' ');
+          if (stokParts.isNotEmpty) {
+            stokSebelumnya = double.tryParse(stokParts[0]) ?? 0;
+            if (stokParts.length > 1) {
+              unit = stokParts.sublist(1).join(' '); // Join in case unit has spaces
+            }
+          }
+        }
+
+        double stokBaru = stokSebelumnya + totalQty;
+        String stokBaruWithUnit = '${stokBaru.toStringAsFixed(2)} $unit';
+
+        if (kDebugMode) {
+          print('\n--- Updating stok_tersedia ---');
+          print('Stok Sebelumnya: $stokSebelumnya $unit');
+          print('Stok Baru: $stokBaruWithUnit');
+        }
+
+        // Update stok tersedia in bahan_baku table
+        // GUNAKAN nama_bahan sebagai identifier (bukan ID)
+        if (kDebugMode) {
+          print('Updating bahan_baku WHERE nama_bahan = "$namaBahan"');
+        }
+
+        final updateResult = await _dataService.updateWhere(
+          'nama_bahan',
+          namaBahan,
+          'stok_tersedia',
+          stokBaruWithUnit,
+          token,
+          project,
+          'bahan_baku',
+          appid,
+        );
+
+        if (kDebugMode) {
+          print('Update Result: $updateResult');
+          print('=== ITEM PROCESSED SUCCESSFULLY ===\n');
+        }
+      }
+
+      updateSuccess = true;
+
+      if (kDebugMode) {
+        print('========================================');
+        print('ALL ITEMS PROCESSED SUCCESSFULLY');
+        print('========================================\n');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('ERROR saving stok masuk: $e');
+        print('Stack trace: ${StackTrace.current}');
+      }
+    }
+
+    // Show success animation AFTER database update
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -1555,14 +2387,14 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
+                  tween:  Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 800),
                   builder: (context, value, child) {
                     return Transform.scale(
                       scale: value,
                       child: Icon(
                         Icons.check_circle_outline_outlined,
-                        color: const Color(0xFF7A9B3B),
+                        color: updateSuccess ? const Color(0xFF7A9B3B) : Colors.red,
                         size: 100 * value,
                       ),
                     );
@@ -1575,15 +2407,16 @@ class _HomePageState extends State<HomePage> {
       },
     );
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences. getInstance();
     await prefs.remove('show_stok_masuk_notification');
     await prefs.remove('stok_masuk_items');
     await prefs.remove('stok_masuk_vendor');
+    await prefs.remove('stok_masuk_vendor_id');
     await prefs.remove('stok_masuk_total_harga');
 
     setState(() {
       _showStokMasukNotification = false;
-      _stokMasukItems.clear();
+      _stokMasukItems. clear();
     });
 
     Fluttertoast.showToast(
@@ -1617,19 +2450,19 @@ class _HomePageState extends State<HomePage> {
 
       await Future.delayed(const Duration(milliseconds: 100));
 
-      final role = widget.role?.toLowerCase() ?? 'admin';
-      if (mounted && !_dialogShown && role == 'admin') {
+      final role = widget.role?. toLowerCase() ?? 'admin';
+      if (mounted && ! _dialogShown && role == 'admin') {
         _checkAndShowKedaiDialog();
       }
     }
   }
 
   Future<void> _loadStoreName() async {
-    final bool shouldLog = kDebugMode && !kIsWeb;
+    final bool shouldLog = kDebugMode && ! kIsWeb;
 
     if (shouldLog) {
       print('========== HOME PAGE:  LOADING STORE NAME ==========');
-      print('User ID: ${widget.userId}');
+      print('User ID: ${widget. userId}');
     }
 
     try {
@@ -1649,20 +2482,11 @@ class _HomePageState extends State<HomePage> {
         }
 
         final SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('nama_kedai_${widget.userId}', kedai.nama_kedai);
-        await prefs.setString(
-          'alamat_kedai_${widget.userId}',
-          kedai.alamat_kedai,
-        );
-        await prefs.setString(
-          'nomor_telepon_${widget.userId}',
-          kedai.nomor_telepon,
-        );
-        await prefs.setString(
-          'catatan_struk_${widget.userId}',
-          kedai.catatan_struk,
-        );
-        await prefs.setString('logo_kedai_${widget.userId}', kedai.logo_kedai);
+        await prefs.setString('nama_kedai_${widget.userId}', kedai. nama_kedai);
+        await prefs.setString('alamat_kedai_${widget. userId}', kedai.alamat_kedai);
+        await prefs.setString('nomor_telepon_${widget.userId}', kedai. nomor_telepon);
+        await prefs.setString('catatan_struk_${widget.userId}', kedai.catatan_struk);
+        await prefs.setString('logo_kedai_${widget.userId}', kedai. logo_kedai);
         await prefs.setBool('has_kedai_${widget.userId}', true);
         await prefs.setString('kedai_id_${widget.userId}', kedai.id);
 
@@ -1675,21 +2499,15 @@ class _HomePageState extends State<HomePage> {
         }
 
         final SharedPreferences prefs = await SharedPreferences.getInstance();
-        final String? savedStoreName = prefs.getString(
-          'nama_kedai_${widget.userId}',
-        );
-        final String? savedLogo = prefs.getString(
-          'logo_kedai_${widget.userId}',
-        );
+        final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
+        final String? savedLogo = prefs.getString('logo_kedai_${widget.userId}');
         final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
 
-        if (savedStoreName != null &&
-            savedStoreName.isNotEmpty &&
-            hasKedai == true) {
+        if (savedStoreName != null && savedStoreName.isNotEmpty && hasKedai == true) {
           if (mounted) {
             setState(() {
               _storeName = savedStoreName;
-              _logoKedai = savedLogo ?? ''; // TAMBAHKAN: Load logo dari cache
+              _logoKedai = savedLogo ??  ''; // TAMBAHKAN: Load logo dari cache
               _hasKedai = true;
             });
           }
@@ -1711,15 +2529,11 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? savedStoreName = prefs.getString(
-        'nama_kedai_${widget.userId}',
-      );
+      final String? savedStoreName = prefs.getString('nama_kedai_${widget.userId}');
       final String? savedLogo = prefs.getString('logo_kedai_${widget.userId}');
       final bool? hasKedai = prefs.getBool('has_kedai_${widget.userId}');
 
-      if (savedStoreName != null &&
-          savedStoreName.isNotEmpty &&
-          hasKedai == true) {
+      if (savedStoreName != null && savedStoreName. isNotEmpty && hasKedai == true) {
         if (mounted) {
           setState(() {
             _storeName = savedStoreName;
@@ -1744,7 +2558,7 @@ class _HomePageState extends State<HomePage> {
       print('Dialog Shown: $_dialogShown');
     }
 
-    if (!_hasKedai && !_dialogShown && mounted) {
+    if (! _hasKedai && !_dialogShown && mounted) {
       if (kDebugMode) {
         print('User does NOT have kedai - showing setup dialog');
       }
@@ -1770,7 +2584,7 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder:  (BuildContext context) {
         return WillPopScope(
           onWillPop: () async => false,
           child: Dialog(
@@ -1778,7 +2592,7 @@ class _HomePageState extends State<HomePage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(28),
             ),
-            child: Padding(
+            child:  Padding(
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1789,7 +2603,7 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                        begin: Alignment.topLeft,
+                        begin:  Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       shape: BoxShape.circle,
@@ -1797,14 +2611,14 @@ class _HomePageState extends State<HomePage> {
                         BoxShadow(
                           color: Color(0xFF764ba2).withOpacity(0.3),
                           blurRadius: 15,
-                          offset: Offset(0, 8),
+                          offset:  Offset(0, 8),
                         ),
                       ],
                     ),
                     child: Icon(
                       Icons.storefront_rounded,
                       size: 48,
-                      color: Colors.white,
+                      color: Colors. white,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -1819,8 +2633,8 @@ class _HomePageState extends State<HomePage> {
                   Text(
                     'Mari atur kedai Anda terlebih dahulu untuk memulai menggunakan Foodify',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
+                    style: AppTextStyles. bodyMedium.copyWith(
+                      color: AppColors. textSecondary,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -1838,16 +2652,13 @@ class _HomePageState extends State<HomePage> {
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                KedaiPage(userId: widget.userId),
+                            builder:  (context) => KedaiPage(userId: widget.userId),
                           ),
                         );
 
                         if (result == true) {
                           if (kDebugMode) {
-                            print(
-                              'Kedai setup completed successfully - reloading data',
-                            );
+                            print('Kedai setup completed successfully - reloading data');
                           }
                           await _loadStoreName();
                           await _loadLogoKedai(); // TAMBAHKAN:  Reload logo
@@ -1858,8 +2669,8 @@ class _HomePageState extends State<HomePage> {
                           }
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                      style: ElevatedButton. styleFrom(
+                        backgroundColor:  AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -1867,7 +2678,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Text(
                         'Mulai Atur Kedai',
-                        style: AppTextStyles.buttonLarge.copyWith(
+                        style:  AppTextStyles.buttonLarge.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1876,13 +2687,13 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 16),
                   TextButton(
-                    onPressed: () {
+                    onPressed:  () {
                       Navigator.of(context).pop();
                     },
                     child: Text(
                       'Nanti Saja',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
+                      style: AppTextStyles.bodyMedium. copyWith(
+                        color:  AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1920,7 +2731,7 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: Color(0xFF667eea).withOpacity(0.1),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height:  32),
               Text(
                 'Memuat aplikasi...',
                 style: AppTextStyles.bodyLarge.copyWith(
@@ -1930,9 +2741,9 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
               Text(
                 'Foodify',
-                style: AppTextStyles.headlineMedium.copyWith(
+                style: AppTextStyles. headlineMedium.copyWith(
                   color: Color(0xFF667eea),
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight. w800,
                   letterSpacing: 1.5,
                 ),
               ),
@@ -1943,134 +2754,140 @@ class _HomePageState extends State<HomePage> {
     }
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar:  true,
       backgroundColor: AppColors.background,
       appBar: _selectedIndex == -1
           ? AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
-              flexibleSpace: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-              leading: Builder(
-                builder: (context) => Container(
-                  margin: EdgeInsets.only(left: 8),
-                  child: IconButton(
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                    icon: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.menu_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              title: Text(
-                'Beranda',
-                style: AppTextStyles.headlineMedium.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              centerTitle: true,
-              actions: [
-                Container(
-                  margin: EdgeInsets.only(right: 8),
-                  child: IconButton(
-                    onPressed: () {
-                      // Notification action
-                    },
-                    icon: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF667eea),
+                Color(0xFF764ba2),
               ],
-            )
-          : AppBar(
-              backgroundColor: AppColors.surface,
-              elevation: 2,
-              leading: IconButton(
-                icon: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back_rounded,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = -1;
-                  });
-                },
-              ),
-              title: Text(
-                _getPageTitle(),
-                style: AppTextStyles.titleLarge.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              centerTitle: true,
-              actions: [
-                Builder(
-                  builder: (context) => IconButton(
-                    icon: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.menu_rounded,
-                        color: AppColors.primary,
-                        size: 22,
-                      ),
-                    ),
-                    onPressed: () {
-                      Scaffold.of(context).openDrawer();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+          ),
+        ),
+        leading: Builder(
+          builder: (context) => Container(
+            margin: EdgeInsets.only(left: 8),
+            child: IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon:  Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white. withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.menu_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+        ),
+        title:  Text(
+          'Beranda',
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed:  () {
+                // Notification action
+              },
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons. notifications_outlined,
+                  color: Colors. white,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        ],
+      )
+          : AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 2,
+        leading: IconButton(
+          icon: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary. withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
+          ),
+          onPressed: () {
+            setState(() {
+              _selectedIndex = -1;
+            });
+          },
+        ),
+        title: Text(
+          _getPageTitle(),
+          style: AppTextStyles.titleLarge.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight:  FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius. circular(12),
+                ),
+                child: Icon(
+                  Icons.menu_rounded,
+                  color:  AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       drawer: _buildSideDrawer(),
       body: _selectedIndex == -1
-          ? SafeArea(bottom: false, child: _buildHomeContent())
+          ? SafeArea(
+        bottom: false,
+        child: _buildHomeContent(),
+      )
           : _getSelectedContent(),
     );
   }
@@ -2079,7 +2896,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSideDrawer() {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.85,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors. surface,
       child: Column(
         children: [
           // Drawer Header with gradient
@@ -2109,15 +2926,13 @@ class _HomePageState extends State<HomePage> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.2),
-                            blurRadius: 15,
+                            blurRadius:  15,
                             offset: Offset(0, 8),
                           ),
                         ],
                       ),
                       child: ClipOval(
-                        child: _buildLogoKedai(
-                          size: 90,
-                        ), // UBAH:  Gunakan logo kedai
+                        child: _buildLogoKedai(size: 90), // UBAH:  Gunakan logo kedai
                       ),
                     ),
                   ),
@@ -2125,11 +2940,9 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 24),
                 // Gunakan _currentUserName
                 Text(
-                  _currentUserName.isNotEmpty
-                      ? _currentUserName
-                      : widget.username,
-                  style: AppTextStyles.headlineMedium.copyWith(
-                    color: Colors.white,
+                  _currentUserName. isNotEmpty ? _currentUserName : widget.username,
+                  style: AppTextStyles.headlineMedium. copyWith(
+                    color:  Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
@@ -2140,7 +2953,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   widget.email,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white. withOpacity(0.9),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -2149,18 +2962,15 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 16),
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(color: Colors.white. withOpacity(0.3)),
                     ),
                     child: Text(
                       widget.role != null && widget.role!.isNotEmpty
-                          ? widget.role!.toUpperCase()
+                          ? widget.role!. toUpperCase()
                           : 'ADMIN',
                       style: AppTextStyles.labelSmall.copyWith(
                         color: Colors.white,
@@ -2182,43 +2992,37 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 children: [
                   const SizedBox(height: 8),
-                  ...List.generate(_filteredMenuItems.length, (index) {
+                  ... List.generate(_filteredMenuItems.length, (index) {
                     final item = _filteredMenuItems[index];
                     final isSelected = _selectedIndex == item['route'];
 
                     bool isHovered = false;
 
                     return StatefulBuilder(
-                      builder: (context, setState) {
+                      builder:  (context, setState) {
                         return MouseRegion(
                           cursor: SystemMouseCursors.click,
-                          onEnter: (_) => setState(() => isHovered = true),
-                          onExit: (_) => setState(() => isHovered = false),
+                          onEnter:  (_) => setState(() => isHovered = true),
+                          onExit:  (_) => setState(() => isHovered = false),
                           child: GestureDetector(
                             onTap: () => _onMenuTapped(item['route'] as int),
-                            child: Padding(
+                            child:  Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
+                                  horizontal: 16, vertical: 6),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary.withOpacity(0.1)
+                                      ? AppColors.primary. withOpacity(0.1)
                                       : (isHovered
-                                            ? AppColors.primary.withOpacity(
-                                                0.05,
-                                              )
-                                            : Colors.transparent),
+                                      ? AppColors.primary.withOpacity(0.05)
+                                      : Colors.transparent),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: isSelected
-                                        ? AppColors.primary.withOpacity(0.3)
+                                        ?  AppColors.primary. withOpacity(0.3)
                                         : (isHovered
-                                              ? AppColors.primary.withOpacity(
-                                                  0.1,
-                                                )
-                                              : Colors.transparent),
+                                        ?  AppColors.primary.withOpacity(0.1)
+                                        : Colors. transparent),
                                     width: 1,
                                   ),
                                 ),
@@ -2226,61 +3030,57 @@ class _HomePageState extends State<HomePage> {
                                   leading: Container(
                                     width: 44,
                                     height: 44,
-                                    decoration: BoxDecoration(
+                                    decoration:  BoxDecoration(
                                       gradient: isSelected
                                           ? LinearGradient(
-                                              colors: [
-                                                Color(0xFF667eea),
-                                                Color(0xFF764ba2),
-                                              ],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            )
+                                        colors: [
+                                          Color(0xFF667eea),
+                                          Color(0xFF764ba2)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end:  Alignment.bottomRight,
+                                      )
                                           : (isHovered
-                                                ? LinearGradient(
-                                                    colors: [
-                                                      Color(
-                                                        0xFF667eea,
-                                                      ).withOpacity(0.2),
-                                                      Color(
-                                                        0xFF764ba2,
-                                                      ).withOpacity(0.1),
-                                                    ],
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                  )
-                                                : LinearGradient(
-                                                    colors: [
-                                                      AppColors.textSecondary
-                                                          .withOpacity(0.1),
-                                                      AppColors.textSecondary
-                                                          .withOpacity(0.05),
-                                                    ],
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                  )),
-                                      borderRadius: BorderRadius.circular(12),
+                                          ?  LinearGradient(
+                                        colors: [
+                                          Color(0xFF667eea)
+                                              .withOpacity(0.2),
+                                          Color(0xFF764ba2)
+                                              .withOpacity(0.1)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                          : LinearGradient(
+                                        colors: [
+                                          AppColors.textSecondary
+                                              .withOpacity(0.1),
+                                          AppColors.textSecondary
+                                              .withOpacity(0.05)
+                                        ],
+                                        begin:  Alignment.topLeft,
+                                        end: Alignment. bottomRight,
+                                      )),
+                                      borderRadius:  BorderRadius.circular(12),
                                       boxShadow: isSelected
                                           ? [
-                                              BoxShadow(
-                                                color: Color(
-                                                  0xFF764ba2,
-                                                ).withOpacity(0.2),
-                                                blurRadius: 8,
-                                                offset: Offset(0, 4),
-                                              ),
-                                            ]
+                                        BoxShadow(
+                                          color: Color(0xFF764ba2)
+                                              .withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ]
                                           : (isHovered
-                                                ? [
-                                                    BoxShadow(
-                                                      color: Color(
-                                                        0xFF667eea,
-                                                      ).withOpacity(0.1),
-                                                      blurRadius: 4,
-                                                      offset: Offset(0, 2),
-                                                    ),
-                                                  ]
-                                                : null),
+                                          ?  [
+                                        BoxShadow(
+                                          color: Color(0xFF667eea)
+                                              . withOpacity(0.1),
+                                          blurRadius: 4,
+                                          offset:  Offset(0, 2),
+                                        ),
+                                      ]
+                                          :  null),
                                     ),
                                     child: Icon(
                                       item['icon'] as IconData,
@@ -2288,8 +3088,8 @@ class _HomePageState extends State<HomePage> {
                                       color: isSelected
                                           ? Colors.white
                                           : (isHovered
-                                                ? Color(0xFF667eea)
-                                                : AppColors.textSecondary),
+                                          ?  Color(0xFF667eea)
+                                          : AppColors.textSecondary),
                                     ),
                                   ),
                                   title: Text(
@@ -2297,39 +3097,33 @@ class _HomePageState extends State<HomePage> {
                                     style: AppTextStyles.bodyMedium.copyWith(
                                       color: isSelected
                                           ? AppColors.primary
-                                          : (isHovered
-                                                ? Color(0xFF667eea)
-                                                : AppColors.textPrimary),
+                                          :  (isHovered
+                                          ? Color(0xFF667eea)
+                                          : AppColors.textPrimary),
                                       fontWeight: isSelected
                                           ? FontWeight.w700
                                           : (isHovered
-                                                ? FontWeight.w600
-                                                : FontWeight.w500),
+                                          ? FontWeight.w600
+                                          : FontWeight. w500),
                                     ),
                                   ),
                                   trailing: isSelected || isHovered
-                                      ? Container(
-                                          padding: EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Color(0xFF667eea)
-                                                .withOpacity(
-                                                  isSelected ? 0.1 : 0.05,
-                                                ),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            Icons.chevron_right_rounded,
-                                            color: Color(0xFF667eea),
-                                            size: 20,
-                                          ),
-                                        )
+                                      ?  Container(
+                                    padding: EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF667eea)
+                                          .withOpacity(isSelected ? 0.1 :  0.05),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Color(0xFF667eea),
+                                      size: 20,
+                                    ),
+                                  )
                                       : null,
                                   contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
+                                      horizontal: 16, vertical: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -2356,7 +3150,7 @@ class _HomePageState extends State<HomePage> {
                 gradient: LinearGradient(
                   colors: [
                     Color(0xFFff6b6b).withOpacity(0.1),
-                    Color(0xFFff8e8e).withOpacity(0.05),
+                    Color(0xFFff8e8e).withOpacity(0.05)
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -2364,7 +3158,7 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Color(0xFFff6b6b).withOpacity(0.2)),
               ),
-              child: ListTile(
+              child:  ListTile(
                 leading: Container(
                   width: 44,
                   height: 44,
@@ -2390,10 +3184,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 onTap: _logout,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                contentPadding:
+                const EdgeInsets. symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),

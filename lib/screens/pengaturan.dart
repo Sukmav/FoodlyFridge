@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/foundation.dart';
 import 'kedai_page.dart';
 import '../helpers/kedai_service.dart';
@@ -10,6 +9,9 @@ import 'profile_page.dart';
 
 // IMPORT HALAMAN HAPUS AKUN
 import 'hapus_akun_page.dart';
+
+// IMPORT HALAMAN STRUK PREVIEW
+import 'struk_preview_page.dart';
 
 class PengaturanPage extends StatefulWidget {
   final String userId;
@@ -26,7 +28,6 @@ class PengaturanPage extends StatefulWidget {
 }
 
 class _PengaturanPageState extends State<PengaturanPage> {
-  final Color _primaryColor = const Color(0xFF7A9B3B);
   final KedaiService _kedaiService = KedaiService();
 
   void _navigateToProfile() {
@@ -36,7 +37,7 @@ class _PengaturanPageState extends State<PengaturanPage> {
         builder: (context) => ProfilePage(
           userId: widget.userId,
           onProfileUpdated:
-              widget.onProfileUpdated, // <-- TERUSKAN KE ProfilePage
+          widget.onProfileUpdated, // <-- TERUSKAN KE ProfilePage
         ),
       ),
     );
@@ -51,15 +52,15 @@ class _PengaturanPageState extends State<PengaturanPage> {
     _kedaiService
         .getKedaiByUserId(widget.userId)
         .then((kedai) {
-          if (kDebugMode) {
-            print(
-              'Background kedai check finished for user ${widget.userId}. kedai != null: ${kedai != null}',
-            );
-          }
-        })
+      if (kDebugMode) {
+        print(
+          'Background kedai check finished for user ${widget.userId}. kedai != null: ${kedai != null}',
+        );
+      }
+    })
         .catchError((e) {
-          if (kDebugMode) print('Background kedai check failed: $e');
-        });
+      if (kDebugMode) print('Background kedai check failed: $e');
+    });
   }
 
   void _navigateToChangePassword() {
@@ -71,10 +72,12 @@ class _PengaturanPageState extends State<PengaturanPage> {
     );
   }
 
-  void _navigateToStruk() {
-    Fluttertoast.showToast(
-      msg: "Fitur Struk akan segera hadir",
-      backgroundColor: Colors.blue,
+  void _navigateToStrukPreview() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StrukPreviewPage(userId: widget.userId),
+      ),
     );
   }
 
@@ -179,7 +182,10 @@ class _PengaturanPageState extends State<PengaturanPage> {
             title: 'Ubah Kata Sandi',
             onTap: _navigateToChangePassword,
           ),
-          _buildMenuItem(title: 'Struk', onTap: _navigateToStruk),
+          _buildMenuItem(
+            title: 'Pratinjau & Export Struk',
+            onTap: _navigateToStrukPreview,
+          ),
           _buildMenuItem(
             title: 'Hapus Akun',
             onTap: _showDeleteAccountConfirmation,

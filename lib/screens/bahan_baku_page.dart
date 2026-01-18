@@ -1,3 +1,4 @@
+//lib/screens/bahan_baku_page.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -15,7 +16,7 @@ class BahanBakuPage extends StatefulWidget {
   State<BahanBakuPage> createState() => _BahanBakuPageState();
 }
 
-class _BahanBakuPageState extends State<BahanBakuPage> {
+class _BahanBakuPageState extends State<BahanBakuPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   final DataService _dataService = DataService();
   List<BahanBakuModel> _bahanBakuList = [];
   List<BahanBakuModel> _filteredList = [];
@@ -25,15 +26,28 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   List<String> _tempatPenyimpananList = [];
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadBahanBaku();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reload data when app comes back to foreground
+      _loadBahanBaku();
+    }
   }
 
   Future<void> _loadKategori() async {
@@ -160,11 +174,11 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
         _filteredList = _bahanBakuList
             .where(
               (bahan) =>
-                  bahan.nama_bahan.toLowerCase().contains(
-                    query.toLowerCase(),
-                  ) ||
-                  bahan.kategori.toLowerCase().contains(query.toLowerCase()),
-            )
+          bahan.nama_bahan.toLowerCase().contains(
+            query.toLowerCase(),
+          ) ||
+              bahan.kategori.toLowerCase().contains(query.toLowerCase()),
+        )
             .toList();
       }
     });
@@ -203,7 +217,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       text: bahanBaku?.harga_per_unit ?? '',
     );
     final TextEditingController stokTersediaController = TextEditingController(
-      text: stokTersediaParsed['value'],
+      text: isEdit ? stokTersediaParsed['value'] : '0',
     );
     final TextEditingController stokMinimalController = TextEditingController(
       text: stokMinimalParsed['value'],
@@ -215,19 +229,19 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
       text: grossQtyParsed['value'],
     );
     DateTime? tanggalMasuk =
-        bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
+    bahanBaku?.tanggal_masuk != null && bahanBaku!.tanggal_masuk.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_masuk)
         : null;
     DateTime? tanggalKadaluarsa =
-        bahanBaku?.tanggal_kadaluarsa != null &&
-            bahanBaku!.tanggal_kadaluarsa.isNotEmpty
+    bahanBaku?.tanggal_kadaluarsa != null &&
+        bahanBaku!.tanggal_kadaluarsa.isNotEmpty
         ? DateTime.tryParse(bahanBaku.tanggal_kadaluarsa)
         : null;
     final TextEditingController kategoriController = TextEditingController(
       text: bahanBaku?.kategori ?? '',
     );
     final TextEditingController tempatPenyimpananController =
-        TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
+    TextEditingController(text: bahanBaku?.tempat_penyimpanan ?? '');
     final TextEditingController catatanController = TextEditingController(
       text: bahanBaku?.catatan ?? '',
     );
@@ -482,6 +496,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     _buildSectionTitle('Stok'),
                     const SizedBox(height: 16),
 
+                    // Stok Tersedia - read-only (cannot be edited, only updated via Stok Masuk)
                     _buildTextFieldWithUnit(
                       controller: stokTersediaController,
                       label: 'Stok Tersedia',
@@ -494,6 +509,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         }
                       },
                       setState: setDialogState,
+                      isReadOnly: true,
                     ),
                     const SizedBox(height: 16),
 
@@ -563,7 +579,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       'Estimasi Penyimpanan (hari)',
                       TextInputType.number,
                       null,
-                      (value) {
+                          (value) {
                         setDialogState(() {
                           tanggalKadaluarsa = calculateExpiryDate(
                             tanggalMasuk,
@@ -656,7 +672,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               ? '${tanggalMasuk!.year}-${tanggalMasuk!.month.toString().padLeft(2, '0')}-${tanggalMasuk!.day.toString().padLeft(2, '0')}'
                               : '';
                           String tanggalKadaluarsaStr =
-                              tanggalKadaluarsa != null
+                          tanggalKadaluarsa != null
                               ? '${tanggalKadaluarsa!.year}-${tanggalKadaluarsa!.month.toString().padLeft(2, '0')}-${tanggalKadaluarsa!.day.toString().padLeft(2, '0')}'
                               : '';
 
@@ -744,12 +760,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Widget _buildTextField(
-    TextEditingController controller,
-    String label, [
-    TextInputType? keyboardType,
-    IconData? suffixIcon,
-    Function(String)? onChanged,
-  ]) {
+      TextEditingController controller,
+      String label, [
+        TextInputType? keyboardType,
+        IconData? suffixIcon,
+        Function(String)? onChanged,
+      ]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -875,6 +891,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
     required String selectedUnit,
     required Function(String?) onUnitChanged,
     required StateSetter setState,
+    bool isReadOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -891,11 +908,12 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
               child: TextField(
                 controller: controller,
                 keyboardType: TextInputType.number,
+                readOnly: isReadOnly,
                 decoration: InputDecoration(
                   hintText: 'Jumlah',
                   hintStyle: TextStyle(color: Colors.grey[400]),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: isReadOnly ? Colors.grey[100] : Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.orange[300]!),
@@ -1081,8 +1099,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   void _showTempatPenyimpananDialog(
-    TextEditingController tempatPenyimpananController,
-  ) {
+      TextEditingController tempatPenyimpananController,
+      ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1135,7 +1153,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       title: Text(_tempatPenyimpananList[index]),
                       onTap: () {
                         tempatPenyimpananController.text =
-                            _tempatPenyimpananList[index];
+                        _tempatPenyimpananList[index];
                         Navigator.pop(context);
                       },
                     );
@@ -1150,8 +1168,8 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   void _showTambahTempatPenyimpananDialog(
-    TextEditingController tempatPenyimpananController,
-  ) {
+      TextEditingController tempatPenyimpananController,
+      ) {
     final TextEditingController newTempatController = TextEditingController();
 
     showDialog(
@@ -1208,21 +1226,21 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Future<void> _addBahanBaku(
-    String nama,
-    String unit,
-    String hargaGross,
-    String hargaUnit,
-    String stokTersedia,
-    String stokMinimal,
-    String estimasi_penyimpanan,
-    String tanggalMasuk,
-    String tanggalKadaluarsa,
-    String kategori,
-    String tempatPenyimpanan,
-    String grossQty,
-    String catatan,
-    String foto_bahan,
-  ) async {
+      String nama,
+      String unit,
+      String hargaGross,
+      String hargaUnit,
+      String stokTersedia,
+      String stokMinimal,
+      String estimasi_penyimpanan,
+      String tanggalMasuk,
+      String tanggalKadaluarsa,
+      String kategori,
+      String tempatPenyimpanan,
+      String grossQty,
+      String catatan,
+      String foto_bahan,
+      ) async {
     setState(() {
       _isLoading = true;
     });
@@ -1269,23 +1287,23 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Future<void> _updateBahanBaku(
-    String id,
-    String nama,
-    String unit,
-    String hargaGross,
-    String hargaUnit,
-    String stokTersedia,
-    String stokMinimal,
-    String estimasi_penyimpanan,
-    String tanggalMasuk,
-    String tanggalKadaluarsa,
-    String kategori,
-    String tempatPenyimpanan,
-    String grossQty,
-    String catatan,
-    String foto_bahan,
-    String namaLama,
-  ) async {
+      String id,
+      String nama,
+      String unit,
+      String hargaGross,
+      String hargaUnit,
+      String stokTersedia,
+      String stokMinimal,
+      String estimasi_penyimpanan,
+      String tanggalMasuk,
+      String tanggalKadaluarsa,
+      String kategori,
+      String tempatPenyimpanan,
+      String grossQty,
+      String catatan,
+      String foto_bahan,
+      String namaLama,
+      ) async {
     setState(() {
       _isLoading = true;
     });
@@ -1635,15 +1653,14 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   height: 200,
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
-                    border: Border.all(color: Colors.orange[300]!, width: 3),
                   ),
                   child: bahan.foto_bahan.isNotEmpty
                       ? _buildImageWidget(bahan.foto_bahan)
                       : const Icon(
-                          Icons.inventory_2,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
+                    Icons.inventory_2,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
                 ),
 
                 Container(
@@ -1657,14 +1674,14 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.orange[700]!,
-                                width: 3,
-                              ),
-                            ),
-                          ),
+                          // decoration: BoxDecoration(
+                          //   border: Border(
+                          //     bottom: BorderSide(
+                          //       color: Colors.orange[700]!,
+                          //       width: 3,
+                          //     ),
+                          //   ),
+                          // ),
                           child: Text(
                             'Detail',
                             textAlign: TextAlign.center,
@@ -1673,16 +1690,6 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                               fontWeight: FontWeight.bold,
                               color: Colors.orange[700],
                             ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: const Text(
-                            'Riwayat',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         ),
                       ),
@@ -1697,7 +1704,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                     children: [
                       _buildDetailSection(
                         'Informasi Pembelian',
-                        Colors.orange[700]!,
+                        Colors.red[700]!,
                         [
                           _buildDetailRow(
                             'Satuan Pembelian',
@@ -1720,7 +1727,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
                       _buildDetailSection(
                         'Penggunaan untuk Menu',
-                        Colors.orange[700]!,
+                        Colors.red[700]!,
                         [
                           _buildDetailRow(
                             'Unit Dasar',
@@ -1796,7 +1803,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.orange[300]!),
+                          border: Border.all(color: Colors.red[700]!),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -1848,10 +1855,10 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
   }
 
   Widget _buildDetailSection(
-    String title,
-    Color titleColor,
-    List<Widget> children,
-  ) {
+      String title,
+      Color titleColor,
+      List<Widget> children,
+      ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1902,6 +1909,7 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -1942,90 +1950,90 @@ class _BahanBakuPageState extends State<BahanBakuPage> {
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredList.isEmpty
                   ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Tidak ada data bahan baku',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+                  : ListView.builder(
+                itemCount: _filteredList.length,
+                padding: const EdgeInsets.all(16),
+                itemBuilder: (context, index) {
+                  final bahan = _filteredList[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5A3C).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _buildImageWidget(bahan.foto_bahan),
+                        ),
+                      ),
+                      title: Text(
+                        bahan.nama_bahan,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            size: 64,
-                            color: Colors.grey,
+                          const SizedBox(height: 4),
+                          Text('Stok: ${bahan.stok_tersedia}'),
+                          Text('Kategori: ${bahan.kategori}'),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () =>
+                                _showAddEditDialog(bahanBaku: bahan),
                           ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Tidak ada data bahan baku',
-                            style: TextStyle(color: Colors.grey),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                            ),
+                            onPressed: () => _deleteBahanBaku(
+                              bahan.id,
+                              bahan.nama_bahan,
+                            ),
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: _filteredList.length,
-                      padding: const EdgeInsets.all(16),
-                      itemBuilder: (context, index) {
-                        final bahan = _filteredList[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B5A3C).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: _buildImageWidget(bahan.foto_bahan),
-                              ),
-                            ),
-                            title: Text(
-                              bahan.nama_bahan,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text('Stok: ${bahan.stok_tersedia}'),
-                                Text('Kategori: ${bahan.kategori}'),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.blue,
-                                  ),
-                                  onPressed: () =>
-                                      _showAddEditDialog(bahanBaku: bahan),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () => _deleteBahanBaku(
-                                    bahan.id,
-                                    bahan.nama_bahan,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            onTap: () => _showDetailBahanBaku(bahan),
-                          ),
-                        );
-                      },
+                      onTap: () => _showDetailBahanBaku(bahan),
                     ),
+                  );
+                },
+              ),
             ),
           ],
         ),

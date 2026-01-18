@@ -1,3 +1,4 @@
+//lib/model/vendor.dart
 class VendorModel {
   final String id;
   final String nama_vendor;

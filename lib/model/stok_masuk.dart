@@ -1,3 +1,4 @@
+//lib/model/stok_masuk.dart
 class StokMasukModel {
   final String id;
   final String kode_bahan;

@@ -149,45 +149,54 @@ class _StokKeluarPageState extends State<StokKeluarPage> {
           String noMeja = '';
           String tanggal = '';
           String menu = '';
+          String? catatan;
+          String? totalHarga;
 
           invoice =
               (itemMap['invoice'] as String?) ??
-              (itemMap['invoice_number'] as String?) ??
-              (itemMap['no_transaksi'] as String?) ??
-              (itemMap['kode_transaksi'] as String?) ??
-              'INV-${DateTime.now().millisecondsSinceEpoch}';
+                  (itemMap['invoice_number'] as String?) ??
+                  (itemMap['no_transaksi'] as String?) ??
+                  (itemMap['kode_transaksi'] as String?) ??
+                  'INV-${DateTime.now().millisecondsSinceEpoch}';
 
           namaPemesanan =
               (itemMap['nama_pemesanan'] as String?) ??
-              (itemMap['nama_pembeli'] as String?) ??
-              (itemMap['customer_name'] as String?) ??
-              (itemMap['pelanggan'] as String?) ??
-              'Tanpa Nama';
+                  (itemMap['nama_pembeli'] as String?) ??
+                  (itemMap['customer_name'] as String?) ??
+                  (itemMap['pelanggan'] as String?) ??
+                  'Tanpa Nama';
 
           noMeja =
               (itemMap['no_meja']?.toString()) ??
-              (itemMap['table_number']?.toString()) ??
-              (itemMap['meja']?.toString()) ??
-              '0';
+                  (itemMap['table_number']?.toString()) ??
+                  (itemMap['meja']?.toString()) ??
+                  '0';
 
           tanggal =
               (itemMap['tanggal'] as String?) ??
-              (itemMap['transaction_date'] as String?) ??
-              (itemMap['date'] as String?) ??
-              (itemMap['created_at'] as String?) ??
-              DateTime.now().toString();
+                  (itemMap['transaction_date'] as String?) ??
+                  (itemMap['date'] as String?) ??
+                  (itemMap['created_at'] as String?) ??
+                  DateTime.now().toString();
 
           menu =
               (itemMap['menu'] as String?) ??
-              (itemMap['items'] as String?) ??
-              (itemMap['order_items'] as String?) ??
-              (itemMap['detail_pesanan'] as String?) ??
-              'Tidak ada menu';
+                  (itemMap['items'] as String?) ??
+                  (itemMap['order_items'] as String?) ??
+                  (itemMap['detail_pesanan'] as String?) ??
+                  'Tidak ada menu';
+
+          catatan = (itemMap['catatan'] as String?) ?? (itemMap['notes'] as String?);
+
+          totalHarga = (itemMap['total_harga'] as String?) ??
+                       (itemMap['totalHarga'] as String?) ??
+                       (itemMap['total'] as String?) ??
+                       (itemMap['amount'] as String?);
 
           String id =
               (itemMap['_id']?.toString()) ??
-              (itemMap['id']?.toString()) ??
-              '${invoice}_${DateTime.now().millisecondsSinceEpoch}';
+                  (itemMap['id']?.toString()) ??
+                  '${invoice}_${DateTime.now().millisecondsSinceEpoch}';
 
           final stokKeluar = StokKeluarModel(
             id: id,
@@ -196,6 +205,8 @@ class _StokKeluarPageState extends State<StokKeluarPage> {
             no_meja: noMeja,
             tanggal: tanggal,
             menu: menu,
+            catatan: catatan,
+            total_harga: totalHarga,
           );
 
           newList.add(stokKeluar);
@@ -259,13 +270,15 @@ class _StokKeluarPageState extends State<StokKeluarPage> {
 
             final stokKeluar = StokKeluarModel(
               id:
-                  transaction['id'] ??
+              transaction['id'] ??
                   DateTime.now().millisecondsSinceEpoch.toString(),
               invoice: transaction['invoice'] ?? 'INV-LOCAL',
               nama_pemesanan: transaction['nama_pemesanan'] ?? 'Local Customer',
               no_meja: transaction['no_meja'] ?? '0',
               tanggal: transaction['tanggal'] ?? DateTime.now().toString(),
               menu: transaction['menu'] ?? 'Local Menu',
+              catatan: transaction['catatan'],
+              total_harga: transaction['total_harga'],
             );
 
             localList.add(stokKeluar);
@@ -301,13 +314,13 @@ class _StokKeluarPageState extends State<StokKeluarPage> {
         _filteredList = _stokKeluarList
             .where(
               (stok) =>
-                  stok.invoice.toLowerCase().contains(query.toLowerCase()) ||
-                  stok.nama_pemesanan.toLowerCase().contains(
-                    query.toLowerCase(),
-                  ) ||
-                  stok.no_meja.toLowerCase().contains(query.toLowerCase()) ||
-                  stok.menu.toLowerCase().contains(query.toLowerCase()),
-            )
+          stok.invoice.toLowerCase().contains(query.toLowerCase()) ||
+              stok.nama_pemesanan.toLowerCase().contains(
+                query.toLowerCase(),
+              ) ||
+              stok.no_meja.toLowerCase().contains(query.toLowerCase()) ||
+              stok.menu.toLowerCase().contains(query.toLowerCase()),
+        )
             .toList();
       }
     });
@@ -924,50 +937,50 @@ class _StokKeluarPageState extends State<StokKeluarPage> {
             Expanded(
               child: _isLoading
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                              strokeWidth: 3,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Memuat data...',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        shape: BoxShape.circle,
                       ),
-                    )
+                      child: const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
+                        strokeWidth: 3,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Memuat data...',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
                   : _filteredList.isEmpty
                   ? _buildEmptyState()
                   : RefreshIndicator(
-                      onRefresh: _loadStokKeluar,
-                      backgroundColor: AppColors.background,
-                      color: AppColors.primary,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 100),
-                        itemCount: _filteredList.length,
-                        itemBuilder: (context, index) {
-                          return _buildTransactionCard(
-                            _filteredList[index],
-                            index,
-                          );
-                        },
-                      ),
-                    ),
+                onRefresh: _loadStokKeluar,
+                backgroundColor: AppColors.background,
+                color: AppColors.primary,
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  itemCount: _filteredList.length,
+                  itemBuilder: (context, index) {
+                    return _buildTransactionCard(
+                      _filteredList[index],
+                      index,
+                    );
+                  },
+                ),
+              ),
             ),
           ],
         ),
