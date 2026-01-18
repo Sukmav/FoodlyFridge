@@ -31,9 +31,9 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
 
   @override
   void dispose() {
-    _oldController. dispose();
-    _newController. dispose();
-    _confirmController. dispose();
+    _oldController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
@@ -53,14 +53,14 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
     }
   }
 
-  String?  _validateInputs() {
-    final old = _oldController.text. trim();
+  String? _validateInputs() {
+    final old = _oldController.text.trim();
     final neu = _newController.text.trim();
     final conf = _confirmController.text.trim();
 
     if (old.isEmpty) return 'Kata sandi lama harus diisi';
     if (neu.isEmpty) return 'Kata sandi baru harus diisi';
-    if (neu. length < 6) return 'Kata sandi baru minimal 6 karakter';
+    if (neu.length < 6) return 'Kata sandi baru minimal 6 karakter';
     if (conf.isEmpty) return 'Konfirmasi kata sandi harus diisi';
     if (neu != conf) return 'Konfirmasi kata sandi tidak cocok';
     if (neu == old) return 'Kata sandi baru harus berbeda dari kata sandi lama';
@@ -124,7 +124,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
 
         // Sign in failed = password salah
         throw FirebaseAuthException(
-          code:  'wrong-password',
+          code: 'wrong-password',
           message: 'Kata sandi lama yang Anda masukkan salah',
         );
       }
@@ -134,7 +134,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
         print('Step 2: Updating password...');
       }
 
-      await userCredential.user! .updatePassword(_newController.text.trim());
+      await userCredential.user!.updatePassword(_newController.text.trim());
 
       if (kDebugMode) {
         print('✅ Password updated successfully');
@@ -146,7 +146,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
       }
 
       try {
-        await _firestore. collection('user').doc(userUid).set({
+        await _firestore.collection('user').doc(userUid).set({
           'password_updated_at': FieldValue.serverTimestamp(),
           'email': email,
           'uid': userUid,
@@ -164,10 +164,10 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
 
       // Clear cache
       try {
-        final prefs = await SharedPreferences. getInstance();
-        await prefs. remove('user_name_${widget.userId}');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('user_name_${widget.userId}');
         await prefs.remove('navigate_to_beranda');
-        await prefs. remove('navigate_to_beranda_after_profile');
+        await prefs.remove('navigate_to_beranda_after_profile');
 
         if (kDebugMode) {
           print('✅ Cache cleared');
@@ -199,7 +199,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
           builder: (BuildContext dialogContext) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius:  BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(20),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -214,7 +214,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                     child: Icon(
                       Icons.check_circle,
                       size: 70,
-                      color: Colors. green[600],
+                      color: Colors.green[600],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -225,7 +225,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors. black87,
+                      color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -236,7 +236,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
-                      color: Colors. grey[700],
+                      color: Colors.grey[700],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -261,7 +261,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                             'Silakan login kembali dengan kata sandi baru Anda',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
-                              color: Colors. blue[900],
+                              color: Colors.blue[900],
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -273,7 +273,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
 
                   // OK Button
                   SizedBox(
-                    width:  double.infinity,
+                    width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
@@ -306,7 +306,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-                (Route<dynamic> route) => false,
+            (Route<dynamic> route) => false,
           );
 
           if (kDebugMode) {
@@ -348,7 +348,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
           msg = e.message ?? msg;
       }
 
-      _showMessage(msg, isError:  true);
+      _showMessage(msg, isError: true);
     } catch (e) {
       if (kDebugMode) {
         print('========== GENERAL ERROR ==========');
@@ -373,7 +373,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey. shade300),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
@@ -381,13 +381,10 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
             child: TextField(
               controller: controller,
               obscureText: obscure,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: GoogleFonts. poppins(
+                hintStyle: GoogleFonts.poppins(
                   color: Colors.grey[400],
                   fontSize: 14,
                 ),
@@ -395,7 +392,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                   horizontal: 16,
                   vertical: 14,
                 ),
-                border:  InputBorder.none,
+                border: InputBorder.none,
               ),
             ),
           ),
@@ -415,7 +412,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        return ! _isSaving;
+        return !_isSaving;
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -432,16 +429,13 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
           elevation: 0,
           iconTheme: const IconThemeData(color: Color(0xFF7A9B3B)),
           leading: IconButton(
-            icon:  Container(
+            icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: const Color(0xFF7A9B3B).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child:  const Icon(
-                Icons.arrow_back,
-                color: Color(0xFF7A9B3B),
-              ),
+              child: const Icon(Icons.arrow_back, color: Color(0xFF7A9B3B)),
             ),
             onPressed: _isSaving ? null : () => Navigator.pop(context),
           ),
@@ -458,10 +452,10 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
             children: [
               // Info Card
               Container(
-                padding:  const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: const Color(0xFF7A9B3B).withOpacity(0.1),
-                  borderRadius: BorderRadius. circular(12),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: const Color(0xFF7A9B3B).withOpacity(0.3),
                   ),
@@ -477,7 +471,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                     Expanded(
                       child: Text(
                         'Kata sandi baru minimal 6 karakter dan harus berbeda dari kata sandi lama',
-                        style: GoogleFonts. poppins(
+                        style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: Colors.black87,
                         ),
@@ -492,7 +486,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
               Text(
                 'Kata Sandi Lama',
                 style: GoogleFonts.poppins(
-                  fontSize:  14,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
@@ -509,7 +503,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
               // Kata Sandi Baru
               Text(
                 'Kata Sandi Baru',
-                style:  GoogleFonts.poppins(
+                style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
@@ -528,17 +522,18 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
               Text(
                 'Konfirmasi Kata Sandi Baru',
                 style: GoogleFonts.poppins(
-                  fontSize:  14,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height:  8),
+              const SizedBox(height: 8),
               _buildPasswordField(
                 controller: _confirmController,
                 hint: 'Masukkan ulang kata sandi baru',
                 obscure: _obscureConfirm,
-                onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                onToggle: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
               ),
               const SizedBox(height: 32),
 
@@ -546,9 +541,9 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors. blue[50],
+                  color: Colors.blue[50],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border. all(color: Colors.blue[200]!),
+                  border: Border.all(color: Colors.blue[200]!),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,7 +559,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                         'Tips:  Gunakan kombinasi huruf besar, huruf kecil, angka, dan simbol untuk kata sandi yang lebih aman',
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: Colors. blue[900],
+                          color: Colors.blue[900],
                         ),
                       ),
                     ),
@@ -575,7 +570,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
           ),
         ),
         bottomNavigationBar: SafeArea(
-          child:  Padding(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Container(
               decoration: BoxDecoration(
@@ -588,7 +583,7 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF7A9B3B).withOpacity(0.3),
-                    blurRadius:  10,
+                    blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -602,47 +597,47 @@ class _UbahKataSandiPageState extends State<UbahKataSandiPage> {
                     height: 55,
                     alignment: Alignment.center,
                     child: _isSaving
-                        ?  Row(
-                      mainAxisAlignment:  MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Memproses...',
-                          style: GoogleFonts.poppins(
-                            fontSize:  14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    )
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Memproses...',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
                         : Row(
-                      mainAxisAlignment:  MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.save_alt,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Simpan Perubahan',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.save_alt,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Simpan Perubahan',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),

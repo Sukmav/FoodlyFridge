@@ -102,8 +102,8 @@ class _VendorPageState extends State<VendorPage> {
       } else {
         _filteredVendorList = _vendorList.where((vendor) {
           return vendor.nama_vendor.toLowerCase().contains(query.toLowerCase()) ||
-                 vendor.nama_pic.toLowerCase().contains(query.toLowerCase()) ||
-                 vendor.bahan_baku.toLowerCase().contains(query.toLowerCase());
+              vendor.nama_pic.toLowerCase().contains(query.toLowerCase()) ||
+              vendor.bahan_baku.toLowerCase().contains(query.toLowerCase());
         }).toList();
       }
     });
@@ -1093,82 +1093,82 @@ class _VendorPageState extends State<VendorPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredVendorList.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.store_outlined, size: 80, color: Colors.grey[300]),
-                            const SizedBox(height: 16),
-                            Text(
-                              _vendorList.isEmpty
-                                  ? 'Belum ada data vendor.\nTambahkan vendor baru!'
-                                  : 'Tidak ada vendor yang sesuai pencarian',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.store_outlined, size: 80, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    _vendorList.isEmpty
+                        ? 'Belum ada data vendor.\nTambahkan vendor baru!'
+                        : 'Tidak ada vendor yang sesuai pencarian',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            )
+                : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              itemCount: _filteredVendorList.length,
+              itemBuilder: (context, index) {
+                final vendor = _filteredVendorList[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: InkWell(
+                    onTap: () => _showVendorDetail(vendor),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          // Avatar Icon
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF5B6D5B),
+                              shape: BoxShape.circle,
                             ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                        itemCount: _filteredVendorList.length,
-                        itemBuilder: (context, index) {
-                          final vendor = _filteredVendorList[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: Colors.grey[200]!, width: 1),
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 28,
                             ),
-                            child: InkWell(
-                              onTap: () => _showVendorDetail(vendor),
-                              borderRadius: BorderRadius.circular(16),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  children: [
-                                    // Avatar Icon
-                                    Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF5B6D5B),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.person,
-                                        color: Colors.white,
-                                        size: 28,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
+                          ),
+                          const SizedBox(width: 16),
 
-                                    // Vendor Name
-                                    Expanded(
-                                      child: Text(
-                                        vendor.nama_vendor,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF5B6D5B),
-                                        ),
-                                      ),
-                                    ),
-
-                                    // Arrow icon
-                                    const Icon(
-                                      Icons.chevron_right,
-                                      color: Colors.grey,
-                                      size: 24,
-                                    ),
-                                  ],
-                                ),
+                          // Vendor Name
+                          Expanded(
+                            child: Text(
+                              vendor.nama_vendor,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF5B6D5B),
                               ),
                             ),
-                          );
-                        },
+                          ),
+
+                          // Arrow icon
+                          const Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey,
+                            size: 24,
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

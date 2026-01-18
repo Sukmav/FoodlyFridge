@@ -8,11 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ProfilePage extends StatefulWidget {
   final String userId;
   final String? initialName;
+  final VoidCallback? onProfileUpdated; // <-- TAMBAHKAN INI
 
   const ProfilePage({
     super.key,
     required this.userId,
     this.initialName,
+    this.onProfileUpdated, // <-- TAMBAHKAN INI
   });
 
   @override
@@ -58,7 +60,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // 3. Coba dari FirebaseAuth
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+      if (user != null &&
+          user.displayName != null &&
+          user.displayName!.isNotEmpty) {
         setState(() {
           _nameController.text = user.displayName!;
         });
@@ -67,7 +71,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // 4. Default kosong
       setState(() {
-        _nameController. text = '';
+        _nameController.text = '';
       });
     } catch (e) {
       if (kDebugMode) print('Error loading user name: $e');
@@ -87,7 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isSaving = true);
 
     try {
-      final newName = _nameController.text. trim();
+      final newName = _nameController.text.trim();
 
       if (kDebugMode) {
         print('========== SAVING PROFILE ==========');
@@ -99,7 +103,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         try {
-          await user. updateDisplayName(newName);
+          await user.updateDisplayName(newName);
           await user.reload(); // Reload untuk memastikan perubahan tersimpan
           if (kDebugMode) print('✅ Firebase Auth displayName updated');
         } catch (e) {
@@ -117,15 +121,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
       Fluttertoast.showToast(
         msg: 'Profil berhasil disimpan',
-        backgroundColor: Colors. green,
+        backgroundColor: Colors.green,
         toastLength: Toast.LENGTH_SHORT,
       );
 
       // 4. Kembalikan data yang baru ke pemanggil (sidebar/beranda)
-      final result = {
-        'name': newName,
-        'success': true,
-      };
+      final result = {'name': newName, 'success': true};
 
       if (kDebugMode) {
         print('✅ Returning result to caller');
@@ -159,13 +160,13 @@ class _ProfilePageState extends State<ProfilePage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading:  IconButton(
+        leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primary),
           onPressed: () => Navigator.of(context).pop(null),
         ),
         title: Text(
           'Edit Profil',
-          style:  GoogleFonts.poppins(
+          style: GoogleFonts.poppins(
             color: Colors.black87,
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -174,15 +175,12 @@ class _ProfilePageState extends State<ProfilePage> {
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color:  Colors.grey[200],
-          ),
+          child: Container(height: 1, color: Colors.grey[200]),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child:  Padding(
+          child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   decoration: BoxDecoration(
                     color: primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: primary. withOpacity(0.3)),
+                    border: Border.all(color: primary.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
@@ -204,7 +202,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           'Ubah nama Anda yang akan ditampilkan di aplikasi',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
-                            color: Colors. black87,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
@@ -222,24 +220,21 @@ class _ProfilePageState extends State<ProfilePage> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          primary,
-                          accent,
-                        ],
+                        colors: [primary, accent],
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: primary.withOpacity(0.3),
-                          blurRadius:  15,
+                          blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
                       ],
                     ),
-                    child:  const Icon(
+                    child: const Icon(
                       Icons.person,
                       size: 60,
-                      color: Colors. white,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -273,7 +268,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             const SizedBox(width: 12),
                             Text(
                               'Informasi Pengguna',
-                              style:  GoogleFonts.poppins(
+                              style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black87,
@@ -301,7 +296,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             controller: _nameController,
                             style: GoogleFonts.poppins(
                               fontSize: 15,
-                              color: Colors. black87,
+                              color: Colors.black87,
                               fontWeight: FontWeight.w500,
                             ),
                             decoration: InputDecoration(
@@ -313,11 +308,11 @@ class _ProfilePageState extends State<ProfilePage> {
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
-                                vertical:  14,
+                                vertical: 14,
                               ),
                               prefixIcon: Icon(
                                 Icons.edit_outlined,
-                                color:  Colors.grey[400],
+                                color: Colors.grey[400],
                                 size: 20,
                               ),
                             ),
@@ -333,12 +328,16 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.lightbulb_outline, color:  Colors.amber[700], size: 18),
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: Colors.amber[700],
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Nama ini akan ditampilkan di Beranda dan Sidebar',
-                                  style: GoogleFonts. poppins(
+                                  style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     color: Colors.amber[900],
                                   ),
@@ -359,16 +358,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        primary,
-                        accent,
-                      ],
+                      colors: [primary, accent],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
                         color: primary.withOpacity(0.3),
-                        blurRadius:  10,
+                        blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                     ],
@@ -384,32 +380,32 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Center(
                           child: _isSaving
                               ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child:  CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
                               : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons. save_alt,
-                                color: Colors. white,
-                                size:  22,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Simpan Perubahan',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.save_alt,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Simpan Perubahan',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ),

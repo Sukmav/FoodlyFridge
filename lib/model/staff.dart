@@ -1,3 +1,4 @@
+//lib/model/staff.dart
 class StaffModel {
   final String id;
   final String nama_staff;

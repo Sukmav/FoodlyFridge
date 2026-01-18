@@ -49,7 +49,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
 
   Future<void> _handleDelete() async {
     if (_isProcessing) return;
-    if (!_formKey.currentState! .validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
     // Show first confirmation
     final firstConfirm = await showDialog<bool>(
@@ -58,7 +58,11 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 28),
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange[700],
+              size: 28,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -78,7 +82,10 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey[700])),
+            child: Text(
+              'Batal',
+              style: GoogleFonts.poppins(color: Colors.grey[700]),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -86,7 +93,13 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
               backgroundColor: Colors.red,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            child: Text('Ya, Hapus', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Ya, Hapus',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -140,7 +153,9 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
         }
 
         String msg = 'Kata sandi salah';
-        if (e.code == 'wrong-password' || e. code == 'invalid-credential' || e.code == 'INVALID_LOGIN_CREDENTIALS') {
+        if (e.code == 'wrong-password' ||
+            e.code == 'invalid-credential' ||
+            e.code == 'INVALID_LOGIN_CREDENTIALS') {
           msg = 'Kata sandi yang Anda masukkan salah';
         } else if (e.code == 'user-not-found') {
           msg = 'Akun tidak ditemukan';
@@ -157,15 +172,17 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Row(
               children: [
                 Icon(Icons.delete_forever, color: Colors.red[700], size: 28),
-                const SizedBox(width:  12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Konfirmasi Terakhir',
-                    style:  GoogleFonts.poppins(
+                    style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w700,
                       fontSize: 20,
                       color: Colors.red[700],
@@ -198,14 +215,16 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                     children: [
                       _buildWarningItem('Semua data Anda akan dihapus'),
                       _buildWarningItem('Akun tidak dapat dikembalikan'),
-                      _buildWarningItem('Anda harus daftar ulang jika ingin kembali'),
+                      _buildWarningItem(
+                        'Anda harus daftar ulang jika ingin kembali',
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Apakah Anda benar-benar yakin?',
-                  style:  GoogleFonts.poppins(
+                  style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -215,13 +234,19 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text('Batalkan', style: GoogleFonts.poppins(color: Colors.grey[700])),
+                child: Text(
+                  'Batalkan',
+                  style: GoogleFonts.poppins(color: Colors.grey[700]),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton. styleFrom(
-                  backgroundColor:  Colors.red,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
                 child: Text(
                   'Hapus Permanen',
@@ -237,7 +262,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
 
         if (secondConfirm != true) {
           // User cancelled, sign out and go back
-          await FirebaseAuth.instance. signOut();
+          await FirebaseAuth.instance.signOut();
           setState(() => _isProcessing = false);
           return;
         }
@@ -264,7 +289,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
         print('Step 3: Deleting Firebase Auth account...');
       }
 
-      await userCredential.user! .delete();
+      await userCredential.user!.delete();
 
       if (kDebugMode) {
         print('✅ Firebase Auth account deleted');
@@ -272,8 +297,8 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
 
       // Clear SharedPreferences
       try {
-        final prefs = await SharedPreferences. getInstance();
-        await prefs. clear();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
         if (kDebugMode) {
           print('✅ SharedPreferences cleared');
         }
@@ -317,7 +342,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                     child: Icon(
                       Icons.check_circle,
                       size: 70,
-                      color: Colors. green[600],
+                      color: Colors.green[600],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -335,7 +360,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
-                      color: Colors. grey[700],
+                      color: Colors.grey[700],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -350,14 +375,14 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: Colors. blue[900],
+                        color: Colors.blue[900],
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                   const SizedBox(height: 28),
                   SizedBox(
-                    width:  double.infinity,
+                    width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
@@ -390,7 +415,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-                (Route<dynamic> route) => false,
+            (Route<dynamic> route) => false,
           );
 
           if (kDebugMode) {
@@ -406,7 +431,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
       }
 
       String msg = e.message ?? 'Gagal menghapus akun';
-      _showMessage(msg, isError:  true);
+      _showMessage(msg, isError: true);
     } catch (e) {
       if (kDebugMode) {
         print('========== GENERAL ERROR ==========');
@@ -444,7 +469,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
             Uri.parse(selectUri),
             body: {
               'token': token,
-              'project':  project,
+              'project': project,
               'collection': 'staff',
               'appid': appid,
               'email': email,
@@ -454,15 +479,15 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
           if (selectResponse.statusCode == 200) {
             final responseData = json.decode(selectResponse.body);
             if (responseData is List && responseData.isNotEmpty) {
-              final staffId = responseData. first['_id'];
+              final staffId = responseData.first['_id'];
 
               final deleteUri = 'https://api.247go.app/v5/delete/';
               await http.post(
-                Uri. parse(deleteUri),
+                Uri.parse(deleteUri),
                 body: {
-                  'token':  token,
-                  'project':  project,
-                  'collection':  'staff',
+                  'token': token,
+                  'project': project,
+                  'collection': 'staff',
                   'appid': appid,
                   '_id': staffId,
                 },
@@ -510,10 +535,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
           Expanded(
             child: Text(
               text,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: Colors.red[900],
-              ),
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.red[900]),
             ),
           ),
         ],
@@ -526,7 +548,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
     final Color accent = const Color(0xFF7A9B3B);
     return WillPopScope(
       onWillPop: () async {
-        return ! _isProcessing;
+        return !_isProcessing;
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -537,10 +559,10 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red. withOpacity(0.1),
+                color: Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child:  const Icon(Icons.arrow_back, color: Colors.red),
+              child: const Icon(Icons.arrow_back, color: Colors.red),
             ),
             onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
           ),
@@ -586,7 +608,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                           'Penghapusan akun bersifat permanen dan tidak dapat dibatalkan',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
-                            color: Colors. red[900],
+                            color: Colors.red[900],
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -599,9 +621,9 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                 // Info
                 Text(
                   'Masukkan kata sandi untuk konfirmasi',
-                  style:  GoogleFonts.poppins(
+                  style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Colors. grey[700],
+                    color: Colors.grey[700],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -609,7 +631,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                 // Password Field
                 Text(
                   'Kata Sandi',
-                  style:  GoogleFonts.poppins(
+                  style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
@@ -620,7 +642,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey. shade300),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Row(
                     children: [
@@ -631,7 +653,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                           style: GoogleFonts.poppins(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Masukkan kata sandi',
-                            hintStyle: GoogleFonts. poppins(
+                            hintStyle: GoogleFonts.poppins(
                               color: Colors.grey[400],
                               fontSize: 14,
                             ),
@@ -654,7 +676,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                       ),
                       IconButton(
                         icon: Icon(
-                          _obscure1 ? Icons.visibility_off :  Icons.visibility,
+                          _obscure1 ? Icons.visibility_off : Icons.visibility,
                           color: accent,
                         ),
                         onPressed: () => setState(() => _obscure1 = !_obscure1),
@@ -675,9 +697,9 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  decoration:  BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    borderRadius: BorderRadius. circular(12),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Row(
@@ -685,10 +707,10 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                       Expanded(
                         child: TextFormField(
                           controller: _confirmController,
-                          obscureText:  _obscure2,
+                          obscureText: _obscure2,
                           style: GoogleFonts.poppins(fontSize: 14),
                           decoration: InputDecoration(
-                            hintText:  'Masukkan ulang kata sandi',
+                            hintText: 'Masukkan ulang kata sandi',
                             hintStyle: GoogleFonts.poppins(
                               color: Colors.grey[400],
                               fontSize: 14,
@@ -703,7 +725,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                             if (v == null || v.trim().isEmpty) {
                               return 'Konfirmasi kata sandi harus diisi';
                             }
-                            if (v.trim() != _passwordController.text. trim()) {
+                            if (v.trim() != _passwordController.text.trim()) {
                               return 'Kata sandi tidak cocok';
                             }
                             return null;
@@ -715,7 +737,7 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                           _obscure2 ? Icons.visibility_off : Icons.visibility,
                           color: accent,
                         ),
-                        onPressed:  () => setState(() => _obscure2 = !_obscure2),
+                        onPressed: () => setState(() => _obscure2 = !_obscure2),
                       ),
                     ],
                   ),
@@ -725,20 +747,20 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
           ),
         ),
         bottomNavigationBar: SafeArea(
-          child:  Padding(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFFff6b6b), Color(0xFFff5252)],
-                  begin:  Alignment.topLeft,
+                  begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.red.withOpacity(0.3),
-                    blurRadius:  10,
+                    blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -752,47 +774,47 @@ class _HapusAkunPageState extends State<HapusAkunPage> {
                     height: 55,
                     alignment: Alignment.center,
                     child: _isProcessing
-                        ?  Row(
-                      mainAxisAlignment:  MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Menghapus.. .',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    )
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Menghapus.. .',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
                         : Row(
-                      mainAxisAlignment:  MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.delete_forever,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Hapus Akun Permanen',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.delete_forever,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Hapus Akun Permanen',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),

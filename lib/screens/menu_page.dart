@@ -1,3 +1,4 @@
+//lib/screens/menu_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:barcode_widget/barcode_widget.dart';
@@ -23,7 +24,7 @@ class _MenuPageState extends State<MenuPage> {
   List<Map<String, dynamic>> _menuList = [];
   bool _isLoading = false;
   String _searchQuery = '';
-  String?  _selectedCategory;
+  String? _selectedCategory;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -52,7 +53,7 @@ class _MenuPageState extends State<MenuPage> {
         appid,
       );
 
-      if (response == '[]' || response. isEmpty || response == 'null') {
+      if (response == '[]' || response.isEmpty || response == 'null') {
         setState(() {
           _menuList = [];
           _isLoading = false;
@@ -72,12 +73,13 @@ class _MenuPageState extends State<MenuPage> {
       }
 
       setState(() {
-        _menuList = dataList.map((item) => Map<String, dynamic>.from(item)).toList();
+        _menuList = dataList
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
         _isLoading = false;
       });
 
       print('Menu loaded:  ${_menuList.length} items');
-
     } catch (e, stackTrace) {
       print('Error loading menu: $e');
       print('StackTrace: $stackTrace');
@@ -93,9 +95,7 @@ class _MenuPageState extends State<MenuPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const AddMenuForm(
-          onMenuAdded: null,
-        ),
+        builder: (context) => const AddMenuForm(onMenuAdded: null),
       ),
     ).then((_) {
       _loadMenu(); // Reload menu setelah kembali
@@ -107,20 +107,30 @@ class _MenuPageState extends State<MenuPage> {
       return _menuList;
     }
 
-    return _menuList. where((menu) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          (menu['nama_menu']?.toString().toLowerCase() ??  '').contains(_searchQuery.toLowerCase()) ||
-          (menu['id_menu']?.toString().toLowerCase() ?? '').contains(_searchQuery.toLowerCase());
+    return _menuList.where((menu) {
+      final matchesSearch =
+          _searchQuery.isEmpty ||
+              (menu['nama_menu']?.toString().toLowerCase() ?? '').contains(
+                _searchQuery.toLowerCase(),
+              ) ||
+              (menu['id_menu']?.toString().toLowerCase() ?? '').contains(
+                _searchQuery.toLowerCase(),
+              );
 
-      final matchesCategory = _selectedCategory == null ||
-          (menu['kategori']?.toString().toLowerCase() ?? '') == _selectedCategory! .toLowerCase();
+      final matchesCategory =
+          _selectedCategory == null ||
+              (menu['kategori']?.toString().toLowerCase() ?? '') ==
+                  _selectedCategory!.toLowerCase();
 
       return matchesSearch && matchesCategory;
     }).toList();
   }
 
   List<String> get _categories {
-    final categories = _menuList.map((menu) => menu['kategori']?.toString() ?? '').toSet().toList();
+    final categories = _menuList
+        .map((menu) => menu['kategori']?.toString() ?? '')
+        .toSet()
+        .toList();
     categories.removeWhere((cat) => cat.isEmpty);
     return categories;
   }
@@ -130,15 +140,9 @@ class _MenuPageState extends State<MenuPage> {
     // Jika foto kosong atau null
     if (fotoMenu == null || fotoMenu.isEmpty) {
       return Container(
-        decoration: BoxDecoration(
-          gradient: _getCategoryGradient('default'),
-        ),
+        decoration: BoxDecoration(gradient: _getCategoryGradient('default')),
         child: const Center(
-          child: Icon(
-            Icons.restaurant_rounded,
-            size: 40,
-            color: Colors.white,
-          ),
+          child: Icon(Icons.restaurant_rounded, size: 40, color: Colors.white),
         ),
       );
     }
@@ -154,10 +158,10 @@ class _MenuPageState extends State<MenuPage> {
               gradient: _getCategoryGradient('default'),
             ),
             child: const Center(
-              child:  Icon(
+              child: Icon(
                 Icons.broken_image_rounded,
                 size: 40,
-                color:  Colors.white,
+                color: Colors.white,
               ),
             ),
           );
@@ -167,7 +171,8 @@ class _MenuPageState extends State<MenuPage> {
           return Center(
             child: CircularProgressIndicator(
               value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress. cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  ? loadingProgress.cumulativeBytesLoaded /
+                  loadingProgress.expectedTotalBytes!
                   : null,
               color: Colors.white,
             ),
@@ -180,7 +185,7 @@ class _MenuPageState extends State<MenuPage> {
     if (fotoMenu.length > 100) {
       try {
         // Handle base64 dengan atau tanpa prefix
-        final base64String = fotoMenu. contains(',')
+        final base64String = fotoMenu.contains(',')
             ? fotoMenu.split(',').last
             : fotoMenu;
 
@@ -206,13 +211,11 @@ class _MenuPageState extends State<MenuPage> {
       } catch (e) {
         print('Error displaying base64 image: $e');
         return Container(
-          decoration: BoxDecoration(
-            gradient: _getCategoryGradient('default'),
-          ),
+          decoration: BoxDecoration(gradient: _getCategoryGradient('default')),
           child: const Center(
-            child:  Icon(
+            child: Icon(
               Icons.broken_image_rounded,
-              size:  40,
+              size: 40,
               color: Colors.white,
             ),
           ),
@@ -222,15 +225,9 @@ class _MenuPageState extends State<MenuPage> {
 
     // Default jika tidak cocok dengan format apapun
     return Container(
-      decoration: BoxDecoration(
-        gradient: _getCategoryGradient('default'),
-      ),
+      decoration: BoxDecoration(gradient: _getCategoryGradient('default')),
       child: const Center(
-        child: Icon(
-          Icons. restaurant_rounded,
-          size:  40,
-          color: Colors.white,
-        ),
+        child: Icon(Icons.restaurant_rounded, size: 40, color: Colors.white),
       ),
     );
   }
@@ -250,7 +247,10 @@ class _MenuPageState extends State<MenuPage> {
                 children: [
                   // Stats in a subtle pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(20),
@@ -260,13 +260,13 @@ class _MenuPageState extends State<MenuPage> {
                       children: [
                         Icon(
                           Icons.restaurant_menu_rounded,
-                          size:  16,
+                          size: 16,
                           color: AppColors.primary,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '${_menuList.length} Menu Tersedia',
-                          style:  AppTextStyles.labelMedium.copyWith(
+                          style: AppTextStyles.labelMedium.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -289,8 +289,8 @@ class _MenuPageState extends State<MenuPage> {
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.05),
-                                blurRadius:  10,
-                                offset:  const Offset(0, 4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
@@ -304,13 +304,16 @@ class _MenuPageState extends State<MenuPage> {
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w500,
                             ),
-                            decoration:  InputDecoration(
+                            decoration: InputDecoration(
                               hintText: 'Cari menu...',
                               hintStyle: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary. withOpacity(0.6),
+                                color: AppColors.textSecondary.withOpacity(0.6),
                               ),
-                              prefixIcon:  Padding(
-                                padding: const EdgeInsets.only(left: 16, right: 12),
+                              prefixIcon: Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 16,
+                                  right: 12,
+                                ),
                                 child: Icon(
                                   Icons.search_rounded,
                                   color: AppColors.primary,
@@ -320,7 +323,7 @@ class _MenuPageState extends State<MenuPage> {
                               border: InputBorder.none,
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide. none,
+                                borderSide: BorderSide.none,
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
@@ -331,7 +334,9 @@ class _MenuPageState extends State<MenuPage> {
                               ),
                               filled: true,
                               fillColor: AppColors.surface,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(
                                 icon: Icon(
@@ -369,39 +374,44 @@ class _MenuPageState extends State<MenuPage> {
                           ),
                           child: PopupMenuButton<String>(
                             icon: Icon(
-                              Icons. filter_list_rounded,
+                              Icons.filter_list_rounded,
                               color: AppColors.primary,
                               size: 24,
                             ),
                             onSelected: (String? value) {
                               setState(() {
-                                _selectedCategory = value == 'all' ? null : value;
+                                _selectedCategory = value == 'all'
+                                    ? null
+                                    : value;
                               });
                             },
                             itemBuilder: (BuildContext context) {
                               return [
-                              PopupMenuItem<String>(
-                                value:  'all',
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 12,
-                                      height: 12,
-                                      decoration:  BoxDecoration(
-                                        color: AppColors.primary. withOpacity(0.3),
-                                        shape: BoxShape.circle,
+                                PopupMenuItem<String>(
+                                  value: 'all',
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withOpacity(
+                                            0.3,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Semua',
-                                      style: AppTextStyles.bodyMedium. copyWith(
-                                        color: AppColors.textPrimary,
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Semua',
+                                        style: AppTextStyles.bodyMedium
+                                            .copyWith(
+                                          color: AppColors.textPrimary,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
                                 const PopupMenuDivider(),
                                 ..._categories.map((category) {
                                   return PopupMenuItem<String>(
@@ -411,15 +421,16 @@ class _MenuPageState extends State<MenuPage> {
                                         Container(
                                           width: 12,
                                           height: 12,
-                                          decoration:  BoxDecoration(
-                                            color:  _getCategoryColor(category),
+                                          decoration: BoxDecoration(
+                                            color: _getCategoryColor(category),
                                             shape: BoxShape.circle,
                                           ),
                                         ),
                                         const SizedBox(width: 12),
                                         Text(
                                           category,
-                                          style: AppTextStyles.bodyMedium.copyWith(
+                                          style: AppTextStyles.bodyMedium
+                                              .copyWith(
                                             color: AppColors.textPrimary,
                                           ),
                                         ),
@@ -439,12 +450,19 @@ class _MenuPageState extends State<MenuPage> {
                   if (_selectedCategory != null) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getCategoryColor(_selectedCategory!).withOpacity(0.1),
+                        color: _getCategoryColor(
+                          _selectedCategory!,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _getCategoryColor(_selectedCategory!).withOpacity(0.3),
+                          color: _getCategoryColor(
+                            _selectedCategory!,
+                          ).withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -452,7 +470,7 @@ class _MenuPageState extends State<MenuPage> {
                         children: [
                           Text(
                             'Kategori: $_selectedCategory',
-                            style:  AppTextStyles.labelSmall.copyWith(
+                            style: AppTextStyles.labelSmall.copyWith(
                               color: _getCategoryColor(_selectedCategory!),
                               fontWeight: FontWeight.w600,
                             ),
@@ -466,8 +484,8 @@ class _MenuPageState extends State<MenuPage> {
                             },
                             child: Icon(
                               Icons.close_rounded,
-                              size:  16,
-                              color:  _getCategoryColor(_selectedCategory!),
+                              size: 16,
+                              color: _getCategoryColor(_selectedCategory!),
                             ),
                           ),
                         ],
@@ -485,7 +503,7 @@ class _MenuPageState extends State<MenuPage> {
               child: _isLoading
                   ? Center(
                 child: Column(
-                  mainAxisAlignment:  MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
                       width: 60,
@@ -494,15 +512,19 @@ class _MenuPageState extends State<MenuPage> {
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border. all(
+                        border: Border.all(
                           color: AppColors.primary.withOpacity(0.2),
                           width: 2,
                         ),
                       ),
                       child: CircularProgressIndicator(
                         strokeWidth: 4,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                        backgroundColor: AppColors.primary. withOpacity(0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                        backgroundColor: AppColors.primary.withOpacity(
+                          0.1,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -519,7 +541,7 @@ class _MenuPageState extends State<MenuPage> {
                   : _filteredMenuList.isEmpty
                   ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                child:  Padding(
+                child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -529,7 +551,7 @@ class _MenuPageState extends State<MenuPage> {
                         width: 150,
                         height: 150,
                         decoration: BoxDecoration(
-                          color: AppColors.primary. withOpacity(0.08),
+                          color: AppColors.primary.withOpacity(0.08),
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: AppColors.primary.withOpacity(0.15),
@@ -539,7 +561,7 @@ class _MenuPageState extends State<MenuPage> {
                         child: Icon(
                           Icons.restaurant_menu_outlined,
                           size: 70,
-                          color: AppColors.primary. withOpacity(0.6),
+                          color: AppColors.primary.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: 28),
@@ -548,19 +570,22 @@ class _MenuPageState extends State<MenuPage> {
                             ? 'Belum Ada Menu'
                             : 'Menu Tidak Ditemukan',
                         style: AppTextStyles.headlineMedium.copyWith(
-                          color: AppColors. textPrimary,
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.w700,
                           fontSize: 22,
                         ),
                       ),
                       const SizedBox(height: 12),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                        ),
                         child: Text(
-                          _searchQuery.isEmpty && _selectedCategory == null
+                          _searchQuery.isEmpty &&
+                              _selectedCategory == null
                               ? 'Tambahkan menu pertama Anda untuk memulai'
                               : 'Coba cari dengan kata kunci lain atau pilih kategori berbeda',
-                          style:  AppTextStyles.bodyMedium.copyWith(
+                          style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.textSecondary,
                             height: 1.5,
                           ),
@@ -574,17 +599,18 @@ class _MenuPageState extends State<MenuPage> {
               )
                   : SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                child:  Padding(
-                  padding:  const EdgeInsets.symmetric(horizontal: 20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           crossAxisSpacing: 16,
-                          mainAxisSpacing:  20,
+                          mainAxisSpacing: 20,
                           childAspectRatio: 0.75,
                         ),
                         itemCount: _filteredMenuList.length,
@@ -607,10 +633,12 @@ class _MenuPageState extends State<MenuPage> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.border. withOpacity(0.3))),
+          border: Border(
+            top: BorderSide(color: AppColors.border.withOpacity(0.3)),
+          ),
           boxShadow: [
             BoxShadow(
-              color:  Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -621,7 +649,7 @@ class _MenuPageState extends State<MenuPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.textWhite,
-            minimumSize: const Size(double. infinity, 56),
+            minimumSize: const Size(double.infinity, 56),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
@@ -657,16 +685,14 @@ class _MenuPageState extends State<MenuPage> {
 
     return Card(
       elevation: 2,
-      shape:  RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       shadowColor: Colors.black.withOpacity(0.08),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _showDetailMenu(menu),
         child: SizedBox(
           width: double.infinity,
-          height: 265,
+          height: 270,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Column(
@@ -675,9 +701,7 @@ class _MenuPageState extends State<MenuPage> {
                 // Image Container
                 Container(
                   height: 130,
-                  decoration: BoxDecoration(
-                    gradient: categoryGradient,
-                  ),
+                  decoration: BoxDecoration(gradient: categoryGradient),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -689,7 +713,10 @@ class _MenuPageState extends State<MenuPage> {
                         top: 12,
                         left: 12,
                         child: Container(
-                          padding:  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
@@ -717,12 +744,15 @@ class _MenuPageState extends State<MenuPage> {
                         bottom: 8,
                         right: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             gradient: AppColors.priceTagGradientVibrant,
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(12),
-                              bottomRight:  Radius.circular(20),
+                              bottomRight: Radius.circular(20),
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -760,7 +790,7 @@ class _MenuPageState extends State<MenuPage> {
                           style: AppTextStyles.bodyMedium.copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
-                            fontSize: 14,
+                            fontSize: 12,
                             height: 1.3,
                           ),
                           maxLines: 2,
@@ -768,12 +798,12 @@ class _MenuPageState extends State<MenuPage> {
                         ),
 
                         Row(
-                          mainAxisAlignment:  MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
                               'Kode:  $idMenu',
                               style: AppTextStyles.labelSmall.copyWith(
-                                color: AppColors.textSecondary. withOpacity(0.7),
+                                color: AppColors.textSecondary.withOpacity(0.7),
                                 fontSize: 12,
                               ),
                             ),
@@ -825,16 +855,13 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   String _formatNumber(double number) {
-    return 'Rp${number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-    )}';
+    return 'Rp${number.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
   Color _getCategoryColor(String category) {
-    switch (category. toLowerCase()) {
+    switch (category.toLowerCase()) {
       case 'makanan':
-        return AppColors. categoryFood;
+        return AppColors.categoryFood;
       case 'minuman':
         return AppColors.categoryDrink;
       case 'dessert':
@@ -857,7 +884,7 @@ class _MenuPageState extends State<MenuPage> {
       case 'snack':
         return AppColors.categorySnackGradient;
       default:
-        return AppColors. primaryGradient;
+        return AppColors.primaryGradient;
     }
   }
 }

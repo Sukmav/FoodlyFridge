@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:io';
 import '../restapi.dart';
 import '../config.dart';
 import '../model/bahan_baku_model.dart';
@@ -346,7 +347,6 @@ class _StokMasukPageState extends State<StokMasukPage> {
                               side: const BorderSide(
                                 color: Color(0xFF7A9B3B),
                                 width: 2,
-
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -682,6 +682,7 @@ class _StokMasukPageState extends State<StokMasukPage> {
 
     // Save vendor
     await prefs.setString('stok_masuk_vendor', _selectedVendor?.nama_vendor ?? '');
+    await prefs.setString('stok_masuk_vendor_id', _selectedVendor?.id ?? '');
 
     // Save ALL selected items as JSON array
     List<Map<String, dynamic>> itemsData = [];
@@ -698,11 +699,15 @@ class _StokMasukPageState extends State<StokMasukPage> {
         String satuanPembelian = _extractSatuanPembelian(bahan.gross_qty);
 
         itemsData.add({
+          'id': bahan.id,
           'nama': bahan.nama_bahan,
           'qty': qty,
           'unit': satuanPembelian,  // Gunakan satuan pembelian, bukan unit dasar
           'harga_per_gross': harga,
           'subtotal': subtotal,
+          'gross_qty': bahan.gross_qty,
+          'stok_tersedia': bahan.stok_tersedia,
+          'unit_dasar': bahan.unit,
         });
       }
     });
@@ -873,12 +878,14 @@ class _StokMasukPageState extends State<StokMasukPage> {
     // Save to database
     await _saveToDatabase();
 
+
     // Clear notification flag from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('show_stok_masuk_notification');
     await prefs.remove('stok_masuk_bahan');
     await prefs.remove('stok_masuk_qty');
     await prefs.remove('stok_masuk_vendor');
+    await prefs.remove('stok_masuk_vendor_id');
 
     // Reset state
     setState(() {
@@ -907,7 +914,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
     try {
       String tanggalMasukStr = '${_tanggalMasuk.year}-${_tanggalMasuk.month.toString().padLeft(2, '0')}-${_tanggalMasuk.day.toString().padLeft(2, '0')}';
 
-      double grossQty = double.parse(_selectedBahanBaku!.gross_qty.isEmpty ? '1' : _selectedBahanBaku!.gross_qty);
+      // Parse gross_qty - extract only the numeric value
+      String grossQtyStr = _selectedBahanBaku!.gross_qty.trim();
+      String grossQtyNumericStr = grossQtyStr.isEmpty ? '1' : grossQtyStr.split(' ')[0];
+      double grossQty = double.tryParse(grossQtyNumericStr) ?? 1;
       double totalQty = _quantity * grossQty;
 
       // Insert data ke database
@@ -926,18 +936,79 @@ class _StokMasukPageState extends State<StokMasukPage> {
 
       // Update stok tersedia bahan baku
       if (_selectedBahanBaku!.id.isNotEmpty) {
-        double stokSebelumnya = double.parse(_selectedBahanBaku!.stok_tersedia.isEmpty ? '0' : _selectedBahanBaku!.stok_tersedia);
+        // Parse stok tersedia - extract only the numeric value
+        String stokTersediaStr = _selectedBahanBaku!.stok_tersedia.trim();
+        if (kDebugMode) {
+          print('=== UPDATE STOK TERSEDIA ===');
+          print('Bahan Baku: ${_selectedBahanBaku!.nama_bahan}');
+          print('Bahan Baku ID: ${_selectedBahanBaku!.id}');
+          print('Stok Tersedia Sebelumnya: $stokTersediaStr');
+          print('Quantity yang dipesan: $_quantity');
+          print('Gross Qty: $grossQty');
+          print('Total Qty: $totalQty');
+        }
+
+        String stokNumericStr = stokTersediaStr.split(' ')[0]; // Get the first part before space
+        double stokSebelumnya = double.tryParse(stokNumericStr) ?? 0;
         double stokBaru = stokSebelumnya + totalQty;
 
-        await _dataService.updateId(
+        // Get the unit from stok_tersedia, or use the bahan baku's unit
+        List<String> stokParts = stokTersediaStr.split(' ');
+        String unit = stokParts.length > 1 ? stokParts[1] : _selectedBahanBaku!.unit;
+        String stokBaruWithUnit = '${stokBaru.toStringAsFixed(2)} $unit';
+
+        if (kDebugMode) {
+          print('Stok Baru yang akan disimpan: $stokBaruWithUnit');
+        }
+
+        final updateResult = await _dataService.updateId(
           'stok_tersedia',
-          stokBaru.toStringAsFixed(2),
+          stokBaruWithUnit,
           token,
           project,
           'bahan_baku',
           appid,
           _selectedBahanBaku!.id,
         );
+
+        if (kDebugMode) {
+          print('Update Result: $updateResult');
+          print('=== SELESAI UPDATE STOK ===');
+        }
+      } else if (_selectedBahanBaku!.nama_bahan.isNotEmpty) {
+        // Fallback: update by nama_bahan if ID is empty (for old records)
+        if (kDebugMode) {
+          print('=== UPDATE STOK TERSEDIA BY NAMA (ID KOSONG) ===');
+          print('Bahan Baku: ${_selectedBahanBaku!.nama_bahan}');
+        }
+
+        String stokTersediaStr = _selectedBahanBaku!.stok_tersedia.trim();
+        String stokNumericStr = stokTersediaStr.split(' ')[0];
+        double stokSebelumnya = double.tryParse(stokNumericStr) ?? 0;
+        double stokBaru = stokSebelumnya + totalQty;
+
+        List<String> stokParts = stokTersediaStr.split(' ');
+        String unit = stokParts.length > 1 ? stokParts[1] : _selectedBahanBaku!.unit;
+        String stokBaruWithUnit = '${stokBaru.toStringAsFixed(2)} $unit';
+
+        if (kDebugMode) {
+          print('Stok Baru: $stokBaruWithUnit');
+        }
+
+        final updateResult = await _dataService.updateWhere(
+          'nama_bahan',
+          _selectedBahanBaku!.nama_bahan,
+          'stok_tersedia',
+          stokBaruWithUnit,
+          token,
+          project,
+          'bahan_baku',
+          appid,
+        );
+
+        if (kDebugMode) {
+          print('Update Result: $updateResult');
+        }
       }
 
       setState(() {
@@ -1079,10 +1150,10 @@ class _StokMasukPageState extends State<StokMasukPage> {
           GestureDetector(
             onTap: _selectedVendor != null
                 ? () {
-                    setState(() {
-                      _currentStep = StokMasukStep.selectBahanBaku;
-                    });
-                  }
+              setState(() {
+                _currentStep = StokMasukStep.selectBahanBaku;
+              });
+            }
                 : null,
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -1487,8 +1558,8 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
       } else {
         _filteredList = _bahanBakuList
             .where((bahan) =>
-                bahan.nama_bahan.toLowerCase().contains(query.toLowerCase()) ||
-                bahan.kategori.toLowerCase().contains(query.toLowerCase()))
+        bahan.nama_bahan.toLowerCase().contains(query.toLowerCase()) ||
+            bahan.kategori.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -1617,9 +1688,9 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
                       color: const Color(0xFF8B5A3C).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
-                      Icons.inventory_2,
-                      color: Color(0xFF8B5A3C),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildImageWidget(bahan.foto_bahan),
                     ),
                   ),
                   title: Text(
@@ -1673,6 +1744,64 @@ class _PilihBahanBakuFromVendorPageState extends State<PilihBahanBakuFromVendorP
         ),
       ],
     );
+  }
+
+  // 🔥 Method untuk menampilkan gambar bahan baku (sama seperti di bahan_baku_page.dart)
+  Widget _buildImageWidget(String imagePath) {
+    // Jika string kosong, tampilkan icon default
+    if (imagePath.isEmpty) {
+      return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
+    }
+
+    // Jika URL (dimulai dengan http)
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
+        },
+      );
+    }
+
+    // Jika base64 (panjang string > 100 dan tidak dimulai dengan http)
+    if (imagePath.length > 100 && !imagePath.startsWith('http')) {
+      try {
+        // Handle base64 dengan atau tanpa prefix
+        final base64String = imagePath.contains(',')
+            ? imagePath.split(',').last
+            : imagePath;
+
+        return Image.memory(
+          base64Decode(base64String),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
+          },
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error decoding base64: $e');
+        return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
+      }
+    }
+
+    // Jika path lokal (hanya untuk mobile)
+    if (!kIsWeb) {
+      try {
+        return Image.file(
+          File(imagePath),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
+          },
+        );
+      } catch (e) {
+        return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
+      }
+    }
+
+    // Default: tampilkan icon
+    return const Icon(Icons.inventory_2, color: Color(0xFF8B5A3C));
   }
 }
 

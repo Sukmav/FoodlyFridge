@@ -1,3 +1,4 @@
+//lib/model/kedai.dart
 class KedaiModel {
   final String id;
   final String logo_kedai;

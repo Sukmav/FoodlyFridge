@@ -16,14 +16,21 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   runApp(
-    DevicePreview( // WRAP dengan DevicePreview
-      enabled: true, // Atur false untuk production
-      builder: (context) => ProviderScope(
-        child: MyApp(),
-      ),
+    const ProviderScope(
+      child: MyApp(),
     ),
   );
+
+  // runApp(
+  //   DevicePreview( // WRAP dengan DevicePreview
+  //     enabled: true, // Atur false untuk production
+  //     builder: (context) => ProviderScope(
+  //       child: MyApp(),
+  //     ),
+  //   ),
+  // );
 }
 
 class MyApp extends StatelessWidget {

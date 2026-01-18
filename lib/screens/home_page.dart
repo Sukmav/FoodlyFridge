@@ -6,10 +6,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart'; // Untuk Clipboard
 
 // Import constants
 import '../theme/app_colors.dart';
 import '../theme/text_styles.dart';
+import '../restapi.dart';
+import '../config.dart';
+import '../model/bahan_baku_model.dart';
 
 import 'login_page.dart';
 import 'pengaturan.dart';
@@ -19,6 +24,7 @@ import 'menu_page.dart';
 import 'staff_page.dart';
 import 'waste_food_page.dart';
 import 'stok_masuk_page.dart';
+import 'stok_keluar.dart';
 import 'kasir_page.dart';
 import 'laporan_page.dart';
 import 'riwayat.dart';
@@ -59,10 +65,18 @@ class _HomePageState extends State<HomePage> {
   bool _showStokMasukNotification = false;
   List<Map<String, dynamic>> _stokMasukItems = [];
   String _stokMasukVendor = '';
+  String _stokMasukVendorId = '';
   double _stokMasukTotalHarga = 0;
+
+  // Stats untuk kedaluwarsa dan hampir habis
+  int _kedaluwarsaCount = 0;
+  int _hampirHabisCount = 0;
+  List<BahanBakuModel> _kedaluwarsaItems = [];
+  List<BahanBakuModel> _hampirHabisItems = [];
 
   final TextEditingController _namaKedaiPopupController = TextEditingController();
   final KedaiService _kedaiService = KedaiService();
+  final DataService _dataService = DataService();
 
   // ...  (semua final List<Map<String, dynamic>> tetap sama)
   // Copy dari kode asli untuk _menuItems dan _dashboardMenuItems
@@ -262,6 +276,7 @@ class _HomePageState extends State<HomePage> {
     Navigator.pop(context);
     if (index == -1) {
       _checkStokMasukNotification();
+      _loadBahanBakuStats(); // Reload stats saat kembali ke beranda
     }
   }
 
@@ -271,6 +286,7 @@ class _HomePageState extends State<HomePage> {
     });
     if (route == -1) {
       _checkStokMasukNotification();
+      _loadBahanBakuStats(); // Reload stats saat kembali ke beranda
     }
   }
 
@@ -374,20 +390,34 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Method untuk load username dari SharedPreferences/Firebase (TETAP SAMA)
+  // Method untuk load username - extract dari email jika perlu
   Future<void> _loadUserName() async {
     try {
       if (kDebugMode) {
         print('========== LOADING USERNAME ==========');
-        print('User ID: ${widget. userId}');
+        print('User ID: ${widget.userId}');
+        print('Email: ${widget.email}');
+        print('Initial username: ${widget.username}');
+      }
+
+      // Extract username dari email sebagai fallback
+      String usernameFromEmail = widget.email.split('@')[0];
+
+      if (kDebugMode) {
+        print('Username extracted from email: $usernameFromEmail');
       }
 
       final prefs = await SharedPreferences.getInstance();
       final savedName = prefs.getString('user_name_${widget.userId}');
 
-      if (savedName != null && savedName.isNotEmpty) {
+      // Jika ada saved name dan bukan generic/placeholder, gunakan itu
+      if (savedName != null &&
+          savedName.isNotEmpty &&
+          savedName.toLowerCase() != 'user' &&
+          savedName.toLowerCase() != 'staff' &&
+          savedName.toLowerCase() != 'sukma') {
         if (kDebugMode) {
-          print('✅ Username loaded from SharedPreferences:  $savedName');
+          print('✅ Username loaded from SharedPreferences: $savedName');
         }
 
         if (mounted) {
@@ -398,15 +428,20 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
+      // Cek Firebase displayName
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+      if (user != null &&
+          user.displayName != null &&
+          user.displayName!.isNotEmpty &&
+          user.displayName!.toLowerCase() != 'user' &&
+          user.displayName!.toLowerCase() != 'sukma') {
         if (kDebugMode) {
           print('✅ Username loaded from Firebase: ${user.displayName}');
         }
 
         if (mounted) {
           setState(() {
-            _currentUserName = user.displayName! ;
+            _currentUserName = user.displayName!;
           });
         }
 
@@ -414,25 +449,40 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
+      // Gunakan username dari widget parameter (sudah di-extract dari email di login)
+      String finalUsername = widget.username;
+
+      // Double-check: jika widget.username masih generic atau "Sukma", gunakan extract dari email
+      if (finalUsername.toLowerCase() == 'user' ||
+          finalUsername.toLowerCase() == 'sukma' ||
+          finalUsername.isEmpty) {
+        finalUsername = usernameFromEmail;
+        if (kDebugMode) {
+          print('⚠️ Widget username was generic/Sukma, using email extract: $finalUsername');
+        }
+      }
+
       if (kDebugMode) {
-        print('✅ Using initial username: ${widget.username}');
+        print('✅ Using username: $finalUsername');
       }
 
       if (mounted) {
         setState(() {
-          _currentUserName = widget.username;
+          _currentUserName = finalUsername;
         });
       }
 
-      await prefs.setString('user_name_${widget.userId}', widget.username);
+      await prefs.setString('user_name_${widget.userId}', finalUsername);
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error loading username: $e');
       }
 
+      // Fallback ke extract dari email
+      String usernameFromEmail = widget.email.split('@')[0];
       if (mounted) {
         setState(() {
-          _currentUserName = widget.username;
+          _currentUserName = usernameFromEmail;
         });
       }
     }
@@ -715,73 +765,89 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height:  20),
 
-                // Store info card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius:  10,
-                        offset:  Offset(0, 4),
+                // Store info card - Clickable
+                InkWell(
+                  onTap: () {
+                    // Navigate ke KedaiPage
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => KedaiPage(userId: widget.userId),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withOpacity(0.3),
-                              Colors. white.withOpacity(0.1)
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                    ).then((_) {
+                      // Refresh data setelah kembali dari KedaiPage
+                      _loadStoreName();
+                      _loadLogoKedai();
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius:  10,
+                          offset:  Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.3),
+                                Colors. white.withOpacity(0.1)
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          borderRadius: BorderRadius.circular(14),
+                          child: Icon(
+                            Icons.storefront_rounded,
+                            size: 24,
+                            color: Colors. white,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.storefront_rounded,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kedai Anda',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: Colors.white. withOpacity(0.8),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _storeName,
+                                style: AppTextStyles.headlineSmall. copyWith(
+                                  color:  Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white.withOpacity(0.7),
                           size: 24,
-                          color: Colors. white,
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Kedai Anda',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white. withOpacity(0.8),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _storeName,
-                              style: AppTextStyles.headlineSmall. copyWith(
-                                color:  Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white.withOpacity(0.7),
-                        size: 24,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -799,8 +865,8 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Expanded(
                         child: _buildStatCard(
-                          title: 'Kadaluarsa',
-                          value: '0',
+                          title: 'Kedaluwarsa',
+                          value: _kedaluwarsaCount.toString(),
                           unit: 'Item',
                           icon: Icons.warning_amber_rounded,
                           gradient: LinearGradient(
@@ -808,13 +874,14 @@ class _HomePageState extends State<HomePage> {
                             begin:  Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
+                          onTap: _showKedaluwarsaDialog,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildStatCard(
                           title: 'Hampir Habis',
-                          value: '0',
+                          value: _hampirHabisCount.toString(),
                           unit: 'Item',
                           icon: Icons.inventory_2_rounded,
                           gradient: LinearGradient(
@@ -822,6 +889,7 @@ class _HomePageState extends State<HomePage> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
+                          onTap: _showHampirHabisDialog,
                         ),
                       ),
                     ],
@@ -1018,79 +1086,87 @@ class _HomePageState extends State<HomePage> {
     required String unit,
     required IconData icon,
     required Gradient gradient,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius:  BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color:  gradient.colors.last. withOpacity(0.3),
-            blurRadius: 15,
-            offset:  Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors. white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child:  Icon(
-                  icon,
-                  size: 20,
-                  color: Colors. white,
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius:  BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color:  gradient.colors.last. withOpacity(0.3),
+                blurRadius: 15,
+                offset:  Offset(0, 6),
               ),
-              const Spacer(),
-              Container(
-                padding:
-                const EdgeInsets. symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius. circular(12),
-                ),
-                child: Text(
-                  unit,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight. w600,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors. white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child:  Icon(
+                      icon,
+                      size: 20,
+                      color: Colors. white,
+                    ),
                   ),
-                ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                    const EdgeInsets. symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius. circular(12),
+                    ),
+                    child: Text(
+                      unit,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight. w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: Colors.white. withOpacity(0.9),
-            ),
-          ),
-          const SizedBox(height:  4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
+              const SizedBox(height: 20),
               Text(
-                value,
-                style: AppTextStyles.displaySmall.copyWith(
-                  fontSize: 32,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+                title,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: Colors.white. withOpacity(0.9),
                 ),
               ),
-              const SizedBox(width:  4),
+              const SizedBox(height:  4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    value,
+                    style: AppTextStyles.displaySmall.copyWith(
+                      fontSize: 32,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width:  4),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1264,7 +1340,7 @@ class _HomePageState extends State<HomePage> {
           },
         );
       case 3:
-        return _buildComingSoonContent('Stok Keluar');
+        return const StokKeluarPage();
       case 4:
         return const VendorPage();
       case 5:
@@ -1301,11 +1377,81 @@ class _HomePageState extends State<HomePage> {
           },
         );
       case 11:
-        return _buildComingSoonContent('Tutorial');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openYouTubePlaylist();
+        // Kembali ke beranda setelah 1 detik
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            setState(() {
+              _selectedIndex = -1;
+            });
+          }
+        });
+      });
+      return _buildHomeContent(); 
       default:
-        return _buildHomeContent();
+      return _buildHomeContent();
     }
   }
+
+Future<void> _openYouTubePlaylist() async {
+  const url = 'https://www.youtube.com/playlist?list=PLaEhEkE8Vqlw91YyhUzH0IQ-pN55HVSxk';
+  
+  try {
+    // Pakai method lama yang lebih kompatibel
+    if (await canLaunch(url)) {
+      await launch(url, forceSafariVC: false, forceWebView: false);
+    } else {
+      // Fallback langsung launch
+      await launch(url);
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error opening YouTube: $e');
+    }
+    
+    // Tampilkan dialog dengan link
+    _showYouTubeLinkDialog();
+  }
+}
+
+void _showYouTubeLinkDialog() {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Buka Tutorial'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Salin link berikut ke browser:'),
+            SizedBox(height: 10),
+            SelectableText(
+              'https://www.youtube.com/playlist?list=PLaEhEkE8Vqlw91YyhUzH0IQ-pN55HVSxk',
+              style: TextStyle(color: Colors.blue),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Tutup'),
+          ),
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(
+                text: 'https://www.youtube.com/playlist?list=PLaEhEkE8Vqlw91YyhUzH0IQ-pN55HVSxk'
+              ));
+              Fluttertoast.showToast(msg: 'Link disalin!');
+              Navigator.pop(context);
+            },
+            child: Text('Salin Link'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   String _getPageTitle() {
     switch (_selectedIndex) {
@@ -1346,6 +1492,568 @@ class _HomePageState extends State<HomePage> {
     _checkNavigateToBeranda();
     _loadUserName();
     _loadLogoKedai(); // TAMBAHKAN:  Load logo kedai saat init
+    _loadBahanBakuStats(); // Load statistics untuk kedaluwarsa dan hampir habis
+  }
+
+  // Method untuk load dan hitung statistik bahan baku
+  Future<void> _loadBahanBakuStats() async {
+    try {
+      // Load data bahan baku dari API
+      final response = await _dataService.selectAll(
+        token,
+        project,
+        'bahan_baku',
+        appid,
+      );
+
+      if (response == '[]' || response.isEmpty || response == 'null') {
+        setState(() {
+          _kedaluwarsaCount = 0;
+          _hampirHabisCount = 0;
+        });
+        return;
+      }
+
+      final dynamic decodedData = json.decode(response);
+      List<dynamic> dataList;
+
+      if (decodedData is Map) {
+        if (decodedData.containsKey('data')) {
+          dataList = decodedData['data'] as List<dynamic>;
+        } else {
+          dataList = [decodedData];
+        }
+      } else if (decodedData is List) {
+        dataList = decodedData;
+      } else {
+        dataList = [];
+      }
+
+      List<BahanBakuModel> bahanBakuList = dataList
+          .map((json) => BahanBakuModel.fromJson(json))
+          .toList();
+
+      // Hitung kedaluwarsa dan hampir habis
+      int expiredCount = 0;
+      int lowStockCount = 0;
+      List<BahanBakuModel> expiredItems = [];
+      List<BahanBakuModel> lowStockItems = [];
+
+      // Dapatkan tanggal sekarang di Jakarta (UTC+7)
+      DateTime nowJakarta = DateTime.now().toUtc().add(Duration(hours: 7));
+      DateTime todayJakarta = DateTime(nowJakarta.year, nowJakarta.month, nowJakarta.day);
+
+      for (var bahan in bahanBakuList) {
+        // Cek kedaluwarsa
+        if (bahan.tanggal_kadaluarsa.isNotEmpty) {
+          try {
+            DateTime? expiryDate = DateTime.tryParse(bahan.tanggal_kadaluarsa);
+            if (expiryDate != null) {
+              // Normalize ke tanggal saja tanpa waktu
+              DateTime expiryDateOnly = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
+
+              // Item dihitung kedaluwarsa jika tanggal kadaluarsa <= hari ini
+              if (expiryDateOnly.isBefore(todayJakarta) || expiryDateOnly.isAtSameMomentAs(todayJakarta)) {
+                expiredCount++;
+                expiredItems.add(bahan);
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error parsing expiry date for ${bahan.nama_bahan}: $e');
+            }
+          }
+        }
+
+        // Cek hampir habis (stok tersedia <= stok minimal)
+        if (bahan.stok_tersedia.isNotEmpty && bahan.stok_minimal.isNotEmpty) {
+          try {
+            // Parse value dengan unit
+            double stokTersedia = _parseStokValue(bahan.stok_tersedia);
+            double stokMinimal = _parseStokValue(bahan.stok_minimal);
+
+            // Item dihitung hampir habis jika stok tersedia <= stok minimal
+            if (stokTersedia <= stokMinimal) {
+              lowStockCount++;
+              lowStockItems.add(bahan);
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error parsing stock for ${bahan.nama_bahan}: $e');
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _kedaluwarsaCount = expiredCount;
+          _hampirHabisCount = lowStockCount;
+          _kedaluwarsaItems = expiredItems;
+          _hampirHabisItems = lowStockItems;
+        });
+      }
+
+      if (kDebugMode) {
+        print('✅ Stats loaded - Expired: $expiredCount, Low Stock: $lowStockCount');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error loading bahan baku stats: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _kedaluwarsaCount = 0;
+          _hampirHabisCount = 0;
+          _kedaluwarsaItems = [];
+          _hampirHabisItems = [];
+        });
+      }
+    }
+  }
+
+  // Helper method untuk parse nilai stok (menghilangkan unit)
+  double _parseStokValue(String value) {
+    if (value.isEmpty) return 0;
+
+    // Split by space to separate number from unit
+    String numericPart = value.trim().split(' ')[0];
+
+    // Remove any non-numeric characters except decimal point
+    numericPart = numericPart.replaceAll(RegExp(r'[^\d.]'), '');
+
+    return double.tryParse(numericPart) ?? 0;
+  }
+
+  // Method untuk format tanggal
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '-';
+    try {
+      DateTime date = DateTime.parse(dateStr);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // Method untuk menampilkan dialog bahan baku kedaluwarsa
+  void _showKedaluwarsaDialog() {
+    if (_kedaluwarsaItems.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "Tidak ada bahan baku yang kedaluwarsa",
+        backgroundColor: Colors.green,
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bahan Baku Kedaluwarsa',
+                              style: AppTextStyles.headlineSmall.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              '${_kedaluwarsaItems.length} item',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // List items
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.all(16),
+                    itemCount: _kedaluwarsaItems.length,
+                    itemBuilder: (context, index) {
+                      final item = _kedaluwarsaItems[index];
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Color(0xFFf5576c).withValues(alpha: 0.3),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Gambar
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFf093fb).withValues(alpha: 0.2),
+                                    Color(0xFFf5576c).withValues(alpha: 0.1),
+                                  ],
+                                ),
+                              ),
+                              child: item.foto_bahan.isNotEmpty
+                                  ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.memory(
+                                  base64Decode(item.foto_bahan.contains(',')
+                                      ? item.foto_bahan.split(',').last
+                                      : item.foto_bahan),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.inventory_2,
+                                      color: Color(0xFFf5576c),
+                                      size: 30,
+                                    );
+                                  },
+                                ),
+                              )
+                                  : Icon(
+                                Icons.inventory_2,
+                                color: Color(0xFFf5576c),
+                                size: 30,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.nama_bahan,
+                                    style: AppTextStyles.titleMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today,
+                                        size: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Kedaluwarsa: ${_formatDate(item.tanggal_kadaluarsa)}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.inventory,
+                                        size: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Stok: ${item.stok_tersedia}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Method untuk menampilkan dialog bahan baku hampir habis
+  void _showHampirHabisDialog() {
+    if (_hampirHabisItems.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "Tidak ada bahan baku yang hampir habis",
+        backgroundColor: Colors.green,
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.inventory_2_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bahan Baku Hampir Habis',
+                              style: AppTextStyles.headlineSmall.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              '${_hampirHabisItems.length} item',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // List items
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.all(16),
+                    itemCount: _hampirHabisItems.length,
+                    itemBuilder: (context, index) {
+                      final item = _hampirHabisItems[index];
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Color(0xFF00f2fe).withValues(alpha: 0.3),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Gambar
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF4facfe).withValues(alpha: 0.2),
+                                    Color(0xFF00f2fe).withValues(alpha: 0.1),
+                                  ],
+                                ),
+                              ),
+                              child: item.foto_bahan.isNotEmpty
+                                  ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.memory(
+                                  base64Decode(item.foto_bahan.contains(',')
+                                      ? item.foto_bahan.split(',').last
+                                      : item.foto_bahan),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.inventory_2,
+                                      color: Color(0xFF00f2fe),
+                                      size: 30,
+                                    );
+                                  },
+                                ),
+                              )
+                                  : Icon(
+                                Icons.inventory_2,
+                                color: Color(0xFF00f2fe),
+                                size: 30,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.nama_bahan,
+                                    style: AppTextStyles.titleMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.inventory,
+                                        size: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Tersedia: ${item.stok_tersedia}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.warning_amber,
+                                        size: 14,
+                                        color: Colors.orange,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Minimal: ${item.stok_minimal}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
   Future<void> _checkNavigateToBeranda() async {
     final prefs = await SharedPreferences. getInstance();
@@ -1372,6 +2080,7 @@ class _HomePageState extends State<HomePage> {
         _stokMasukItems =
             itemsList.map((item) => Map<String, dynamic>.from(item)).toList();
         _stokMasukVendor = prefs.getString('stok_masuk_vendor') ?? '';
+        _stokMasukVendorId = prefs.getString('stok_masuk_vendor_id') ?? '';
         _stokMasukTotalHarga =
             prefs.getDouble('stok_masuk_total_harga') ?? 0;
       });
@@ -1521,6 +2230,145 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _acceptStokMasuk() async {
+    // Save transactions and update stock for each item FIRST
+    bool updateSuccess = false;
+    try {
+      DateTime now = DateTime.now();
+      String tanggalMasukStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      if (kDebugMode) {
+        print('========================================');
+        print('STARTING STOK MASUK ACCEPTANCE PROCESS');
+        print('Total items: ${_stokMasukItems.length}');
+        print('Vendor ID: $_stokMasukVendorId');
+        print('========================================');
+      }
+
+      for (var item in _stokMasukItems) {
+        String bahanBakuId = item['id'] ?? '';
+        String namaBahan = item['nama'] ?? '';
+        int qty = item['qty'] ?? 0;
+        String grossQtyStr = item['gross_qty'] ?? '1';
+        String stokTersediaStr = item['stok_tersedia'] ?? '0';
+        String unitDasar = item['unit_dasar'] ?? '';
+        double hargaPerGross = (item['harga_per_gross'] ?? 0).toDouble();
+        double subtotal = (item['subtotal'] ?? 0).toDouble();
+
+        if (kDebugMode) {
+          print('\n=== PROCESSING ITEM ===');
+          print('Bahan Baku ID: $bahanBakuId');
+          print('Nama Bahan: $namaBahan');
+          print('Qty Pembelian: $qty');
+          print('Gross Qty String: $grossQtyStr');
+          print('Stok Tersedia String: $stokTersediaStr');
+          print('Unit Dasar: $unitDasar');
+        }
+
+        // Validasi: harus ada nama_bahan
+        if (namaBahan.isEmpty) {
+          if (kDebugMode) {
+            print('ERROR: Nama bahan kosong, skipping item');
+          }
+          continue;
+        }
+
+        // Parse gross_qty - extract only the numeric value
+        String grossQtyNumericStr = grossQtyStr.trim().isEmpty ? '1' : grossQtyStr.trim().split(' ')[0];
+        double grossQty = double.tryParse(grossQtyNumericStr) ?? 1;
+        double totalQty = qty * grossQty;
+
+        if (kDebugMode) {
+          print('Gross Qty Numeric: $grossQty');
+          print('Total Qty: $totalQty');
+          print('Harga Per Gross: $hargaPerGross');
+          print('Subtotal: $subtotal');
+        }
+
+        // Insert to stok_masuk table
+        // Gunakan nama_bahan jika ID kosong
+        String kodeBahan = bahanBakuId.isNotEmpty ? bahanBakuId : namaBahan;
+
+        if (kDebugMode) {
+          print('\n--- Inserting to stok_masuk table ---');
+          print('Kode Bahan (untuk insert): $kodeBahan');
+        }
+
+        final insertResult = await _dataService.insertStokMasuk(
+          appid,
+          kodeBahan,
+          tanggalMasukStr,
+          qty.toString(),
+          totalQty.toStringAsFixed(2),
+          hargaPerGross.toStringAsFixed(0),
+          subtotal.toStringAsFixed(0),
+          _stokMasukVendorId,
+        );
+
+        if (kDebugMode) {
+          print('Insert Result: $insertResult');
+        }
+
+        // Parse stok tersedia - extract only the numeric value
+        double stokSebelumnya = 0;
+        String unit = unitDasar;
+
+        if (stokTersediaStr.trim().isNotEmpty) {
+          List<String> stokParts = stokTersediaStr.trim().split(' ');
+          if (stokParts.isNotEmpty) {
+            stokSebelumnya = double.tryParse(stokParts[0]) ?? 0;
+            if (stokParts.length > 1) {
+              unit = stokParts.sublist(1).join(' '); // Join in case unit has spaces
+            }
+          }
+        }
+
+        double stokBaru = stokSebelumnya + totalQty;
+        String stokBaruWithUnit = '${stokBaru.toStringAsFixed(2)} $unit';
+
+        if (kDebugMode) {
+          print('\n--- Updating stok_tersedia ---');
+          print('Stok Sebelumnya: $stokSebelumnya $unit');
+          print('Stok Baru: $stokBaruWithUnit');
+        }
+
+        // Update stok tersedia in bahan_baku table
+        // GUNAKAN nama_bahan sebagai identifier (bukan ID)
+        if (kDebugMode) {
+          print('Updating bahan_baku WHERE nama_bahan = "$namaBahan"');
+        }
+
+        final updateResult = await _dataService.updateWhere(
+          'nama_bahan',
+          namaBahan,
+          'stok_tersedia',
+          stokBaruWithUnit,
+          token,
+          project,
+          'bahan_baku',
+          appid,
+        );
+
+        if (kDebugMode) {
+          print('Update Result: $updateResult');
+          print('=== ITEM PROCESSED SUCCESSFULLY ===\n');
+        }
+      }
+
+      updateSuccess = true;
+
+      if (kDebugMode) {
+        print('========================================');
+        print('ALL ITEMS PROCESSED SUCCESSFULLY');
+        print('========================================\n');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('ERROR saving stok masuk: $e');
+        print('Stack trace: ${StackTrace.current}');
+      }
+    }
+
+    // Show success animation AFTER database update
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -1546,7 +2394,7 @@ class _HomePageState extends State<HomePage> {
                       scale: value,
                       child: Icon(
                         Icons.check_circle_outline_outlined,
-                        color: const Color(0xFF7A9B3B),
+                        color: updateSuccess ? const Color(0xFF7A9B3B) : Colors.red,
                         size: 100 * value,
                       ),
                     );
@@ -1563,6 +2411,7 @@ class _HomePageState extends State<HomePage> {
     await prefs.remove('show_stok_masuk_notification');
     await prefs.remove('stok_masuk_items');
     await prefs.remove('stok_masuk_vendor');
+    await prefs.remove('stok_masuk_vendor_id');
     await prefs.remove('stok_masuk_total_harga');
 
     setState(() {

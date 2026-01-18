@@ -1,3 +1,4 @@
+//lib/model/waste_food.dart
 class WasteFoodModel {
   final String id;
   final String nama_bahan;
@@ -25,7 +26,7 @@ class WasteFoodModel {
 
   factory WasteFoodModel.fromJson(Map<String, dynamic> json) {
     return WasteFoodModel(
-      id: json['id']?. toString() ?? '',
+      id: json['id']?.toString() ?? '',
       nama_bahan: json['nama_bahan']?.toString() ?? '',
       jenis_waste: json['jenis_waste']?.toString() ?? '',
       jumlah_terbuang: json['jumlah_terbuang']?.toString() ?? '',
